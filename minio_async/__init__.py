@@ -17,7 +17,7 @@
 """
 minio - MinIO Python SDK for Amazon S3 Compatible Cloud Storage
 
-    >>> from minio import Minio
+    >>> from minio_async import Minio
     >>> client = Minio(
     ...     "play.min.io",
     ...     access_key="Q3AM3UQ867SPQQA43P2F",
