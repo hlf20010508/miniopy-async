@@ -3,7 +3,7 @@
 
 ## Dependencies
 
-Python == 3.7 (important!)
+Python>3.6
 
 ## Build from source
 
