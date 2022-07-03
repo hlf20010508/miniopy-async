@@ -27,3 +27,6 @@ pipenv install git+https://github.com/hlf20010508/minio-async.git#egg=minio-asyn
 ```python
 import minio_async
 ```
+
+## Link
+<a href="https://gitee.com/hlf01/minio-async.git">minio-async</a> on Gitee
