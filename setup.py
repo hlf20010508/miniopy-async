@@ -22,7 +22,7 @@ from setuptools import setup
 if sys.argv[-1] == "publish":
     sys.argv = sys.argv[:-1] + ["sdist", "upload"]
 
-with codecs.open("minio/__init__.py") as file:
+with codecs.open("minio_async/__init__.py") as file:
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         file.read(),
@@ -41,8 +41,8 @@ setup(
     author_email="mashadiyev.huseyn@gmail.com",
     version=version,
     long_description_content_type="text/markdown",
-    package_dir={"minio": "minio"},
-    packages=["minio", "minio.credentials"],
+    package_dir={"minio_async": "minio_async"},
+    packages=["minio_async", "minio_async.credentials"],
     install_requires=["certifi", "aiofile", "aiohttp"],
     tests_require=["mock", "nose"],
     license="Apache License 2.0",
