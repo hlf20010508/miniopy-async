@@ -45,15 +45,25 @@ class InvalidResponseError(MinioException):
         self._content_type = content_type
         self._body = body
         super().__init__(
-            (
-                "non-XML response from server; "
-                "Response code: {0}, Content-Type: {1}, Body: {2}"
-            ).format(code, content_type, body),
+            f"non-XML response from server; "
+            f"Response code: {code}, Content-Type: {content_type}, Body: {body}"
         )
+
+    def __reduce__(self):
+        return type(self), (self._code, self._content_type, self._body)
 
 
 class ServerError(MinioException):
     """Raised to indicate that S3 service returning HTTP server error."""
+
+    def __init__(self, message, status_code):
+        self._status_code = status_code
+        super().__init__(message)
+
+    @property
+    def status_code(self):
+        """Get HTTP status code."""
+        return self._status_code
 
 
 class S3Error(MinioException):
@@ -72,26 +82,25 @@ class S3Error(MinioException):
         self._response = response
         self._bucket_name = bucket_name
         self._object_name = object_name
-        super().__init__(
-            (
-                "S3 operation failed; code: {0}, message: {1}, "
-                "resource: {2}, request_id: {3}, host_id: {4}{5}{6}"
-            ).format(
-                self._code,
-                self._message,
-                self._resource,
-                self._request_id,
-                self._host_id,
-                (
-                    (", bucket_name: " + self._bucket_name)
-                    if self._bucket_name else ""
-                ),
-                (
-                    (", object_name: " + self._object_name)
-                    if self._object_name else ""
-                ),
-            ),
+
+        bucket_message = (
+            (", bucket_name: " + self._bucket_name)
+            if self._bucket_name else ""
         )
+        object_message = (
+            (", object_name: " + self._object_name)
+            if self._object_name else ""
+        )
+        super().__init__(
+            f"S3 operation failed; code: {code}, message: {message}, "
+            f"resource: {resource}, request_id: {request_id}, "
+            f"host_id: {host_id}{bucket_message}{object_message}"
+        )
+
+    def __reduce__(self):
+        return type(self), (self._code, self._message, self._resource,
+                            self._request_id, self._host_id, self._response,
+                            self._bucket_name, self._object_name)
 
     @property
     def code(self):
@@ -111,7 +120,7 @@ class S3Error(MinioException):
     @classmethod
     def fromxml(cls, response):
         """Create new object with values from XML element."""
-        element = ET.fromstring(response)
+        element = ET.fromstring(response.data.decode())
         return cls(
             findtext(element, "Code"),
             findtext(element, "Message"),
