@@ -1,7 +1,7 @@
 LICENSE
 MANIFEST.in
 README.md
-README_zh_CN.md
+setup.cfg
 setup.py
 minio_async/__init__.py
 minio_async/api.py
@@ -25,11 +25,11 @@ minio_async/tagging.py
 minio_async/time.py
 minio_async/versioningconfig.py
 minio_async/xml.py
-minio_async/credentials/__init__.py
-minio_async/credentials/credentials.py
-minio_async/credentials/providers.py
 minio_async.egg-info/PKG-INFO
 minio_async.egg-info/SOURCES.txt
 minio_async.egg-info/dependency_links.txt
 minio_async.egg-info/requires.txt
 minio_async.egg-info/top_level.txt
+minio_async/credentials/__init__.py
+minio_async/credentials/credentials.py
+minio_async/credentials/providers.py
