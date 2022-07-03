@@ -1,1 +1,1 @@
-minio
+minio_async
