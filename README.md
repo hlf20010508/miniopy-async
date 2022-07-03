@@ -5,7 +5,9 @@
 
 ## Dependencies
 
-3.6 <= Python <= 3.7
+Python == 3.7 (important!)
+
+<br/>
 
 ## Download source
 
@@ -23,4 +25,11 @@ pip install git+https://github.com/hlf20010508/minio-async.git
 with pipenv
 ```sh
 pipenv install git+https://github.com/hlf20010508/minio-async.git#egg=minio-async
+```
+
+<br/>
+
+## Usage
+```python
+import minio_async
 ```
