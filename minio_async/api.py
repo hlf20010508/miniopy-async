@@ -246,7 +246,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 None,
             )
 
-        response_error = S3Error.fromxml(response_data) if response_data else None
+        response_error = S3Error.fromxml(response, response_data) if response_data else None
 
         error_map = {
             301: lambda: self._handle_redirect_response(

@@ -118,9 +118,9 @@ class S3Error(MinioException):
         return self._response
 
     @classmethod
-    def fromxml(cls, response):
+    def fromxml(cls, response, response_data):
         """Create new object with values from XML element."""
-        element = ET.fromstring(response.data.decode())
+        element = ET.fromstring(response_data)
         return cls(
             findtext(element, "Code"),
             findtext(element, "Message"),
