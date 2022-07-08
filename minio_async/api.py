@@ -838,8 +838,8 @@ class Minio:  # pylint: disable=too-many-public-methods
     # FIXME: Broken, do not use this function
     async def fput_object(self, bucket_name, object_name, file_path,
                           content_type="application/octet-stream",
-                          metadata=None, sse=None, progress=None,
-                          part_size=0, num_parallel_uploads=3,
+                          metadata=None, sse=None,
+                          part_size=0, parallel_upload=True,
                           tags=None, retention=None, legal_hold=False):
         """
         Uploads data from a file to an object in a bucket.
@@ -851,7 +851,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
-        :param progress: A progress object
         :param part_size: Multipart part size
         :param num_parallel_uploads: Number of parallel uploads.
         :param tags: :class:`Tags` for the object.
@@ -890,8 +889,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             return await self.put_object(
                 bucket_name, object_name, file_data, file_size,
                 content_type=content_type,
-                metadata=metadata, sse=sse, progress=progress,
-                part_size=part_size, num_parallel_uploads=num_parallel_uploads,
+                metadata=metadata, sse=sse,
+                part_size=part_size, parallel_upload=parallel_upload,
                 tags=tags, retention=retention, legal_hold=legal_hold,
             )
 
@@ -1519,8 +1518,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
     async def put_object(self, bucket_name, object_name, data, length,
                          content_type="application/octet-stream",
-                         metadata=None, sse=None, progress=None,
-                         part_size=0, parallel_upload=False,
+                         metadata=None, sse=None,
+                         part_size=0, parallel_upload=True,
                          tags=None, retention=None, legal_hold=False) -> ObjectWriteResult:
         """
         Uploads data from a stream to an object in a bucket.
@@ -1533,7 +1532,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
-        :param progress: A progress object;
         :param part_size: Multipart part size.
         :param parallel_upload: Enable parallel uploading
         :param tags: :class:`Tags` for the object.
