@@ -1,8 +1,0 @@
-include LICENSE README*
-recursive-include examples
-
-prune .github
-prune Makefile
-prune pylintrc
-prune CONTRIBUTING.md
-prune MAINTAINERS.md
