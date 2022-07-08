@@ -1973,7 +1973,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
         return urlunsplit(url)
 
-    def presigned_get_object(self, bucket_name, object_name,
+    async def presigned_get_object(self, bucket_name, object_name,
                              expires=timedelta(days=7),
                              response_headers=None,
                              request_date=None,
@@ -2009,7 +2009,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
             print(url)
         """
-        return self.get_presigned_url(
+        return await self.get_presigned_url(
             "GET",
             bucket_name,
             object_name,
@@ -2020,7 +2020,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             extra_query_params=extra_query_params,
         )
 
-    def presigned_put_object(self, bucket_name, object_name,
+    async def presigned_put_object(self, bucket_name, object_name,
                              expires=timedelta(days=7)):
         """
         Get presigned URL of an object to upload data with expiry time and
@@ -2044,7 +2044,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
             print(url)
         """
-        return self.get_presigned_url(
+        return await self.get_presigned_url(
             "PUT", bucket_name, object_name, expires,
         )
 
