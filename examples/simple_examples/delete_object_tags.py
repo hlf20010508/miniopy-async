@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015 MinIO, Inc.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage.
+# Copyright (C) 2020 MinIO, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
-
 from minio import Minio
 
 client = Minio(
@@ -24,14 +22,4 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
-
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
-)
-print(url)
+client.delete_object_tags("my-bucket", "my-object")

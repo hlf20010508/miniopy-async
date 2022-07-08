@@ -14,24 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
-
-from minio import Minio
+from minio_async import Minio
+import asyncio
 
 client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
+# loop = asyncio.get_event_loop()
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
-)
-print(url)
+# res = loop.run_until_complete(
+#     client.bucket_exists("my-bucket")
+# )
+res=asyncio.run(client.bucket_exists("my-bucket"))
+if res:
+    print("my-bucket exists")
+else:
+    print("my-bucket does not exist")
+
+# loop.close()

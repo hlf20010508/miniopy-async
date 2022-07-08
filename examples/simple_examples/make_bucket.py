@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
-
 from minio import Minio
 
 client = Minio(
@@ -24,14 +22,11 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
+# Create bucket.
+client.make_bucket("my-bucket")
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
-)
-print(url)
+# Create bucket on specific region.
+client.make_bucket("my-bucket", "us-west-1")
+
+# Create bucket with object-lock feature on specific region.
+client.make_bucket("my-bucket", "eu-west-2", object_lock=True)

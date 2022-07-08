@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
-
 from minio import Minio
 
 client = Minio(
@@ -24,14 +22,11 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
+# Remove object.
+client.remove_object("my-bucket", "my-object")
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
+# Remove version of an object.
+client.remove_object(
+    "my-bucket", "my-object",
+    version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
 )
-print(url)

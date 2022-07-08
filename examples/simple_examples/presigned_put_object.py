@@ -24,14 +24,14 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
+# Get presigned URL string to upload data to 'my-object' in
 # 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
+url = client.presigned_put_object("my-bucket", "my-object")
 print(url)
 
-# Get presigned URL string to download 'my-object' in
+# Get presigned URL string to upload data to 'my-object' in
 # 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
+url = client.presigned_put_object(
     "my-bucket", "my-object", expires=timedelta(hours=2),
 )
 print(url)

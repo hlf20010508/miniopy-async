@@ -14,9 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from minio import Minio
+from minio.datatypes import PostPolicy
 
 client = Minio(
     "play.min.io",
@@ -24,14 +25,19 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
-
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
+policy = PostPolicy(
+    "my-bucket", datetime.utcnow() + timedelta(days=10),
 )
-print(url)
+policy.add_starts_with_condition("key", "my/object/prefix/")
+policy.add_content_length_range_condition(1*1024*1024, 10*1024*1024)
+
+form_data = client.presigned_post_policy(policy)
+
+curl_cmd = (
+    "curl -X POST "
+    "https://play.min.io/my-bucket "
+    "{0} -F file=@<FILE>"
+).format(
+    " ".join(["-F {0}={1}".format(k, v) for k, v in form_data.items()]),
+)
+print(curl_cmd)

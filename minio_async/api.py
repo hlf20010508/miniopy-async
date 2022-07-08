@@ -133,9 +133,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         timeout = timedelta(minutes=5).seconds
         ca_certs = os.environ.get('SSL_CERT_FILE') or certifi.where()
 
-        self._async_http = aiohttp.ClientSession()
-        self._current_event_loop = asyncio.get_event_loop()
-        self._thread_pool_executor = ThreadPoolExecutor(max_workers=16)
+        self._async_http = None
+        # self._async_http = aiohttp.ClientSession()
+        # self._current_event_loop = asyncio.get_event_loop()
+        # self._thread_pool_executor = ThreadPoolExecutor(max_workers=16)
 
     def _handle_redirect_response(
             self, method, bucket_name, response, retry=False,
@@ -222,6 +223,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
         print("URL: ", urlunsplit(url))
 
+        self._async_http = aiohttp.ClientSession()
         response = await self._async_http.request(method, urlunsplit(url), data=body, headers=headers)
 
         if response.status in [200, 204, 206]:

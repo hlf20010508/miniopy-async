@@ -14,9 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import timedelta
-
 from minio import Minio
+from minio.deleteobjects import DeleteObject
 
 client = Minio(
     "play.min.io",
@@ -24,14 +23,23 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 )
 
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_get_object("my-bucket", "my-object")
-print(url)
-
-# Get presigned URL string to download 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_get_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
+# Remove list of objects.
+errors = client.remove_objects(
+    "my-bucket",
+    [
+        DeleteObject("my-object1"),
+        DeleteObject("my-object2"),
+        DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+    ],
 )
-print(url)
+for error in errors:
+    print("error occured when deleting object", error)
+
+# Remove a prefix recursively.
+delete_object_list = map(
+    lambda x: DeleteObject(x.object_name),
+    client.list_objects("my-bucket", "my/prefix/", recursive=True),
+)
+errors = client.remove_objects("my-bucket", delete_object_list)
+for error in errors:
+    print("error occured when deleting object", error)
