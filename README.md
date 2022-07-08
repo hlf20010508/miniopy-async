@@ -3,8 +3,12 @@
 
 <br/>
 
-## Dependencies
+## Note
+This module is still in testing, some function may not work in some circumstances
 
+<br/>
+
+## Dependencies
 - Python>3.6
 
 <br/>
