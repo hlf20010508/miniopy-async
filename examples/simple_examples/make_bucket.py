@@ -24,20 +24,25 @@ client = Minio(
     secure=True
 )
 
+loop = asyncio.get_event_loop()
+
 # Create bucket.
 print('Example 1')
-asyncio.run(
+loop.run_until_complete(
     client.make_bucket("my-bucket1")
 )
 
+
 # Create bucket on specific region.
 print('Example 2')
-asyncio.run(
+loop.run_until_complete(
     client.make_bucket("my-bucket2", "us-east-1")
 )
 
 # Create bucket with object-lock feature on specific region.
 print('Example 3')
-asyncio.run(
-    client.make_bucket("my-bucket3", "eu-west-2", object_lock=True)
+loop.run_until_complete(
+    client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
 )
+
+loop.close()

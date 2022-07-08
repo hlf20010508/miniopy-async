@@ -98,6 +98,57 @@ client = Minio(
 
 ## 2. Bucket operations
 
+<a id="make_bucket"></a>
+
+### make_bucket(bucket_name, location='us-east-1', object_lock=False)
+
+Create a bucket with region and object lock.
+
+__Parameters__
+
+| Param         | Type   | Description                                 |
+|---------------|--------|---------------------------------------------|
+| `bucket_name` | _str_  | Name of the bucket.                         |
+| `location`    | _str_  | Region in which the bucket will be created. |
+| `object_lock` | _bool_ | Flag to set object-lock feature.            |
+
+__Example__
+
+```py
+from minio_async import Minio
+import asyncio
+
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True
+)
+
+loop = asyncio.get_event_loop()
+
+# Create bucket.
+print('Example 1')
+loop.run_until_complete(
+    client.make_bucket("my-bucket1")
+)
+
+
+# Create bucket on specific region.
+print('Example 2')
+loop.run_until_complete(
+    client.make_bucket("my-bucket2", "us-east-1")
+)
+
+# Create bucket with object-lock feature on specific region.
+print('Example 3')
+loop.run_until_complete(
+    client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
+)
+
+loop.close()
+```
+
 <a id="bucket_exists"></a>
 
 ### bucket_exists(bucket_name)
@@ -119,14 +170,105 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True
+    secure=True  # http for False, https for True
 )
 
-res = asyncio.run(
+loop = asyncio.get_event_loop()
+
+res = loop.run_until_complete(
     client.bucket_exists("my-bucket")
 )
 if res:
     print("my-bucket exists")
 else:
     print("my-bucket does not exist")
+
+loop.close()
+```
+
+<a name="compose_object"></a>
+
+### compose_object(bucket_name, object_name, sources, sse=None, metadata=None, tags=None, retention=None, legal_hold=False)
+
+Create an object by combining data from different source objects using server-side copy.
+
+__Parameters__
+
+| Param         | Type        | Description                                                           |
+|:--------------|:------------|:----------------------------------------------------------------------|
+| `bucket_name` | _str_       | Name of the bucket.                                                   |
+| `object_name` | _str_       | Object name in the bucket.                                            |
+| `sources`     | _list_      | List of _ComposeSource_ object.                                       |
+| `sse`         | _Sse_       | Server-side encryption of destination object.                         |
+| `metadata`    | _dict_      | Any user-defined metadata to be copied along with destination object. |
+| `tags`        | _Tags_      | Tags for destination object.                                          |
+| `retention`   | _Retention_ | Retention configuration.                                              |
+| `legal_hold`  | _bool_      | Flag to set legal hold for destination object.                        |
+
+
+__Return Value__
+
+| Return                      |
+|:----------------------------|
+| _ObjectWriteResult_ object. |
+
+__Example__
+
+```py
+from minio_async import Minio
+from minio_async.commonconfig import ComposeSource
+from minio_async.sse import SseS3
+import asyncio
+
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
+)
+
+# Each part must larger than 5MB
+sources = [
+    ComposeSource("my-job-bucket", "my-object-part-one"),
+    ComposeSource("my-job-bucket", "my-object-part-two"),
+    ComposeSource("my-job-bucket", "my-object-part-three"),
+]
+
+loop = asyncio.get_event_loop()
+
+# Create my-bucket/my-object by combining source object
+# list.
+print('example one')
+result = loop.run_until_complete(
+    client.compose_object("my-bucket", "my-object", sources)
+)
+print(result.object_name, result.version_id)
+
+# Create my-bucket/my-object with user metadata by combining
+# source object list.
+print('example two')
+result = loop.run_until_complete(
+    client.compose_object(
+        "my-bucket",
+        "my-object",
+        sources,
+        metadata={"Content-Type": "application/octet-stream"},
+    )
+)
+print(result.object_name, result.version_id)
+
+# Create my-bucket/my-object with user metadata and
+# server-side encryption by combining source object list.
+print('example three')
+loop.run_until_complete(
+    client.compose_object(
+        "my-bucket",
+        "my-object",
+        sources,
+        sse=SseS3()
+    )
+)
+print(result.object_name, result.version_id)
+
+loop.close()
 ```
