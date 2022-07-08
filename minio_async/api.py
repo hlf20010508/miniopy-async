@@ -133,9 +133,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         timeout = timedelta(minutes=5).seconds
         ca_certs = os.environ.get('SSL_CERT_FILE') or certifi.where()
 
-        self._async_http = aiohttp.ClientSession()
-        self._current_event_loop = asyncio.get_event_loop()
-        self._thread_pool_executor = ThreadPoolExecutor(max_workers=16)
+        self._async_http = None
+        # self._async_http = aiohttp.ClientSession()
+        # self._current_event_loop = asyncio.get_event_loop()
+        # self._thread_pool_executor = ThreadPoolExecutor(max_workers=16)
 
     def _handle_redirect_response(
             self, method, bucket_name, response, retry=False,
@@ -222,6 +223,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
         print("URL: ", urlunsplit(url))
 
+        self._async_http = aiohttp.ClientSession()
         response = await self._async_http.request(method, urlunsplit(url), data=body, headers=headers)
 
         if response.status in [200, 204, 206]:
@@ -838,8 +840,8 @@ class Minio:  # pylint: disable=too-many-public-methods
     # FIXME: Broken, do not use this function
     async def fput_object(self, bucket_name, object_name, file_path,
                           content_type="application/octet-stream",
-                          metadata=None, sse=None, progress=None,
-                          part_size=0, num_parallel_uploads=3,
+                          metadata=None, sse=None,
+                          part_size=0, parallel_upload=True,
                           tags=None, retention=None, legal_hold=False):
         """
         Uploads data from a file to an object in a bucket.
@@ -851,7 +853,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
-        :param progress: A progress object
         :param part_size: Multipart part size
         :param num_parallel_uploads: Number of parallel uploads.
         :param tags: :class:`Tags` for the object.
@@ -886,12 +887,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
 
         file_size = os.stat(file_path).st_size
-        async with aiofile.async_open(file_path, "rb") as file_data:
+        with open(file_path, "rb") as file_data:
             return await self.put_object(
                 bucket_name, object_name, file_data, file_size,
                 content_type=content_type,
-                metadata=metadata, sse=sse, progress=progress,
-                part_size=part_size, num_parallel_uploads=num_parallel_uploads,
+                metadata=metadata, sse=sse,
+                part_size=part_size, parallel_upload=parallel_upload,
                 tags=tags, retention=retention, legal_hold=legal_hold,
             )
 
@@ -1519,8 +1520,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
     async def put_object(self, bucket_name, object_name, data, length,
                          content_type="application/octet-stream",
-                         metadata=None, sse=None, progress=None,
-                         part_size=0, parallel_upload=False,
+                         metadata=None, sse=None,
+                         part_size=0, parallel_upload=True,
                          tags=None, retention=None, legal_hold=False) -> ObjectWriteResult:
         """
         Uploads data from a stream to an object in a bucket.
@@ -1533,7 +1534,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
-        :param progress: A progress object;
         :param part_size: Multipart part size.
         :param parallel_upload: Enable parallel uploading
         :param tags: :class:`Tags` for the object.
@@ -1973,7 +1973,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
         return urlunsplit(url)
 
-    def presigned_get_object(self, bucket_name, object_name,
+    async def presigned_get_object(self, bucket_name, object_name,
                              expires=timedelta(days=7),
                              response_headers=None,
                              request_date=None,
@@ -2009,7 +2009,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
             print(url)
         """
-        return self.get_presigned_url(
+        return await self.get_presigned_url(
             "GET",
             bucket_name,
             object_name,
@@ -2020,7 +2020,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             extra_query_params=extra_query_params,
         )
 
-    def presigned_put_object(self, bucket_name, object_name,
+    async def presigned_put_object(self, bucket_name, object_name,
                              expires=timedelta(days=7)):
         """
         Get presigned URL of an object to upload data with expiry time and
@@ -2044,7 +2044,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
             print(url)
         """
-        return self.get_presigned_url(
+        return await self.get_presigned_url(
             "PUT", bucket_name, object_name, expires,
         )
 
