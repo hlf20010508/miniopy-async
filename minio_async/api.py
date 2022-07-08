@@ -178,7 +178,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                 sha256 = "UNSIGNED-PAYLOAD"
                 md5sum = None if md5sum_added else md5sum_hash(body)
             else:
-                sha256 = await self._current_event_loop.run_in_executor(self._thread_pool_executor, sha256_hash, body)
+                _current_event_loop = asyncio.get_event_loop()
+                _thread_pool_executor = ThreadPoolExecutor(max_workers=16)
+                sha256 = await _current_event_loop.run_in_executor(_thread_pool_executor, sha256_hash, body)
         else:
             md5sum = None if md5sum_added else md5sum_hash(body)
         if md5sum:
@@ -551,7 +553,20 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: True if the bucket exists.
 
         Example::
-            if client.bucket_exists("my-bucket"):
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            res = asyncio.run(
+                client.bucket_exists("my-bucket")
+            )
+            if res:
                 print("my-bucket exists")
             else:
                 print("my-bucket does not exist")
@@ -2728,5 +2743,3 @@ class Minio:  # pylint: disable=too-many-public-methods
         )
         return await ListPartsResult.from_async_response(response)
 
-    async def close(self):
-        await self._async_http.close()
