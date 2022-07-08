@@ -43,7 +43,7 @@ setup(
     long_description_content_type="text/markdown",
     package_dir={"minio_async": "minio_async"},
     packages=["minio_async", "minio_async.credentials"],
-    install_requires=["certifi", "aiofile", "aiohttp"],
+    install_requires=["certifi", "aiofile", "aiohttp", "urllib3"],
     tests_require=["mock", "nose"],
     license="Apache License 2.0",
     classifiers=[

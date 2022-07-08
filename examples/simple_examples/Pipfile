@@ -4,4 +4,4 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-minio-async = {git = "https://gitee.com/hlf01/minio-async.git"}
+minio-async = {ref = "update", git = "https://github.com/hlf20010508/minio-async.git"}
