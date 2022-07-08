@@ -152,7 +152,7 @@ async def read_part_data(stream, size, part_data=b''):
     """Read part data of given size from stream."""
     size -= len(part_data)
     while size:
-        data = await stream.read(size) if iscoroutine(stream.read) else stream.read(size)
+        data = stream.read(size)
         if not data:
             break  # EOF reached
         if not isinstance(data, bytes):

@@ -885,7 +885,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
 
         file_size = os.stat(file_path).st_size
-        async with aiofile.async_open(file_path, "rb") as file_data:
+        with open(file_path, "rb") as file_data:
             return await self.put_object(
                 bucket_name, object_name, file_data, file_size,
                 content_type=content_type,
