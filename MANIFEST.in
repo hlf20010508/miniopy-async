@@ -1,7 +1,5 @@
 include LICENSE README*
-recursive-include docs *.md
-recursive-include examples *.py
-recursive-include tests *.py *.sh *.crt *.key *.sample *.empty
+recursive-include examples
 
 prune .github
 prune Makefile

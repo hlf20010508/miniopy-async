@@ -105,7 +105,7 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more example in <a href="https://github.com/hlf20010508/minio-async/tree/master/example">example</a>
+Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/master/examples">examples</a>
 
 <br/>
 
