@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
-# 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -242,7 +242,7 @@ class Object:
 
 async def parse_list_objects(response, bucket_name=None):
     """Parse ListObjects/ListObjectsV2/ListObjectVersions response."""
-    element = ET.fromstring(await response.data.decode())
+    element = ET.fromstring(await response.text())
     bucket_name = findtext(element, "Name", True)
     encoding_type = findtext(element, "EncodingType")
     elements = findall(element, "Contents")
@@ -293,20 +293,20 @@ async def parse_list_objects(response, bucket_name=None):
 class CompleteMultipartUploadResult:
     """CompleteMultipartUpload API result."""
 
-    def __init__(self, response):
-        element = ET.fromstring(response.data.decode())
+    def __init__(self, response, response_data):
+        element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
         self._location = findtext(element, "Location")
         self._etag = findtext(element, "ETag")
         if self._etag:
             self._etag = self._etag.replace('"', "")
-        self._version_id = response.getheader("x-amz-version-id")
-        self._http_headers = response.getheaders()
+        self._version_id = response.headers.get("x-amz-version-id")
+        self._http_headers = response.headers
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -385,8 +385,8 @@ class Part:
 class ListPartsResult:
     """ListParts API result."""
 
-    def __init__(self, response):
-        element = ET.fromstring(response.data.decode())
+    def __init__(self, response, response_data):
+        element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
         tag = find(element, "Initiator")
@@ -422,7 +422,7 @@ class ListPartsResult:
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -559,8 +559,8 @@ class Upload:
 class ListMultipartUploadsResult:
     """ListMultipartUploads API result."""
 
-    def __init__(self, response):
-        element = ET.fromstring(response.data.decode())
+    def __init__(self, response, response_data):
+        element = ET.fromstring(response_data)
         self._encoding_type = findtext(element, "EncodingType")
         self._bucket_name = findtext(element, "Bucket")
         self._key_marker = findtext(element, "KeyMarker")
@@ -592,7 +592,7 @@ class ListMultipartUploadsResult:
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -805,9 +805,9 @@ class PostPolicy:
         return self._bucket_name
 
 
-def parse_copy_object(response):
+def parse_copy_object(response_data):
     """Parse CopyObject/UploadPartCopy response."""
-    element = ET.fromstring(response.data.decode())
+    element = ET.fromstring(response_data)
     etag = findtext(element, "ETag")
     if etag:
         etag = etag.replace('"', "")

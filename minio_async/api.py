@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
-# 2015, 2016, 2017 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -503,20 +503,20 @@ class Minio:  # pylint: disable=too-many-public-methods
             loop = asyncio.get_event_loop()
 
             # Create bucket.
-            print('Example 1')
+            print('example one')
             loop.run_until_complete(
                 client.make_bucket("my-bucket1")
             )
 
 
             # Create bucket on specific region.
-            print('Example 2')
+            print('example two')
             loop.run_until_complete(
                 client.make_bucket("my-bucket2", "us-east-1")
             )
 
             # Create bucket with object-lock feature on specific region.
-            print('Example 3')
+            print('example three')
             loop.run_until_complete(
                 client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
             )
@@ -560,9 +560,25 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: List of :class:`Bucket <Bucket>` object.
 
         Example::
-            buckets = client.list_buckets()
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            buckets = loop.run_until_complete(
+                client.list_buckets()
+            )
             for bucket in buckets:
                 print(bucket.name, bucket.creation_date)
+
+            loop.close()
         """
 
         response = await self._execute("GET")
@@ -644,7 +660,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_policy("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_policy("my-bucket")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"policy": ""})
@@ -725,7 +757,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_notification("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_notification("my-bucket")
+            )
+
+            loop.close()
         """
         await self.set_bucket_notification(bucket_name, NotificationConfig())
 
@@ -783,7 +831,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_encryption("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop=asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_encryption("my-bucket")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         try:
@@ -904,29 +968,92 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: :class:`ObjectWriteResult` object.
 
         Example::
+            from datetime import datetime, timedelta
+            from minio_async import Minio
+            from minio_async.commonconfig import GOVERNANCE, Tags
+            from minio_async.retention import Retention
+            from minio_async.sse import SseCustomerKey, SseKMS, SseS3
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
             # Upload data.
-            result = client.fput_object(
-                "my-bucket", "my-object", "my-filename",
+            print("example one")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object1", "my-filename",
+                )
+            )
+
+            # Upload data with content-type.
+            print("example two")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object2", "my-filename",
+                    content_type="application/octet-stream",
+                )
             )
 
             # Upload data with metadata.
-            result = client.fput_object(
-                "my-bucket", "my-object", "my-filename",
-                metadata={"My-Project": "one"},
+            print("example three")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object3", "my-filename",
+                    metadata={"Content-Type": "application/octet-stream"},
+                )
+            )
+
+            # Upload data with customer key type of server-side encryption.
+            print("example four")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object4", "my-filename",
+                    sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+                )
+            )
+
+            # Upload data with KMS type of server-side encryption.
+            print("example five")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object5", "my-filename",
+                    sse=SseKMS("KMS-KEY-ID", {"Key1": "Value1", "Key2": "Value2"}),
+                )
+            )
+
+            # Upload data with S3 type of server-side encryption.
+            print("example six")
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object6", "my-filename",
+                    sse=SseS3(),
+                )
             )
 
             # Upload data with tags, retention and legal-hold.
+            print("example seven")
             date = datetime.utcnow().replace(
                 hour=0, minute=0, second=0, microsecond=0,
             ) + timedelta(days=30)
             tags = Tags(for_object=True)
             tags["User"] = "jsmith"
-            result = client.fput_object(
-                "my-bucket", "my-object", "my-filename",
-                tags=tags,
-                retention=Retention(GOVERNANCE, date),
-                legal_hold=True,
+            loop.run_until_complete(
+                client.fput_object(
+                    "my-bucket", "my-object7", "my-filename",
+                    tags=tags,
+                    retention=Retention(GOVERNANCE, date),
+                    legal_hold=True,
+                )
             )
+
+            loop.close()
         """
 
         file_size = os.stat(file_path).st_size
@@ -957,20 +1084,44 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: Object information.
 
         Example::
+            from minio_async import Minio
+            from minio_async.sse import SseCustomerKey
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
             # Download data of an object.
-            client.fget_object("my-bucket", "my-object", "my-filename")
+            print("example one")
+            loop.run_until_complete(
+                client.fget_object("my-bucket", "my-object", "my-filename")
+            )
 
             # Download data of an object of version-ID.
-            client.fget_object(
-                "my-bucket", "my-object", "my-filename",
-                version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+            print("example two")
+            loop.run_until_complete(
+                client.fget_object(
+                    "my-bucket", "my-object", "my-filename",
+                    version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+                )
             )
 
             # Download data of an SSE-C encrypted object.
-            client.fget_object(
-                "my-bucket", "my-object", "my-filename",
-                ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+            print("example three")
+            loop.run_until_complete(
+                client.fget_object(
+                    "my-bucket", "my-object", "my-filename",
+                    ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+                )
             )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -1129,36 +1280,61 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: :class:`ObjectWriteResult <ObjectWriteResult>` object.
 
         Example::
+            from datetime import datetime, timezone
+            from minio_async import Minio
+            from minio_async.commonconfig import REPLACE, CopySource
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
             # copy an object from a bucket to another.
-            result = client.copy_object(
-                "my-bucket",
-                "my-object",
-                CopySource("my-sourcebucket", "my-sourceobject"),
+            print("example one")
+            result = loop.run_until_complete(
+                client.copy_object(
+                    "my-job-bucket",
+                    "my-copied-object1",
+                    CopySource("my-bucket", "my-object"),
+                )
             )
             print(result.object_name, result.version_id)
 
             # copy an object with condition.
-            result = client.copy_object(
-                "my-bucket",
-                "my-object",
-                CopySource(
-                    "my-sourcebucket",
-                    "my-sourceobject",
-                    modified_since=datetime(2014, 4, 1, tzinfo=timezone.utc),
-                ),
+            print("example two")
+            result = loop.run_until_complete(
+                client.copy_object(
+                    "my-job-bucket",
+                    "my-copied-object2",
+                    CopySource(
+                        "my-bucket",
+                        "my-object",
+                        modified_since=datetime(2014, 4, 1, tzinfo=timezone.utc),
+                    ),
+                )
             )
             print(result.object_name, result.version_id)
 
             # copy an object from a bucket with replacing metadata.
-            metadata = {"test_meta_key": "test_meta_value"}
-            result = client.copy_object(
-                "my-bucket",
-                "my-object",
-                CopySource("my-sourcebucket", "my-sourceobject"),
-                metadata=metadata,
-                metadata_directive=REPLACE,
+            print("example three")
+            metadata = {"Content-Type": "application/octet-stream"}
+            result = loop.run_until_complete(
+                client.copy_object(
+                    "my-job-bucket",
+                    "my-copied-object3",
+                    CopySource("my-bucket", "my-object"),
+                    metadata=metadata,
+                    metadata_directive=REPLACE,
+                )
             )
             print(result.object_name, result.version_id)
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2156,7 +2332,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_replication("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_replication("my-bucket")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"replication": ""})
@@ -2233,7 +2425,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_lifecycle("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_lifecycle("my-bucket")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"lifecycle": ""})
@@ -2306,7 +2514,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_bucket_tags("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_bucket_tags("my-bucket")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"tagging": ""})
@@ -2367,7 +2591,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param version_id: Version ID of the Object.
 
         Example::
-            client.delete_object_tags("my-bucket", "my-object")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_object_tags("my-bucket", "my-object")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2452,7 +2692,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param version_id: Version ID of the object.
 
         Example::
-            client.enable_object_legal_hold("my-bucket", "my-object")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.enable_object_legal_hold("my-bucket", "my-object")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2479,7 +2735,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param version_id: Version ID of the object.
 
         Example::
-            client.disable_object_legal_hold("my-bucket", "my-object")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.disable_object_legal_hold("my-bucket", "my-object")
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2536,7 +2808,23 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
 
         Example::
-            client.delete_object_lock_config("my-bucket")
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
+            loop.run_until_complete(
+                client.delete_object_lock_config("my-bucket")
+            )
+
+            loop.close()
         """
         await self.set_object_lock_config(
             bucket_name, ObjectLockConfig(None, None, None)
@@ -2566,8 +2854,26 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: :class:`ObjectLockConfig <ObjectLockConfig>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.commonconfig import GOVERNANCE
+            from minio_async.objectlockconfig import DAYS, ObjectLockConfig
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            loop = asyncio.get_event_loop()
+
             config = ObjectLockConfig(GOVERNANCE, 15, DAYS)
-            client.set_object_lock_condig("my-bucket", config)
+            loop.run_until_complete(
+                client.set_object_lock_config("my-bucket", config)
+            )
+
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, ObjectLockConfig):
