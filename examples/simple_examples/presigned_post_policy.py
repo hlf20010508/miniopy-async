@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import datetime, timedelta
 from minio_async import Minio
+from minio_async.datatypes import PostPolicy
 import asyncio
 
 client = Minio(
@@ -24,9 +26,23 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+policy = PostPolicy(
+    "my-bucket", datetime.utcnow() + timedelta(days=10),
+)
+policy.add_starts_with_condition("key", "my/object/prefix/")
+policy.add_content_length_range_condition(1*1024*1024, 10*1024*1024)
 
-loop=asyncio.get_event_loop()
+async def main():
+    form_data = await client.presigned_post_policy(policy)
+    curl_cmd = (
+        "curl -X POST "
+        "https://play.min.io/my-bucket "
+        "{0} -F file=@<FILE>"
+    ).format(
+        " ".join(["-F {0}={1}".format(k, v) for k, v in form_data.items()]),
+    )
+    print('curl_cmd:',curl_cmd)
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

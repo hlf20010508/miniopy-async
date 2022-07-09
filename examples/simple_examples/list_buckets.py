@@ -24,12 +24,11 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
+async def main():
+    buckets = await client.list_buckets()
+    for bucket in buckets:
+        print(bucket.name, bucket.creation_date)
+
 loop = asyncio.get_event_loop()
-
-buckets = loop.run_until_complete(
-    client.list_buckets()
-)
-for bucket in buckets:
-    print(bucket.name, bucket.creation_date)
-
+loop.run_until_complete(main())
 loop.close()

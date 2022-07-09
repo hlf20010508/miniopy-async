@@ -25,8 +25,9 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    tags = await client.get_object_tags("my-bucket", "my-object")
+    print(tags)
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

@@ -14,7 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 from datetime import datetime, timedelta
+from urllib.request import urlopen
 from minio_async import Minio
 from minio_async.commonconfig import GOVERNANCE, Tags
 from minio_async.retention import Retention
@@ -30,9 +32,23 @@ client = Minio(
 
 async def main():
     # Upload data.
-    print("example one")
-    result = await client.fput_object(
-        "my-bucket", "my-object1", "my-filename",
+    print('example one')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
+    )
+    print(
+        "created {0} object; etag: {1}, version-id: {2}".format(
+            result.object_name, result.etag, result.version_id,
+        ),
+    )
+
+    # Upload unknown sized data.
+    print('example two')
+    data = urlopen(
+        "https://raw.githubusercontent.com/hlf20010508/minio-async/master/README.md",
+    )
+    result = await client.put_object(
+        "my-bucket", "my-object", data, length=-1, part_size=10*1024*1024,
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
@@ -41,10 +57,10 @@ async def main():
     )
 
     # Upload data with content-type.
-    print("example two")
-    result = await client.fput_object(
-        "my-bucket", "my-object2", "my-filename",
-        content_type="application/octet-stream",
+    print('example three')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
+        content_type="application/csv",
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
@@ -53,9 +69,9 @@ async def main():
     )
 
     # Upload data with metadata.
-    print("example three")
-    result = await client.fput_object(
-        "my-bucket", "my-object3", "my-filename",
+    print('example four')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
         metadata={"Content-Type": "application/octet-stream"},
     )
     print(
@@ -65,9 +81,9 @@ async def main():
     )
 
     # Upload data with customer key type of server-side encryption.
-    print("example four")
-    result = await client.fput_object(
-        "my-bucket", "my-object4", "my-filename",
+    print('example five')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
         sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
     )
     print(
@@ -77,9 +93,9 @@ async def main():
     )
 
     # Upload data with KMS type of server-side encryption.
-    print("example five")
-    result = await client.fput_object(
-        "my-bucket", "my-object5", "my-filename",
+    print('example six')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
         sse=SseKMS("KMS-KEY-ID", {"Key1": "Value1", "Key2": "Value2"}),
     )
     print(
@@ -89,9 +105,9 @@ async def main():
     )
 
     # Upload data with S3 type of server-side encryption.
-    print("example six")
-    result = await client.fput_object(
-        "my-bucket", "my-object6", "my-filename",
+    print('example seven')
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
         sse=SseS3(),
     )
     print(
@@ -101,14 +117,14 @@ async def main():
     )
 
     # Upload data with tags, retention and legal-hold.
-    print("example seven")
+    print('example eight')
     date = datetime.utcnow().replace(
         hour=0, minute=0, second=0, microsecond=0,
     ) + timedelta(days=30)
     tags = Tags(for_object=True)
     tags["User"] = "jsmith"
-    result = await client.fput_object(
-        "my-bucket", "my-object7", "my-filename",
+    result = await client.put_object(
+        "my-bucket", "my-object", io.BytesIO(b"hello"), 5,
         tags=tags,
         retention=Retention(GOVERNANCE, date),
         legal_hold=True,

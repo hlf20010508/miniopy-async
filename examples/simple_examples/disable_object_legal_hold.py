@@ -24,10 +24,9 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-loop = asyncio.get_event_loop()
+async def main():
+    await client.disable_object_legal_hold("my-bucket", "my-object")
 
-loop.run_until_complete(
-    client.disable_object_legal_hold("my-bucket", "my-object")
-)
-
+loop=asyncio.get_event_loop()
+loop.run_until_complete(main())
 loop.close()

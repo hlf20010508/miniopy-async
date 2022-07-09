@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import timedelta
 from minio_async import Minio
 import asyncio
 
@@ -25,8 +26,20 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    # Get presigned URL string to download 'my-object' in
+    # 'my-bucket' with default expiry (i.e. 7 days).
+    print('example one')
+    url = await client.presigned_get_object("my-bucket", "my-object")
+    print('url:',url)
 
-loop=asyncio.get_event_loop()
+    # Get presigned URL string to download 'my-object' in
+    # 'my-bucket' with two hours expiry.
+    print('example two')
+    url = await client.presigned_get_object(
+        "my-bucket", "my-object", expires=timedelta(hours=2),
+    )
+    print('url:',url)
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

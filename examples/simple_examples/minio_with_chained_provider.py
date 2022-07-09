@@ -14,19 +14,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# A Chain credentials provider, provides a way of chaining multiple providers
+# together and will pick the first available using priority order of the
+# 'providers' list
+
 from minio_async import Minio
+from minio_async.credentials import (AWSConfigProvider, ChainedProvider, EnvAWSProvider, IamAwsProvider)
 import asyncio
 
 client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    "s3.amazonaws.com",
+    credentials=ChainedProvider(
+        [
+            IamAwsProvider(),
+            AWSConfigProvider(),
+            EnvAWSProvider(),
+        ]
+    )
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    # Get information of an object.
+    stat = await client.stat_object("my-bucket", "my-object")
+    print(stat)
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from minio_async import Minio
+from minio_async.sseconfig import Rule, SSEConfig
 import asyncio
 
 client = Minio(
@@ -25,8 +26,10 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    await client.set_bucket_encryption(
+        "my-bucket", SSEConfig(Rule.new_sse_s3_rule()),
+    )
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

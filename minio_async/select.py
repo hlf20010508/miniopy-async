@@ -22,9 +22,10 @@ from abc import ABCMeta
 from binascii import crc32
 from io import BytesIO
 from xml.etree import ElementTree as ET
-
 from .error import MinioException
 from .xml import Element, SubElement, findtext
+import asyncio
+import concurrent
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
@@ -279,9 +280,9 @@ class SelectRequest:
         return element
 
 
-def _read(reader, size):
+async def _read(reader, size):
     """Wrapper to RawIOBase.read() to error out on short reads."""
-    data = reader.read(size)
+    data = await reader.read(size)
     if len(data) != size:
         raise IOError("insufficient data")
     return data
@@ -305,10 +306,10 @@ def _decode_header(data):
         length = reader.read(1)
         if not length:
             break
-        name = _read(reader, _int(length))
-        if _int(_read(reader, 1)) != 7:
+        name = reader.read(_int(length))
+        if _int(reader.read(1)) != 7:
             raise IOError("header value type is not 7")
-        value = _read(reader, _int(_read(reader, 2)))
+        value = reader.read(_int(reader.read(2)))
         headers[name.decode()] = value.decode()
     return headers
 
@@ -366,19 +367,18 @@ class SelectObjectReader:
     def close(self):
         """Close response and release network resources."""
         self._response.close()
-        self._response.release_conn()
+        self._response.release()
 
     def stats(self):
         """Get stats information."""
         return self._stats
 
-    def _read(self):
+    async def _read(self):
         """Read and decode response."""
-        if self._response.isclosed():
+        if self._response.closed:
             return 0
-
-        prelude = _read(self._response, 8)
-        prelude_crc = _read(self._response, 4)
+        prelude = await _read(self._response.content, 8)
+        prelude_crc = await _read(self._response.content, 4)
         if _crc32(prelude) != _int(prelude_crc):
             raise IOError(
                 "prelude CRC mismatch; expected: {0}, got: {1}".format(
@@ -387,8 +387,8 @@ class SelectObjectReader:
             )
 
         total_length = _int(prelude[:4])
-        data = _read(self._response, total_length - 8 - 4 - 4)
-        message_crc = _int(_read(self._response, 4))
+        data = await _read(self._response.content, total_length - 8 - 4 - 4)
+        message_crc = _int(await _read(self._response.content, 4))
         if _crc32(prelude + prelude_crc + data) != message_crc:
             raise IOError(
                 "message CRC mismatch; expected: {0}, got: {1}".format(
@@ -412,13 +412,12 @@ class SelectObjectReader:
 
         payload_length = total_length - header_length - 16
         if headers.get(":event-type") == "Cont" or payload_length < 1:
-            return self._read()
+            return await self._read()
 
         payload = data[header_length:header_length+payload_length]
-
         if headers.get(":event-type") in ["Progress", "Stats"]:
             self._stats = Stats(payload)
-            return self._read()
+            return await self._read()
 
         if headers.get(":event-type") == "Records":
             self._payload = payload
@@ -428,7 +427,7 @@ class SelectObjectReader:
             "unknown event-type {0}".format(headers.get(":event-type")),
         )
 
-    def stream(self, num_bytes=32*1024):
+    async def stream(self, num_bytes=32*1024):
         """
         Stream extracted payload from response data. Upon completion, caller
         should call self.close() to release network resources.
@@ -440,6 +439,5 @@ class SelectObjectReader:
                     result = self._payload[:num_bytes]
                 self._payload = self._payload[len(result):]
                 yield result
-
-            if self._read() <= 0:
+            if await self._read() <= 0:
                 break

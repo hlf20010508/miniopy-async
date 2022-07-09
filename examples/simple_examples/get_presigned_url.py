@@ -14,9 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from datetime import timedelta
 from minio_async import Minio
-from minio_async.commonconfig import ComposeSource
-from minio_async.sse import SseS3
+from minio_async.sse import SseCustomerKey
 import asyncio
 
 client = Minio(
@@ -26,41 +26,41 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-# Each part must larger than 5MB
-sources = [
-    ComposeSource("my-job-bucket", "my-object-part-one"),
-    ComposeSource("my-job-bucket", "my-object-part-two"),
-    ComposeSource("my-job-bucket", "my-object-part-three"),
-]
-
 async def main():
-    # Create my-bucket/my-object by combining source object
-    # list.
+    # Get presigned URL string to delete 'my-object' in
+    # 'my-bucket' with one day expiry.
     print('example one')
-    result = await client.compose_object("my-bucket", "my-object", sources)
-    print(result.object_name, result.version_id)
+    url = await client.get_presigned_url(
+        "DELETE",
+        "my-bucket",
+        "my-object",
+        expires=timedelta(days=1),
+    )
+    print('url:',url)
 
-    # Create my-bucket/my-object with user metadata by combining
-    # source object list.
+    # Get presigned URL string to upload 'my-object' in
+    # 'my-bucket' with response-content-type as application/json
+    # and one day expiry.
     print('example two')
-    result = await client.compose_object(
+    url = await client.get_presigned_url(
+        "PUT",
         "my-bucket",
         "my-object",
-        sources,
-        metadata={"Content-Type": "application/octet-stream"},
+        expires=timedelta(days=1),
+        response_headers={"response-content-type": "application/json"},
     )
-    print(result.object_name, result.version_id)
+    print('url:',url)
 
-    # Create my-bucket/my-object with user metadata and
-    # server-side encryption by combining source object list.
+    # Get presigned URL string to download 'my-object' in
+    # 'my-bucket' with two hours expiry.
     print('example three')
-    result = await client.compose_object(
+    url = await client.get_presigned_url(
+        "GET",
         "my-bucket",
         "my-object",
-        sources,
-        sse=SseS3()
+        expires=timedelta(hours=2),
     )
-    print(result.object_name, result.version_id)
+    print('url:',url)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

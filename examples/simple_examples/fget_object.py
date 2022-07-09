@@ -25,30 +25,25 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-loop = asyncio.get_event_loop()
+async def main():
+    # Download data of an object.
+    print("example one")
+    await client.fget_object("my-bucket", "my-object", "my-filename")
 
-# Download data of an object.
-print("example one")
-loop.run_until_complete(
-    client.fget_object("my-bucket", "my-object", "my-filename")
-)
-
-# Download data of an object of version-ID.
-print("example two")
-loop.run_until_complete(
-    client.fget_object(
+    # Download data of an object of version-ID.
+    print("example two")
+    await client.fget_object(
         "my-bucket", "my-object", "my-filename",
         version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
     )
-)
 
-# Download data of an SSE-C encrypted object.
-print("example three")
-loop.run_until_complete(
-    client.fget_object(
+    # Download data of an SSE-C encrypted object.
+    print("example three")
+    await client.fget_object(
         "my-bucket", "my-object", "my-filename",
         ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
     )
-)
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
 loop.close()

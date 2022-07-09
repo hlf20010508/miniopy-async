@@ -25,8 +25,9 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    config = await client.get_bucket_encryption("my-bucket")
+    print(config)
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

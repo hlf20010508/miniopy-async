@@ -24,10 +24,9 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
+async def main():
+    await client.delete_bucket_lifecycle("my-bucket")
+
 loop = asyncio.get_event_loop()
-
-loop.run_until_complete(
-    client.delete_bucket_lifecycle("my-bucket")
-)
-
+loop.run_until_complete(main())
 loop.close()

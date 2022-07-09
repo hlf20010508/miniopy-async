@@ -13,20 +13,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 
 from minio_async import Minio
+from minio_async.credentials import LdapIdentityProvider
 import asyncio
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
-)
+# STS endpoint usually point to MinIO server.
+sts_endpoint = "http://STS-HOST:STS-PORT/"
+
+# LDAP username.
+ldap_username = "LDAP-USERNAME"
+
+# LDAP password.
+ldap_password = "LDAP-PASSWORD"
+
+provider = LdapIdentityProvider(sts_endpoint, ldap_username, ldap_password)
+
+client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    # Get information of an object.
+    stat = await client.stat_object("my-bucket", "my-object")
+    print(stat)
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

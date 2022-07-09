@@ -25,8 +25,17 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    # Remove object.
+    print('example one')
+    await client.remove_object("my-bucket", "my-object")
 
-loop=asyncio.get_event_loop()
+    # Remove version of an object.
+    print('example two')
+    await client.remove_object(
+        "my-bucket", "my-object",
+        version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+    )
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

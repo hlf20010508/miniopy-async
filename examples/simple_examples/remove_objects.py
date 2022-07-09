@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from minio_async import Minio
+from minio_async.deleteobjects import DeleteObject
 import asyncio
 
 client = Minio(
@@ -25,8 +26,32 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    # Remove list of objects.
+    print('example one')
+    errors = await client.remove_objects(
+        "my-bucket",
+        [
+            DeleteObject("my-object1"),
+            DeleteObject("my-object2"),
+            DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+        ],
+    )
+    for error in errors:
+        print("error occured when deleting object", error)
 
-loop=asyncio.get_event_loop()
+    # Remove a prefix recursively.
+    print('example two')
+    delete_object_list = [DeleteObject(obj.object_name)
+        for obj in await client.list_objects(
+            "my-bucket",
+            "my/prefix/",
+            recursive=True
+        )
+    ]
+    errors = await client.remove_objects("my-bucket", delete_object_list)
+    for error in errors:
+        print("error occured when deleting object", error)
+
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

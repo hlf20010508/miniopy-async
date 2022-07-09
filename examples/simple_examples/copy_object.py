@@ -26,23 +26,19 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-loop = asyncio.get_event_loop()
-
-# copy an object from a bucket to another.
-print("example one")
-result = loop.run_until_complete(
-    client.copy_object(
+async def main():
+    # copy an object from a bucket to another.
+    print("example one")
+    result = await client.copy_object(
         "my-job-bucket",
         "my-copied-object1",
         CopySource("my-bucket", "my-object"),
     )
-)
-print(result.object_name, result.version_id)
+    print(result.object_name, result.version_id)
 
-# copy an object with condition.
-print("example two")
-result = loop.run_until_complete(
-    client.copy_object(
+    # copy an object with condition.
+    print("example two")
+    result = await client.copy_object(
         "my-job-bucket",
         "my-copied-object2",
         CopySource(
@@ -51,21 +47,20 @@ result = loop.run_until_complete(
             modified_since=datetime(2014, 4, 1, tzinfo=timezone.utc),
         ),
     )
-)
-print(result.object_name, result.version_id)
+    print(result.object_name, result.version_id)
 
-# copy an object from a bucket with replacing metadata.
-print("example three")
-metadata = {"Content-Type": "application/octet-stream"}
-result = loop.run_until_complete(
-    client.copy_object(
+    # copy an object from a bucket with replacing metadata.
+    print("example three")
+    metadata = {"Content-Type": "application/octet-stream"}
+    result = await client.copy_object(
         "my-job-bucket",
         "my-copied-object3",
         CopySource("my-bucket", "my-object"),
         metadata=metadata,
         metadata_directive=REPLACE,
     )
-)
-print(result.object_name, result.version_id)
+    print(result.object_name, result.version_id)
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
 loop.close()

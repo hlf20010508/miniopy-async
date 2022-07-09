@@ -24,14 +24,13 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
+async def main():
+    result = await client.bucket_exists("my-bucket")
+    if result:
+        print("my-bucket exists")
+    else:
+        print("my-bucket does not exist")
+
 loop = asyncio.get_event_loop()
-
-res = loop.run_until_complete(
-    client.bucket_exists("my-bucket")
-)
-if res:
-    print("my-bucket exists")
-else:
-    print("my-bucket does not exist")
-
+loop.run_until_complete(main())
 loop.close()

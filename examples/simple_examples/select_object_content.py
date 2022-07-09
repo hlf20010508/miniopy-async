@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from minio_async import Minio
+from minio_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
+from aiostream.stream import list as alist
 import asyncio
 
 client = Minio(
@@ -25,8 +28,22 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    result = await client.select_object_content(
+        "my-bucket",
+        "my-object.csv",
+        SelectRequest(
+            "select * from s3object",
+            CSVInputSerialization(),
+            CSVOutputSerialization(),
+            request_progress=True,
+        ),
+    )
+    print(type(result.stream()))
+    print('data:')
+    for data in await alist(result.stream()):
+        print(data.decode())
+    print('status:',result.stats())
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

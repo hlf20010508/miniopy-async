@@ -25,8 +25,14 @@ client = Minio(
 )
 
 async def main():
-    await client.enable_object_legal_hold("my-bucket", "my-object")
+    events = await client.listen_bucket_notification(
+        "my-bucket",
+        prefix="my-prefix/",
+        events=["s3:ObjectCreated:*", "s3:ObjectRemoved:*"],
+    )
+    async for event in events:
+        print('event:',event)
 
-loop=asyncio.get_event_loop()
+loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()
