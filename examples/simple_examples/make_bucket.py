@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,20 +27,20 @@ client = Minio(
 loop = asyncio.get_event_loop()
 
 # Create bucket.
-print('Example 1')
+print('example one')
 loop.run_until_complete(
     client.make_bucket("my-bucket1")
 )
 
 
 # Create bucket on specific region.
-print('Example 2')
+print('example two')
 loop.run_until_complete(
     client.make_bucket("my-bucket2", "us-east-1")
 )
 
 # Create bucket with object-lock feature on specific region.
-print('Example 3')
+print('example three')
 loop.run_until_complete(
     client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
 )

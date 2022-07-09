@@ -1,7 +1,0 @@
-[[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
-name = "pypi"
-
-[packages]
-minio-async = {ref = "update", git = "https://github.com/hlf20010508/minio-async.git"}

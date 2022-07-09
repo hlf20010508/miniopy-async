@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,22 +15,27 @@
 # limitations under the License.
 
 from datetime import datetime, timedelta
-
-from examples.progress import Progress
-from minio import Minio
-from minio.commonconfig import GOVERNANCE, Tags
-from minio.retention import Retention
-from minio.sse import SseCustomerKey, SseKMS, SseS3
+from minio_async import Minio
+from minio_async.commonconfig import GOVERNANCE, Tags
+from minio_async.retention import Retention
+from minio_async.sse import SseCustomerKey, SseKMS, SseS3
+import asyncio
 
 client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
+loop = asyncio.get_event_loop()
+
 # Upload data.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
+print("example one")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object1", "my-filename",
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -39,9 +44,12 @@ print(
 )
 
 # Upload data with content-type.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    content_type="application/csv",
+print("example two")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object2", "my-filename",
+        content_type="application/octet-stream",
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -50,9 +58,12 @@ print(
 )
 
 # Upload data with metadata.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    metadata={"My-Project": "one"},
+print("example three")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object3", "my-filename",
+        metadata={"Content-Type": "application/octet-stream"},
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -61,9 +72,12 @@ print(
 )
 
 # Upload data with customer key type of server-side encryption.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+print("example four")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object4", "my-filename",
+        sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -72,9 +86,12 @@ print(
 )
 
 # Upload data with KMS type of server-side encryption.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    sse=SseKMS("KMS-KEY-ID", {"Key1": "Value1", "Key2": "Value2"}),
+print("example five")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object5", "my-filename",
+        sse=SseKMS("KMS-KEY-ID", {"Key1": "Value1", "Key2": "Value2"}),
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -83,9 +100,12 @@ print(
 )
 
 # Upload data with S3 type of server-side encryption.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    sse=SseS3(),
+print("example six")
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object6", "my-filename",
+        sse=SseS3(),
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -94,16 +114,19 @@ print(
 )
 
 # Upload data with tags, retention and legal-hold.
+print("example seven")
 date = datetime.utcnow().replace(
     hour=0, minute=0, second=0, microsecond=0,
 ) + timedelta(days=30)
 tags = Tags(for_object=True)
 tags["User"] = "jsmith"
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    tags=tags,
-    retention=Retention(GOVERNANCE, date),
-    legal_hold=True,
+result = loop.run_until_complete(
+    client.fput_object(
+        "my-bucket", "my-object7", "my-filename",
+        tags=tags,
+        retention=Retention(GOVERNANCE, date),
+        legal_hold=True,
+    )
 )
 print(
     "created {0} object; etag: {1}, version-id: {2}".format(
@@ -111,13 +134,4 @@ print(
     ),
 )
 
-# Upload data with progress bar.
-result = client.fput_object(
-    "my-bucket", "my-object", "my-filename",
-    progress=Progress(),
-)
-print(
-    "created {0} object; etag: {1}, version-id: {2}".format(
-        result.object_name, result.etag, result.version_id,
-    ),
-)
+loop.close()
