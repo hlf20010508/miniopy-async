@@ -1668,26 +1668,27 @@ loop.close()
 
 <a id="put_object"></a>
 
-### put_object(bucket_name, object_name, data, length, content_type="application/octet-stream", metadata=None, sse=None, part_size=0,  parallel_upload=True, num_parallel_uploads=3, tags=None, retention=None, legal_hold=False)
+### put_object(bucket_name, object_name, data, length, content_type="application/octet-stream", metadata=None, sse=None, progress=False, part_size=0, num_parallel_uploads=3, tags=None, retention=None, legal_hold=False)
 
 Uploads data from a stream to an object in a bucket.
 
 __Parameters__
 
-| Param             | Type        | Description                                                         |
-|:------------------|:------------|:--------------------------------------------------------------------|
-| `bucket_name`     | _str_       | Name of the bucket.                                                 |
-| `object_name`     | _str_       | Object name in the bucket.                                          |
-| `data`            | _object_    | An object having callable read() returning bytes object.            |
-| `length`          | _int_       | Data size; -1 for unknown size and set valid part_size.             |
-| `content_type`    | _str_       | Content type of the object.                                         |
-| `metadata`        | _dict_      | Any additional metadata to be uploaded along with your PUT request. |
-| `sse`             | _Sse_       | Server-side encryption.                                             |
-| `part_size`       | _int_       | Multipart part size.                                                |
-| `parallel_upload` | _bool_      | Enable parallel uploading.                                          |
-| `tags`            | _Tags_      | Tags for the object.                                                |
-| `retention`       | _Retention_ | Retention configuration.                                            |
-| `legal_hold`      | _bool_      | Flag to set legal hold for the object.                              |
+| Param                  | Type        | Description                                                         |
+|:-----------------------|:------------|:--------------------------------------------------------------------|
+| `bucket_name`          | _str_       | Name of the bucket.                                                 |
+| `object_name`          | _str_       | Object name in the bucket.                                          |
+| `data`                 | _object_    | An object having callable read() returning bytes object.            |
+| `length`               | _int_       | Data size; -1 for unknown size and set valid part_size.             |
+| `content_type`         | _str_       | Content type of the object.                                         |
+| `metadata`             | _dict_      | Any additional metadata to be uploaded along with your PUT request. |
+| `sse`                  | _Sse_       | Server-side encryption.                                             |
+| `progress`             | _bool_      | Flag to set whether to show progress.                               |
+| `part_size`            | _int_       | Multipart part size.                                                |
+| `num_parallel_uploads` | _int_       | Number of parallel uploads.                                         |
+| `tags`                 | _Tags_      | Tags for the object.                                                |
+| `retention`            | _Retention_ | Retention configuration.                                            |
+| `legal_hold`           | _bool_      | Flag to set legal hold for the object.                              |
 
 __Return Value__
 
@@ -1818,6 +1819,17 @@ async def main():
         ),
     )
 
+    # Upload data with showing progress status.
+    print('example nine')
+    result = await client.put_object(
+        "transfer", "my-object", io.BytesIO(b"helloworld"*2000000), 20000000, progress=True
+    )
+    print(
+        "created {0} object; etag: {1}, version-id: {2}".format(
+            result.object_name, result.etag, result.version_id,
+        ),
+    )
+
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()
@@ -1825,7 +1837,7 @@ loop.close()
 
 <a id="fput_object"></a>
 
-### fput_object(bucket_name, object_name, file_path, content_type="application/octet-stream", metadata=None, sse=None, part_size=0, parallel_upload=True,, tags=None, retention=None, legal_hold=False)
+### fput_object(bucket_name, object_name, file_path, content_type="application/octet-stream", metadata=None, sse=None, progress=False,  part_size=0, num_parallel_uploads=3,, tags=None, retention=None, legal_hold=False)
 
 Uploads data from a file to an object in a bucket.
 
@@ -1837,8 +1849,9 @@ Uploads data from a file to an object in a bucket.
 | `content_type`         | _str_       | Content type of the object.                                         |
 | `metadata`             | _dict_      | Any additional metadata to be uploaded along with your PUT request. |
 | `sse`                  | _Sse_       | Server-side encryption.                                             |
+| `progress`             | _bool_      | Flag to set whether to show progress.                               |
 | `part_size`            | _int_       | Multipart part size.                                                |
-| `num_parallel_uploads` | _bool_      | Number of parallel uploads.                                         |
+| `num_parallel_uploads` | _int_       | Number of parallel uploads.                                         |
 | `tags`                 | _Tags_      | Tags for the object.                                                |
 | `retention`            | _Retention_ | Retention configuration.                                            |
 | `legal_hold`           | _bool_      | Flag to set legal hold for the object.                              |
@@ -1950,6 +1963,17 @@ async def main():
         tags=tags,
         retention=Retention(GOVERNANCE, date),
         legal_hold=True,
+    )
+    print(
+        "created {0} object; etag: {1}, version-id: {2}".format(
+            result.object_name, result.etag, result.version_id,
+        ),
+    )
+
+    # Upload data with showing progress status.
+    print("example eight")
+    result = await client.fput_object(
+        "my-bucket", "my-object8", "my-filename", progress=True
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(

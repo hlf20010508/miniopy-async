@@ -39,7 +39,7 @@ minio-async - Asynchronous MinIO Python SDK
 
 __title__ = "miniopy-async"
 __author__ = "L-ING."
-__version__ = "1.1"
+__version__ = "1.2"
 __license__ = "Apache 2.0"
 __copyright__ = "Copyright 2022 L-ING"
 

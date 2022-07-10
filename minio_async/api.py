@@ -65,6 +65,7 @@ from .sseconfig import SSEConfig
 from .tagging import Tagging
 from .versioningconfig import VersioningConfig
 from .xml import Element, SubElement, findtext, getbytes, marshal, unmarshal
+from .progress import Progress
 
 _DEFAULT_USER_AGENT = "MinIO ({os}; {arch}) {lib}/{ver}".format(
     os=platform.system(), arch=platform.machine(),
@@ -1155,8 +1156,8 @@ class Minio:  # pylint: disable=too-many-public-methods
     # FIXME: Broken, do not use this function
     async def fput_object(self, bucket_name, object_name, file_path,
                           content_type="application/octet-stream",
-                          metadata=None, sse=None,
-                          part_size=0, parallel_upload=True,
+                          metadata=None, sse=None, progress=False,
+                          part_size=0, num_parallel_uploads=3,
                           tags=None, retention=None, legal_hold=False):
         """
         Uploads data from a file to an object in a bucket.
@@ -1168,6 +1169,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
+        :param progress: Flag to set whether to show progress.
         :param part_size: Multipart part size
         :param num_parallel_uploads: Number of parallel uploads.
         :param tags: :class:`Tags` for the object.
@@ -1246,6 +1248,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                     legal_hold=True,
                 )
 
+                # Upload data with showing progress status.
+                print("example eight")
+                result = await client.fput_object(
+                    "my-bucket", "my-object8", "my-filename", progress=True
+                )
+
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
             loop.close()
@@ -1256,8 +1264,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             return await self.put_object(
                 bucket_name, object_name, file_data, file_size,
                 content_type=content_type,
-                metadata=metadata, sse=sse,
-                part_size=part_size, parallel_upload=parallel_upload,
+                metadata=metadata, sse=sse, progress=progress,
+                part_size=part_size, num_parallel_uploads=num_parallel_uploads,
                 tags=tags, retention=retention, legal_hold=legal_hold,
             )
 
@@ -1921,7 +1929,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         return findtext(element, "UploadId")
 
     async def _put_object(self, bucket_name, object_name, data, headers,
-                          query_params=None):
+                          query_params=None, progress=None):
         """Execute PutObject S3 API."""
         response = await self._execute(
             "PUT",
@@ -1931,6 +1939,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             headers=headers,
             query_params=query_params
         )
+        if progress:
+            progress.update(len(data))
         return ObjectWriteResult(
             bucket_name,
             object_name,
@@ -1940,25 +1950,25 @@ class Minio:  # pylint: disable=too-many-public-methods
         )
 
     async def _upload_part(self, bucket_name, object_name, data, headers,
-                           upload_id, part_number):
+                           upload_id, part_number, progress=None):
         """Execute UploadPart S3 API."""
         query_params = {
             "partNumber": str(part_number),
             "uploadId": upload_id,
         }
         result = await self._put_object(
-            bucket_name, object_name, data, headers, query_params=query_params,
+            bucket_name, object_name, data, headers, query_params=query_params, progress=progress
         )
         return result.etag
 
-    async def _upload_part_task(self, args):
+    async def _upload_part_task(self, args, progress=None):
         """Upload_part task for ThreadPool."""
-        return args[5], await self._upload_part(*args)
+        return args[5], await self._upload_part(*args, progress=progress)
 
     async def put_object(self, bucket_name, object_name, data, length,
                          content_type="application/octet-stream",
-                         metadata=None, sse=None,
-                         part_size=0, parallel_upload=True,
+                         metadata=None, sse=None, progress=False,
+                         part_size=0, num_parallel_uploads=3,
                          tags=None, retention=None, legal_hold=False) -> ObjectWriteResult:
         """
         Uploads data from a stream to an object in a bucket.
@@ -1971,8 +1981,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param sse: Server-side encryption.
+        :param progress: Flag to set whether to show progress.
         :param part_size: Multipart part size.
-        :param parallel_upload: Enable parallel uploading
+        :param num_parallel_uploads: Number of parallel uploads.
         :param tags: :class:`Tags` for the object.
         :param retention: :class:`Retention` configuration object.
         :param legal_hold: Flag to set legal hold for the object.
@@ -2060,6 +2071,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                     legal_hold=True,
                 )
 
+                # Upload data with showing progress status.
+                print('example nine')
+                await client.put_object(
+                    "transfer", "my-object", io.BytesIO(b"helloworld"*2000000), 20000000, progress=True
+                )
+
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
             loop.close()
@@ -2074,6 +2091,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         if not callable(getattr(data, "read")):
             raise ValueError("input data must have callable read()")
         part_size, part_count = get_part_info(length, part_size)
+        if progress:
+            progress = Progress(object_name, length)
 
         headers = genheaders(metadata, sse, tags, retention, legal_hold)
         headers["Content-Type"] = content_type or "application/octet-stream"
@@ -2134,15 +2153,16 @@ class Minio:  # pylint: disable=too-many-public-methods
                     sse.headers() if isinstance(sse, SseCustomerKey) else None,
                     upload_id, part_number,
                 )
-                if parallel_upload:
+                if num_parallel_uploads and num_parallel_uploads > 1:
                     parallel_tasks.append(asyncio.ensure_future(
-                        self._upload_part_task(args)))
-                else:
-                    etag = await self._upload_part(*args)
-                    parts.append(Part(part_number, etag))
+                        self._upload_part_task(args, progress=progress)))
+                    if part_number % num_parallel_uploads == 0 or part_number == part_count:
+                        parts.extend((Part(number, etag) for number, etag in await asyncio.gather(*parallel_tasks)))
+                        parallel_tasks.clear()
 
-            if parallel_tasks:
-                parts.extend((Part(number, etag) for number, etag in await asyncio.gather(*parallel_tasks)))
+                else:
+                    etag = await self._upload_part(*args, progress=progress)
+                    parts.append(Part(part_number, etag))
 
             result = await self._complete_multipart_upload(
                 bucket_name, object_name, upload_id, parts,
@@ -2587,7 +2607,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     change_host='https://YOURHOST:YOURPORT',
                 )
                 print('url:', url)
-                
+
 
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
