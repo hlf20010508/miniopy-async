@@ -43,25 +43,6 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
     secure=False,
 )
-
-# Create client with custom HTTP client using proxy server.
-import urllib3
-client = Minio(
-    "SERVER:PORT",
-    access_key="ACCESS_KEY",
-    secret_key="SECRET_KEY",
-    secure=True,
-    http_client=urllib3.ProxyManager(
-        "https://PROXYSERVER:PROXYPORT/",
-        timeout=urllib3.Timeout.DEFAULT_TIMEOUT,
-        cert_reqs="CERT_REQUIRED",
-        retries=urllib3.Retry(
-            total=5,
-            backoff_factor=0.2,
-            status_forcelist=[500, 502, 503, 504],
-        ),
-    ),
-)
 ```
 
 | Bucket operations                                           | Object operations                                               |
