@@ -53,12 +53,12 @@ pipenv install miniopy-async
 
 Github Repository
 ```sh
-pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=minio-async
+pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
 ```
 
 Gitee Repository
 ```sh
-pipenv install git+https://gitee.com/hlf01/miniopy-async.git#egg=minio-async
+pipenv install git+https://gitee.com/hlf01/miniopy-async.git#egg=miniopy-async
 ```
 
 <br/>
