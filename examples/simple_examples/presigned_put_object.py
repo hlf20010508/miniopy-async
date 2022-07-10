@@ -18,14 +18,14 @@ from datetime import timedelta
 from minio_async import Minio
 import asyncio
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
-)
-
 async def main():
+    client = Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True  # http for False, https for True
+    )
+
     # Get presigned URL string to upload data to 'my-object' in
     # 'my-bucket' with default expiry (i.e. 7 days).
     url = await client.presigned_put_object("my-bucket", "my-object")
@@ -35,6 +35,23 @@ async def main():
     # 'my-bucket' with two hours expiry.
     url = await client.presigned_put_object(
         "my-bucket", "my-object", expires=timedelta(hours=2),
+    )
+    print('url:', url)
+
+    # Get presigned URL string to upload data to 'my-object' in
+    # 'my-bucket' with public IP address when using private IP address.
+    client = Minio(
+        "127.0.0.1:9000",
+        access_key="your access key",
+        secret_key="you secret key",
+        secure=False  # http for False, https for True
+    )
+
+    print('example three')
+    url = await client.presigned_put_object(
+        "my-bucket",
+        "my-object",
+        change_host='https://YOURHOST:YOURPORT',
     )
     print('url:', url)
 

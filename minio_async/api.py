@@ -129,14 +129,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             credentials = StaticProvider(access_key, secret_key, session_token)
         self._provider = credentials
 
-        # Load CA certificates from SSL_CERT_FILE file if set
-        timeout = timedelta(minutes=5).seconds
-        ca_certs = os.environ.get('SSL_CERT_FILE') or certifi.where()
-
         self._async_http = None
-        # self._async_http = aiohttp.ClientSession()
-        # self._current_event_loop = asyncio.get_event_loop()
-        # self._thread_pool_executor = ThreadPoolExecutor(max_workers=16)
 
     def _handle_redirect_response(
             self, method, bucket_name, response, retry=False,
@@ -246,7 +239,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                 None,
             )
 
-        response_error = S3Error.fromxml(response, response_data) if response_data else None
+        response_error = S3Error.fromxml(
+            response, response_data) if response_data else None
 
         error_map = {
             301: lambda: self._handle_redirect_response(
@@ -729,7 +723,73 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param policy: Bucket policy configuration as JSON string.
 
         Example::
-            client.set_bucket_policy("my-bucket", policy)
+            import json
+            from minio_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            async def main():
+                # Example anonymous read-only bucket policy.
+                print('example one')
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "*"},
+                            "Action": ["s3:GetBucketLocation", "s3:ListBucket"],
+                            "Resource": "arn:aws:s3:::my-bucket",
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "*"},
+                            "Action": "s3:GetObject",
+                            "Resource": "arn:aws:s3:::my-bucket/*",
+                        },
+                    ],
+                }
+                await client.set_bucket_policy("my-bucket", json.dumps(policy))
+
+                # Example anonymous read-write bucket policy.
+                print('example two')
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "*"},
+                            "Action": [
+                                "s3:GetBucketLocation",
+                                "s3:ListBucket",
+                                "s3:ListBucketMultipartUploads",
+                            ],
+                            "Resource": "arn:aws:s3:::my-bucket",
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Principal": {"AWS": "*"},
+                            "Action": [
+                                "s3:GetObject",
+                                "s3:PutObject",
+                                "s3:DeleteObject",
+                                "s3:ListMultipartUploadParts",
+                                "s3:AbortMultipartUpload",
+                            ],
+                            "Resource": "arn:aws:s3:::my-bucket/images/*",
+                        },
+                    ],
+                }
+                await client.set_bucket_policy("my-bucket", json.dumps(policy))
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         is_valid_policy_type(policy)
@@ -781,6 +841,17 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: class:`NotificationConfig <NotificationConfig>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.notificationconfig import (NotificationConfig, PrefixFilterRule, QueueConfig)
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
             config = NotificationConfig(
                 queue_config_list=[
                     QueueConfig(
@@ -791,7 +862,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ),
                 ],
             )
-            client.set_bucket_notification("my-bucket", config)
+
+            async def main():
+                await client.set_bucket_notification("my-bucket", config)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, NotificationConfig):
@@ -1010,9 +1087,24 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: :class:`VersioningConfig <VersioningConfig>`.
 
         Example::
-            client.set_bucket_versioning(
-                "my-bucket", VersioningConfig(ENABLED),
+            from minio_async import Minio
+            from minio_async.commonconfig import ENABLED
+            from minio_async.versioningconfig import VersioningConfig
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
             )
+
+            async def main():
+                await client.set_bucket_versioning("my-bucket", VersioningConfig(ENABLED))
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, VersioningConfig):
@@ -1239,7 +1331,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         # Write to a temporary file "file_path.part.minio" before saving.
         tmp_file_path = (
-                tmp_file_path or file_path + "." + stat.etag + ".part.minio"
+            tmp_file_path or file_path + "." + stat.etag + ".part.minio"
         )
         try:
             tmp_file_stat = os.stat(tmp_file_path)
@@ -1728,7 +1820,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                     part_number += 1
                     if src.length is not None:
                         headers["x-amz-copy-source-range"] = (
-                            "bytes={0}-{1}".format(offset, offset + src.length - 1)
+                            "bytes={0}-{1}".format(offset,
+                                                   offset + src.length - 1)
                         )
                     elif src.offset is not None:
                         headers["x-amz-copy-source-range"] = (
@@ -2042,7 +2135,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                     upload_id, part_number,
                 )
                 if parallel_upload:
-                    parallel_tasks.append(asyncio.ensure_future(self._upload_part_task(args)))
+                    parallel_tasks.append(asyncio.ensure_future(
+                        self._upload_part_task(args)))
                 else:
                     etag = await self._upload_part(*args)
                     parts.append(Part(part_number, etag))
@@ -2164,20 +2258,54 @@ class Minio:  # pylint: disable=too-many-public-methods
         :return: :class:`Object <Object>`.
 
         Example::
-            # Get object information.
-            result = client.stat_object("my-bucket", "my-object")
+            from minio_async import Minio
+            from minio_async.sse import SseCustomerKey
+            import asyncio
 
-            # Get object information of version-ID.
-            result = client.stat_object(
-                "my-bucket", "my-object",
-                version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
             )
 
-            # Get SSE-C encrypted object information.
-            result = client.stat_object(
-                "my-bucket", "my-object",
-                ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
-            )
+            async def main():
+                # Get object information.
+                print('example one')
+                result = await client.stat_object("my-bucket", "my-object")
+                print(
+                    "status: last-modified: {0}, size: {1}".format(
+                        result.last_modified, result.size,
+                    ),
+                )
+
+                # Get object information of version-ID.
+                print('example two')
+                result = await client.stat_object(
+                    "my-bucket", "my-object",
+                    version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+                )
+                print(
+                    "status: last-modified: {0}, size: {1}".format(
+                        result.last_modified, result.size,
+                    ),
+                )
+
+                # Get SSE-C encrypted object information.
+                print('example three')
+                result = await client.stat_object(
+                    "my-bucket", "my-object",
+                    ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+                )
+                print(
+                    "status: last-modified: {0}, size: {1}".format(
+                        result.last_modified, result.size,
+                    ),
+                )
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
 
         check_bucket_name(bucket_name)
@@ -2373,7 +2501,7 @@ class Minio:  # pylint: disable=too-many-public-methods
     async def get_presigned_url(self, method, bucket_name, object_name,
                                 expires=timedelta(days=7), response_headers=None,
                                 request_date=None, version_id=None,
-                                extra_query_params=None):
+                                extra_query_params=None, change_host=None):
         """
         Get presigned URL of an object for HTTP method, expiry time and custom
         request parameters.
@@ -2390,22 +2518,23 @@ class Minio:  # pylint: disable=too-many-public-methods
                              current date.
         :param version_id: Version ID of the object.
         :param extra_query_params: Extra query parameters for advanced usage.
+        :param change_host: Change the host for this presign temporaryly. This parameter
+                            is for the circumstance in which your base url is set with private IP address
+                            such as 127.0.0.1 or 0.0.0.0 and you want to create a url with public IP address.
         :return: URL string.
 
         Example::
             from datetime import timedelta
             from minio_async import Minio
-            from minio_async.sse import SseCustomerKey
             import asyncio
 
-            client = Minio(
-                "play.min.io",
-                access_key="Q3AM3UQ867SPQQA43P2F",
-                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-                secure=True  # http for False, https for True
-            )
-
             async def main():
+                client = Minio(
+                    "play.min.io",
+                    access_key="Q3AM3UQ867SPQQA43P2F",
+                    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                    secure=True  # http for False, https for True
+                )
                 # Get presigned URL string to delete 'my-object' in
                 # 'my-bucket' with one day expiry.
                 print('example one')
@@ -2415,7 +2544,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-object",
                     expires=timedelta(days=1),
                 )
-                print('url:',url)
+                print('url:', url)
 
                 # Get presigned URL string to upload 'my-object' in
                 # 'my-bucket' with response-content-type as application/json
@@ -2428,7 +2557,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     expires=timedelta(days=1),
                     response_headers={"response-content-type": "application/json"},
                 )
-                print('url:',url)
+                print('url:', url)
 
                 # Get presigned URL string to download 'my-object' in
                 # 'my-bucket' with two hours expiry.
@@ -2439,7 +2568,26 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-object",
                     expires=timedelta(hours=2),
                 )
-                print('url:',url)
+                print('url:', url)
+
+                # Get presigned URL string to download 'my-object' in
+                # 'my-bucket' with public IP address when using private IP address.
+                client = Minio(
+                    "127.0.0.1:9000",
+                    access_key="your access key",
+                    secret_key="you secret key",
+                    secure=False  # http for False, https for True
+                )
+
+                print('example four')
+                url = await client.get_presigned_url(
+                    "GET",
+                    "my-bucket",
+                    "my-object",
+                    change_host='https://YOURHOST:YOURPORT',
+                )
+                print('url:', url)
+                
 
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
@@ -2457,13 +2605,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         creds = self._provider.retrieve() if self._provider else None
         if creds and creds.session_token:
             query_params["X-Amz-Security-Token"] = creds.session_token
-        url = self._base_url.build(
-            method,
-            region,
-            bucket_name=bucket_name,
-            object_name=object_name,
-            query_params=query_params,
-        )
+
+        url = None
+        if change_host:
+            url = BaseURL(
+                change_host,
+                region,
+            ).build(
+                method,
+                region,
+                bucket_name=bucket_name,
+                object_name=object_name,
+                query_params=query_params,
+            )
+        else:
+            url = self._base_url.build(
+                method,
+                region,
+                bucket_name=bucket_name,
+                object_name=object_name,
+                query_params=query_params,
+            )
 
         if creds:
             url = presign_v4(
@@ -2477,11 +2639,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         return urlunsplit(url)
 
     async def presigned_get_object(self, bucket_name, object_name,
-                             expires=timedelta(days=7),
-                             response_headers=None,
-                             request_date=None,
-                             version_id=None,
-                             extra_query_params=None):
+                                   expires=timedelta(days=7),
+                                   response_headers=None,
+                                   request_date=None,
+                                   version_id=None,
+                                   extra_query_params=None,
+                                   change_host=None):
         """
         Get presigned URL of an object to download its data with expiry time
         and custom request parameters.
@@ -2497,6 +2660,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                               current date.
         :param version_id: Version ID of the object.
         :param extra_query_params: Extra query parameters for advanced usage.
+        :param change_host: Change the host for this presign temporaryly. This parameter
+                            is for the circumstance in which your base url is set with private IP address
+                            such as 127.0.0.1 or 0.0.0.0 and you want to create a url with public IP address.
         :return: URL string.
 
         Example::
@@ -2504,19 +2670,19 @@ class Minio:  # pylint: disable=too-many-public-methods
             from minio_async import Minio
             import asyncio
 
-            client = Minio(
-                "play.min.io",
-                access_key="Q3AM3UQ867SPQQA43P2F",
-                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-                secure=True  # http for False, https for True
-            )
-
             async def main():
+                client = Minio(
+                    "play.min.io",
+                    access_key="Q3AM3UQ867SPQQA43P2F",
+                    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                    secure=True  # http for False, https for True
+                )
+
                 # Get presigned URL string to download 'my-object' in
                 # 'my-bucket' with default expiry (i.e. 7 days).
                 print('example one')
                 url = await client.presigned_get_object("my-bucket", "my-object")
-                print('url:',url)
+                print('url:', url)
 
                 # Get presigned URL string to download 'my-object' in
                 # 'my-bucket' with two hours expiry.
@@ -2524,7 +2690,24 @@ class Minio:  # pylint: disable=too-many-public-methods
                 url = await client.presigned_get_object(
                     "my-bucket", "my-object", expires=timedelta(hours=2),
                 )
-                print('url:',url)
+                print('url:', url)
+
+                # Get presigned URL string to download 'my-object' in
+                # 'my-bucket' with public IP address when using private IP address.
+                client = Minio(
+                    "127.0.0.1:9000",
+                    access_key="your access key",
+                    secret_key="you secret key",
+                    secure=False  # http for False, https for True
+                )
+
+                print('example three')
+                url = await client.presigned_get_object(
+                    "my-bucket",
+                    "my-object",
+                    change_host='https://YOURHOST:YOURPORT',
+                )
+                print('url:', url)
 
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
@@ -2539,10 +2722,11 @@ class Minio:  # pylint: disable=too-many-public-methods
             request_date=request_date,
             version_id=version_id,
             extra_query_params=extra_query_params,
+            change_host=change_host
         )
 
     async def presigned_put_object(self, bucket_name, object_name,
-                             expires=timedelta(days=7)):
+                                   expires=timedelta(days=7), change_host=None):
         """
         Get presigned URL of an object to upload data with expiry time and
         custom request parameters.
@@ -2550,6 +2734,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bucket_name: Name of the bucket.
         :param object_name: Object name in the bucket.
         :param expires: Expiry in seconds; defaults to 7 days.
+        :param change_host: Change the host for this presign temporaryly. This parameter
+                            is for the circumstance in which your base url is set with private IP address
+                            such as 127.0.0.1 or 0.0.0.0 and you want to create a url with public IP address.
         :return: URL string.
 
         Example::
@@ -2557,14 +2744,14 @@ class Minio:  # pylint: disable=too-many-public-methods
             from minio_async import Minio
             import asyncio
 
-            client = Minio(
-                "play.min.io",
-                access_key="Q3AM3UQ867SPQQA43P2F",
-                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-                secure=True  # http for False, https for True
-            )
-
             async def main():
+                client = Minio(
+                    "play.min.io",
+                    access_key="Q3AM3UQ867SPQQA43P2F",
+                    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                    secure=True  # http for False, https for True
+                )
+
                 # Get presigned URL string to upload data to 'my-object' in
                 # 'my-bucket' with default expiry (i.e. 7 days).
                 url = await client.presigned_put_object("my-bucket", "my-object")
@@ -2577,12 +2764,29 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
+                # Get presigned URL string to upload data to 'my-object' in
+                # 'my-bucket' with public IP address when using private IP address.
+                client = Minio(
+                    "127.0.0.1:9000",
+                    access_key="your access key",
+                    secret_key="you secret key",
+                    secure=False  # http for False, https for True
+                )
+
+                print('example three')
+                url = await client.presigned_put_object(
+                    "my-bucket",
+                    "my-object",
+                    change_host='https://YOURHOST:YOURPORT',
+                )
+                print('url:', url)
+
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
             loop.close()
         """
         return await self.get_presigned_url(
-            "PUT", bucket_name, object_name, expires,
+            "PUT", bucket_name, object_name, expires, change_host=change_host
         )
 
     async def presigned_post_policy(self, policy):
@@ -2710,6 +2914,18 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: :class:`ReplicationConfig <ReplicationConfig>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter
+            from minio_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
             config = ReplicationConfig(
                 "REPLACE-WITH-ACTUAL-ROLE",
                 [
@@ -2732,7 +2948,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ),
                 ],
             )
-            client.set_bucket_replication("my-bucket", config)
+
+            async def main():
+                await client.set_bucket_replication("my-bucket", config)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, ReplicationConfig):
@@ -2818,15 +3040,25 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: :class:`LifecycleConfig <LifecycleConfig>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.commonconfig import ENABLED, Filter
+            from minio_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
             config = LifecycleConfig(
                 [
                     Rule(
                         ENABLED,
                         rule_filter=Filter(prefix="documents/"),
                         rule_id="rule1",
-                        transition=Transition(
-                            days=30, storage_class="GLACIER",
-                        ),
+                        transition=Transition(days=30, storage_class="GLACIER"),
                     ),
                     Rule(
                         ENABLED,
@@ -2836,7 +3068,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ),
                 ],
             )
-            client.set_bucket_lifecycle("my-bucket", config)
+
+            async def main():
+                await client.set_bucket_lifecycle("my-bucket", config)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, LifecycleConfig):
@@ -2923,10 +3161,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param tags: :class:`Tags <Tags>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.commonconfig import Tags
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
             tags = Tags.new_bucket_tags()
             tags["Project"] = "Project One"
             tags["User"] = "jsmith"
-            client.set_bucket_tags("my-bucket", tags)
+
+            async def main():
+                await client.set_bucket_tags("my-bucket", tags)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         if not isinstance(tags, Tags):
@@ -3033,10 +3288,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param tags: :class:`Tags <Tags>` object.
 
         Example::
+            from minio_async import Minio
+            from minio_async.commonconfig import Tags
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
             tags = Tags.new_object_tags()
             tags["Project"] = "Project One"
             tags["User"] = "jsmith"
-            client.set_object_tags("my-bucket", "my-object", tags)
+
+            async def main():
+                await client.set_object_tags("my-bucket", "my-object", tags)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3267,13 +3539,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                 secure=True  # http for False, https for True
             )
 
-            loop = asyncio.get_event_loop()
-
             config = ObjectLockConfig(GOVERNANCE, 15, DAYS)
-            loop.run_until_complete(
-                client.set_object_lock_config("my-bucket", config)
-            )
 
+            async def main():
+                await client.set_object_lock_config("my-bucket", config)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
             loop.close()
         """
         check_bucket_name(bucket_name)
@@ -3347,10 +3619,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param config: :class:`Retention <Retention>` object.
 
         Example::
-            config = Retention(
-                GOVERNANCE, datetime.utcnow() + timedelta(days=10),
+            from datetime import datetime, timedelta
+            from minio_async import Minio
+            from minio_async.commonconfig import GOVERNANCE
+            from minio_async.retention import Retention
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
             )
-            client.set_object_retention("my-bucket", "my-object", config)
+
+            config = Retention(GOVERNANCE, datetime.utcnow() + timedelta(days=10))
+
+            async def main():
+                await client.set_object_retention("my-bucket", "my-object", config)
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3522,4 +3811,3 @@ class Minio:  # pylint: disable=too-many-public-methods
             headers=extra_headers,
         )
         return await ListPartsResult.from_async_response(response)
-
