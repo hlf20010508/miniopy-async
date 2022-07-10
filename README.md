@@ -26,6 +26,12 @@ python setup.py install
 <br/>
 
 ## Install with pip
+
+Pypi
+```sh
+pip install miniopy-async
+```
+
 Github Repository
 ```sh
 pip install git+https://github.com/hlf20010508/minio-async.git
@@ -39,6 +45,12 @@ pip install git+https://gitee.com/hlf01/minio-async.git
 <br/>
 
 ## Install with pipenv
+
+Pypi
+```sh
+pipenv install miniopy-async
+```
+
 Github Repository
 ```sh
 pipenv install git+https://github.com/hlf20010508/minio-async.git#egg=minio-async

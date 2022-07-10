@@ -20,7 +20,7 @@ import sys
 from setuptools import setup
 
 if sys.argv[-1] == "publish":
-    sys.argv = sys.argv[:-1] + ["sdist", "upload"]
+    sys.argv = sys.argv[:-1] + ["sdist"]
 
 with codecs.open("minio_async/__init__.py") as file:
     version = re.search(
@@ -33,7 +33,7 @@ with codecs.open("README.md", encoding="utf-8") as file:
     readme = file.read()
 
 setup(
-    name="minio-async",
+    name="miniopy-async",
     description="Asynchronous MinIO Python SDK",
     author="L-ING",
     url="https://github.com/hlf20010508/minio-async",
