@@ -90,7 +90,6 @@ class Minio:  # pylint: disable=too-many-public-methods
     :param secure: Flag to indicate to use secure (TLS) connection to S3
         service or not.
     :param region: Region name of buckets in S3 service.
-    :param http_client: Customized HTTP client.
     :param credentials: Credentials provider of your account in S3 service.
     :return: :class:`Minio <Minio>` object
 
@@ -229,7 +228,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         response = await self._async_http.request(method, urlunsplit(url), data=body, headers=headers)
 
-        if response.status in [200, 204, 206]:
+        if response.status in (200, 204, 206):
             return response
 
         response_data = await response.text()
@@ -302,7 +301,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 object_name=object_name,
             )
 
-        if response_error.code in ["NoSuchBucket", "RetryHead"]:
+        if response_error.code in ("NoSuchBucket", "RetryHead"):
             self._region_map.pop(bucket_name, None)
 
         raise response_error
@@ -987,9 +986,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                          request_headers=None, ssec=None, version_id=None,
                          extra_query_params=None):
         """
-        Get data of an object. Returned response should be closed after use to
-        release network resources. To reuse the connection, it's required to
-        call `response.release_conn()` explicitly.
 
         :param bucket_name: Name of the bucket.
         :param object_name: Object name in the bucket.
@@ -1132,14 +1128,14 @@ class Minio:  # pylint: disable=too-many-public-methods
             raise ValueError("retention must be Retention type")
         if (
                 metadata_directive is not None and
-                metadata_directive not in [COPY, REPLACE]
+                metadata_directive not in (COPY, REPLACE)
         ):
             raise ValueError(
                 "metadata directive must be {0} or {1}".format(COPY, REPLACE),
             )
         if (
                 tagging_directive is not None and
-                tagging_directive not in [COPY, REPLACE]
+                tagging_directive not in (COPY, REPLACE)
         ):
             raise ValueError(
                 "tagging directive must be {0} or {1}".format(COPY, REPLACE),
@@ -1340,13 +1336,17 @@ class Minio:  # pylint: disable=too-many-public-methods
         check_non_empty_string(object_name)
         if not isinstance(sources, (list, tuple)) or not sources:
             raise ValueError("sources must be non-empty list or tuple type")
-        i = 0
-        for src in sources:
-            if not isinstance(src, ComposeSource):
-                raise ValueError(
-                    "sources[{0}] must be ComposeSource type".format(i),
-                )
-            i += 1
+        #i = 0
+        #for src in sources:
+        #    if not isinstance(src, ComposeSource):
+        #        raise ValueError(
+        #            "sources[{0}] must be ComposeSource type".format(i),
+        #        )
+        #    i += 1
+        if (obj_tuple := next(filter(lambda obj[1]: not isinstance(obj, ComposeSource), enumerate(sources)), None)) is not None:
+            raise ValueError(
+                    "sources[{0}] must be ComposeSource type".format(obj_tuple[0])
+                    )
         check_sse(sse)
         if tags is not None and not isinstance(tags, Tags):
             raise ValueError("tags must be Tags type")
@@ -1364,6 +1364,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 sse=sse, metadata=metadata, tags=tags, retention=retention,
                 legal_hold=legal_hold,
                 metadata_directive=REPLACE if metadata else None,
+                
                 tagging_directive=REPLACE if tags else None,
             )
 
@@ -1853,7 +1854,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             else unmarshal(DeleteResult, await response.text())
         )
 
-    # TODO Return asynchronous iterator for objects
     async def remove_objects(self, bucket_name, delete_object_list,
                              bypass_governance_mode=False):
         """

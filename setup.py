@@ -1,5 +1,6 @@
 # MinIO Python Library for Amazon S3 Compatible Cloud Storage,
 # (C) 2015 MinIO, Inc.
+# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,8 +37,7 @@ setup(
     name="minio-async",
     description="Asynchronous MinIO Python SDK for Amazon S3 Compatible Cloud Storage",
     author="Huseyn Mashadiyev",
-    url="https://github.com/minio/minio-py",
-    download_url="https://github.com/minio/minio-py/releases",
+    url="https://github.com/HuseynMashadiyev/minio-async",
     author_email="mashadiyev.huseyn@gmail.com",
     version=version,
     long_description_content_type="text/markdown",

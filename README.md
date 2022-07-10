@@ -50,15 +50,15 @@ def main():
     )
 
     # Make 'asiatrip' bucket if not exist.
-    found = client.bucket_exists("asiatrip")
+    found = await client.bucket_exists("asiatrip")
     if not found:
-        client.make_bucket("asiatrip")
+        await client.make_bucket("asiatrip")
     else:
         print("Bucket 'asiatrip' already exists")
 
     # Upload '/home/user/Photos/asiaphotos.zip' as object name
     # 'asiaphotos-2015.zip' to bucket 'asiatrip'.
-    client.fput_object(
+    await client.fput_object(
         "asiatrip", "asiaphotos-2015.zip", "/home/user/Photos/asiaphotos.zip",
     )
     print(
