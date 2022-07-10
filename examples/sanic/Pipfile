@@ -6,4 +6,4 @@ name = "pypi"
 [packages]
 sanic = "*"
 sanic-jinja2 = "*"
-minio-async = {ref = "update", git = "https://github.com/hlf20010508/minio-async.git"}
+minio-async = {git = "https://github.com/hlf20010508/minio-async.git"}
