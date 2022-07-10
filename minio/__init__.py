@@ -28,15 +28,15 @@ minio - MinIO Python SDK for Amazon S3 Compatible Cloud Storage
     >>> for bucket in buckets:
     ...     print(bucket.name, bucket.creation_date)
 
-:copyright: (C) 2015-2020 MinIO, Inc.
+:copyright: (C) 2015-2020 MinIO, Inc, 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-__title__ = "minio-py"
-__author__ = "MinIO, Inc."
+__title__ = "minio-async"
+__author__ = "Huseyn Mashadiyev"
 __version__ = "1.0.0"
 __license__ = "Apache 2.0"
-__copyright__ = "Copyright 2015, 2016, 2017, 2018, 2019, 2020 MinIO, Inc."
+__copyright__ = "Copyright 2015, 2016, 2017, 2018, 2019, 2020 MinIO, Inc, 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>"
 
 import threading
 
