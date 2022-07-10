@@ -1,4 +1,4 @@
-# minio-async
+# miniopy-async
 > Asynchronous MinIO Python SDK
 
 <br/>
@@ -11,15 +11,15 @@
 ## Build from source
 Github Repository
 ```sh
-git clone https://github.com/hlf20010508/minio-async.git
-cd minio-async
+git clone https://github.com/hlf20010508/miniopy-async.git
+cd miniopy-async
 python setup.py install
 ```
 
 Gitee Repository
 ```sh
-git clone https://gitee.com/hlf01/minio-async.git
-cd minio-async
+git clone https://gitee.com/hlf01/miniopy-async.git
+cd miniopy-async
 python setup.py install
 ```
 
@@ -34,12 +34,12 @@ pip install miniopy-async
 
 Github Repository
 ```sh
-pip install git+https://github.com/hlf20010508/minio-async.git
+pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
 
 Gitee Repository
 ```sh
-pip install git+https://gitee.com/hlf01/minio-async.git
+pip install git+https://gitee.com/hlf01/miniopy-async.git
 ```
 
 <br/>
@@ -53,12 +53,12 @@ pipenv install miniopy-async
 
 Github Repository
 ```sh
-pipenv install git+https://github.com/hlf20010508/minio-async.git#egg=minio-async
+pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=minio-async
 ```
 
 Gitee Repository
 ```sh
-pipenv install git+https://gitee.com/hlf01/minio-async.git#egg=minio-async
+pipenv install git+https://gitee.com/hlf01/miniopy-async.git#egg=minio-async
 ```
 
 <br/>
@@ -115,12 +115,12 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/master/examples">examples</a> on Github and <a href="https://gitee.com/hlf01/minio-async/tree/master/examples">examples</a> on Gitee
+Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a> on Github and <a href="https://gitee.com/hlf01/miniopy-async/tree/master/examples">examples</a> on Gitee
 
-Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/master/docs">docs</a> on Github and <a href="https://gitee.com/hlf01/minio-async/tree/master/docs">docs</a> on Gitee
+Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a> on Github and <a href="https://gitee.com/hlf01/miniopy-async/tree/master/docs">docs</a> on Gitee
 
 <br/>
 
 ## Link
-- <a href="https://github.com/hlf20010508/minio-async.git">minio-async</a> on Github
-- <a href="https://gitee.com/hlf01/minio-async.git">minio-async</a> on Gitee
+- <a href="https://github.com/hlf20010508/miniopy-async.git">miniopy-async</a> on Github
+- <a href="https://gitee.com/hlf01/miniopy-async.git">miniopy-async</a> on Gitee
