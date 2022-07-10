@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,40 +33,35 @@ sources = [
     ComposeSource("my-job-bucket", "my-object-part-three"),
 ]
 
-loop = asyncio.get_event_loop()
+async def main():
+    # Create my-bucket/my-object by combining source object
+    # list.
+    print('example one')
+    result = await client.compose_object("my-bucket", "my-object", sources)
+    print(result.object_name, result.version_id)
 
-# Create my-bucket/my-object by combining source object
-# list.
-print('example one')
-result = loop.run_until_complete(
-    client.compose_object("my-bucket", "my-object", sources)
-)
-print(result.object_name, result.version_id)
-
-# Create my-bucket/my-object with user metadata by combining
-# source object list.
-print('example two')
-result = loop.run_until_complete(
-    client.compose_object(
+    # Create my-bucket/my-object with user metadata by combining
+    # source object list.
+    print('example two')
+    result = await client.compose_object(
         "my-bucket",
         "my-object",
         sources,
         metadata={"Content-Type": "application/octet-stream"},
     )
-)
-print(result.object_name, result.version_id)
+    print(result.object_name, result.version_id)
 
-# Create my-bucket/my-object with user metadata and
-# server-side encryption by combining source object list.
-print('example three')
-loop.run_until_complete(
-    client.compose_object(
+    # Create my-bucket/my-object with user metadata and
+    # server-side encryption by combining source object list.
+    print('example three')
+    result = await client.compose_object(
         "my-bucket",
         "my-object",
         sources,
         sse=SseS3()
     )
-)
-print(result.object_name, result.version_id)
+    print(result.object_name, result.version_id)
 
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
 loop.close()

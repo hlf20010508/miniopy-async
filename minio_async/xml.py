@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
-# 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -82,7 +82,7 @@ def findtext(element, name, strict=False):
 
 def unmarshal(cls, xmlstring):
     """Unmarshal given XML string to an object of passed class."""
-    return cls.from_xml(ET.fromstring(xmlstring))
+    return cls.fromxml(ET.fromstring(xmlstring))
 
 
 def getbytes(element):

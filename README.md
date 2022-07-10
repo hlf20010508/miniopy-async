@@ -1,5 +1,5 @@
 # minio-async
-> Async version of minio python API
+> Asynchronous MinIO Python SDK
 
 <br/>
 
@@ -67,33 +67,31 @@ from minio_async import Minio
 import asyncio
 
 client = Minio(
-    endpoint="Your host",
-    access_key="Your username",
-    secret_key="Your password",
-    secure=False  # http for False, https for True
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
 loop = asyncio.get_event_loop()
-res = loop.run_until_complete(client.presigned_get_object("Your bucket name", "Your object name"))
-print('Got presigned url:', res)
+
+res = loop.run_until_complete(client.presigned_get_object("my-bucket", "my-object"))
+print('presigned url of my-object:', res)
+
 loop.close()
 ```
 
-If you're using some async frame or module, you have to create the client object in its async function.
 ```python
 from sanic import Sanic
 
 app = Sanic(__name__)
 
-def get_client():
-    client = Minio(
-        endpoint="Your host",
-        access_key="Your username",
-        secret_key="Your password",
-        secure=False  # http for False, https for True
-    )
-    return client
-
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
+)
 
 @app.route('/download', methods=['GET'])
 async def download(request):
@@ -104,7 +102,6 @@ async def download(request):
     # decodeURI, for those which has other language in fileName, such as Chinese, Japanese, Korean
     fileName = parse.unquote(fileName)
 
-    client = get_client() # create client here in a async function
     url = await client.presigned_get_object(bucket_name=bucket, object_name=fileName)
     return redirect(url)
 ```

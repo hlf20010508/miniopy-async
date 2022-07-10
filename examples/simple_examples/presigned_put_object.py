@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,23 +15,46 @@
 # limitations under the License.
 
 from datetime import timedelta
+from minio_async import Minio
+import asyncio
 
-from minio import Minio
+async def main():
+    client = Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True  # http for False, https for True
+    )
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-)
+    # Get presigned URL string to upload data to 'my-object' in
+    # 'my-bucket' with default expiry (i.e. 7 days).
+    url = await client.presigned_put_object("my-bucket", "my-object")
+    print('url:', url)
 
-# Get presigned URL string to upload data to 'my-object' in
-# 'my-bucket' with default expiry (i.e. 7 days).
-url = client.presigned_put_object("my-bucket", "my-object")
-print(url)
+    # Get presigned URL string to upload data to 'my-object' in
+    # 'my-bucket' with two hours expiry.
+    url = await client.presigned_put_object(
+        "my-bucket", "my-object", expires=timedelta(hours=2),
+    )
+    print('url:', url)
 
-# Get presigned URL string to upload data to 'my-object' in
-# 'my-bucket' with two hours expiry.
-url = client.presigned_put_object(
-    "my-bucket", "my-object", expires=timedelta(hours=2),
-)
-print(url)
+    # Get presigned URL string to upload data to 'my-object' in
+    # 'my-bucket' with public IP address when using private IP address.
+    client = Minio(
+        "127.0.0.1:9000",
+        access_key="your access key",
+        secret_key="you secret key",
+        secure=False  # http for False, https for True
+    )
+
+    print('example three')
+    url = await client.presigned_put_object(
+        "my-bucket",
+        "my-object",
+        change_host='https://YOURHOST:YOURPORT',
+    )
+    print('url:', url)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

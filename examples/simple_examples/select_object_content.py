@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2019 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,26 +15,35 @@
 # limitations under the License.
 
 
-from minio import Minio
-from minio.select import (CSVInputSerialization, CSVOutputSerialization,
-                          SelectRequest)
+from minio_async import Minio
+from minio_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
+from aiostream.stream import list as alist
+import asyncio
 
 client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
-with client.select_object_content(
+async def main():
+    result = await client.select_object_content(
         "my-bucket",
         "my-object.csv",
         SelectRequest(
-            "select * from S3Object",
+            "select * from s3object",
             CSVInputSerialization(),
             CSVOutputSerialization(),
             request_progress=True,
         ),
-) as result:
-    for data in result.stream():
+    )
+    print(type(result.stream()))
+    print('data:')
+    for data in await alist(result.stream()):
         print(data.decode())
-    print(result.stats())
+    print('status:',result.stats())
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

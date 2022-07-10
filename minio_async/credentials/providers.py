@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,8 +25,12 @@ import sys
 import time
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
+from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 from xml.etree import ElementTree
+
+import certifi
+import urllib3
 
 from minio_async.helpers import sha256_hash
 from minio_async.signer import sign_v4_sts
@@ -58,10 +62,17 @@ def _urlopen(http_client, method, url, body=None, headers=None):
     """Wrapper of urlopen() handles HTTP status code."""
     res = http_client.urlopen(method, url, body=body, headers=headers)
     if res.status not in [200, 204, 206]:
-        raise ValueError(
-            "{0} failed with HTTP status code {1}".format(url, res.status),
-        )
+        raise ValueError(f"{url} failed with HTTP status code {res.status}")
     return res
+
+
+def _user_home_dir():
+    """Return current user home folder."""
+    return (
+        os.environ.get("HOME") or
+        os.environ.get("UserProfile") or
+        str(Path.home())
+    )
 
 
 class Provider:  # pylint: disable=too-few-public-methods
@@ -115,6 +126,7 @@ class AssumeRoleProvider(Provider):
         self._body = urlencode(query_params)
         self._content_sha256 = sha256_hash(self._body)
         url = urlsplit(sts_endpoint)
+        self._url = url
         self._host = url.netloc
         if (
                 (url.scheme == "http" and url.port == 80) or
@@ -131,7 +143,7 @@ class AssumeRoleProvider(Provider):
         utctime = utcnow()
         headers = sign_v4_sts(
             "POST",
-            urlsplit(self._sts_endpoint),
+            self._url,
             self._region,
             {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -188,44 +200,36 @@ class ChainedProvider(Provider):
                 # Ignore this error and iterate other providers.
                 pass
 
-        return ValueError("All providers fail to fetch credentials")
+        raise ValueError("All providers fail to fetch credentials")
 
 
 class EnvAWSProvider(Provider):
     """Credential provider from AWS environment variables."""
 
-    def __init__(self):
-        access_key = (
-            os.environ.get("AWS_ACCESS_KEY_ID") or
-            os.environ.get("AWS_ACCESS_KEY")
-        )
-        secret_key = (
-            os.environ.get("AWS_SECRET_ACCESS_KEY") or
-            os.environ.get("AWS_SECRET_KEY")
-        )
-        self._credentials = Credentials(
-            access_key,
-            secret_key,
-            session_token=os.environ.get("AWS_SESSION_TOKEN"),
-        )
-
     def retrieve(self):
         """Retrieve credentials."""
-        return self._credentials
+        return Credentials(
+            access_key=(
+                os.environ.get("AWS_ACCESS_KEY_ID") or
+                os.environ.get("AWS_ACCESS_KEY")
+            ),
+            secret_key=(
+                os.environ.get("AWS_SECRET_ACCESS_KEY") or
+                os.environ.get("AWS_SECRET_KEY")
+            ),
+            session_token=os.environ.get("AWS_SESSION_TOKEN"),
+        )
 
 
 class EnvMinioProvider(Provider):
     """Credential provider from MinIO environment variables."""
 
-    def __init__(self):
-        self._credentials = Credentials(
-            os.environ.get("MINIO_ACCESS_KEY"),
-            os.environ.get("MINIO_SECRET_KEY"),
-        )
-
     def retrieve(self):
         """Retrieve credentials."""
-        return self._credentials
+        return Credentials(
+            access_key=os.environ.get("MINIO_ACCESS_KEY"),
+            secret_key=os.environ.get("MINIO_SECRET_KEY"),
+        )
 
 
 class AWSConfigProvider(Provider):
@@ -235,7 +239,7 @@ class AWSConfigProvider(Provider):
         self._filename = (
             filename or
             os.environ.get("AWS_SHARED_CREDENTIALS_FILE") or
-            os.path.join(os.environ.get("HOME"), ".aws", "credentials")
+            os.path.join(_user_home_dir(), ".aws", "credentials")
         )
         self._profile = profile or os.environ.get("AWS_PROFILE") or "default"
 
@@ -261,22 +265,14 @@ class AWSConfigProvider(Provider):
 
         if not access_key:
             raise ValueError(
-                (
-                    "access key does not exist in profile "
-                    "{0} in AWS credential file {1}"
-                ).format(
-                    self._profile, self._filename,
-                ),
+                f"access key does not exist in profile "
+                f"{self._profile} in AWS credential file {self._filename}"
             )
 
         if not secret_key:
             raise ValueError(
-                (
-                    "secret key does not exist in profile "
-                    "{0} in AWS credential file {1}"
-                ).format(
-                    self._profile, self._filename,
-                ),
+                f"secret key does not exist in profile "
+                f"{self._profile} in AWS credential file {self._filename}"
             )
 
         return Credentials(
@@ -293,7 +289,7 @@ class MinioClientConfigProvider(Provider):
         self._filename = (
             filename or
             os.path.join(
-                os.environ.get("HOME"),
+                _user_home_dir(),
                 "mc" if sys.platform == "win32" else ".mc",
                 "config.json",
             )
@@ -303,29 +299,23 @@ class MinioClientConfigProvider(Provider):
     def retrieve(self):
         """Retrieve credential value from MinIO client configuration file."""
         try:
-            with open(self._filename) as conf_file:
+            with open(self._filename, encoding="utf-8") as conf_file:
                 config = json.load(conf_file)
             aliases = config.get("hosts") or config.get("aliases")
             if not aliases:
                 raise ValueError(
-                    "invalid configuration in file {0}".format(
-                        self._filename,
-                    ),
+                    f"invalid configuration in file {self._filename}",
                 )
             creds = aliases.get(self._alias)
             if not creds:
                 raise ValueError(
-                    (
-                        "alias {0} not found in MinIO client"
-                        "configuration file {1}"
-                    ).format(
-                        self._alias, self._filename,
-                    ),
+                    f"alias {self._alias} not found in MinIO client"
+                    f"configuration file {self._filename}"
                 )
             return Credentials(creds.get("accessKey"), creds.get("secretKey"))
         except (IOError, OSError) as exc:
             raise ValueError(
-                "error in reading file {0}".format(self._filename),
+                f"error in reading file {self._filename}",
             ) from exc
 
 
@@ -344,12 +334,10 @@ def _check_loopback_host(url):
 def _get_jwt_token(token_file):
     """Read and return content of token file. """
     try:
-        with open(token_file) as file:
+        with open(token_file, encoding="utf-8") as file:
             return {"access_token": file.read(), "expires_in": "0"}
     except (IOError, OSError) as exc:
-        raise ValueError(
-            "error in reading file {0}".format(token_file),
-        ) from exc
+        raise ValueError(f"error in reading file {token_file}") from exc
 
 
 class IamAwsProvider(Provider):
@@ -383,9 +371,8 @@ class IamAwsProvider(Provider):
         data = json.loads(res.data)
         if data.get("Code", "Success") != "Success":
             raise ValueError(
-                "{0} failed with code {1} message {2}".format(
-                    url, data["Code"], data.get("Message"),
-                ),
+                f"{url} failed with code {data['Code']} "
+                f"message {data.get('Message')}"
             )
         data["Expiration"] = from_iso8601utc(data["Expiration"])
 
@@ -407,9 +394,7 @@ class IamAwsProvider(Provider):
             if not url:
                 url = "https://sts.amazonaws.com"
                 if self._aws_region:
-                    url = "https://sts.{0}.amazonaws.com".format(
-                        self._aws_region
-                    )
+                    url = f"https://sts.{self._aws_region}.amazonaws.com"
 
             provider = WebIdentityProvider(
                 lambda: _get_jwt_token(self._token_file),
@@ -438,9 +423,7 @@ class IamAwsProvider(Provider):
             res = _urlopen(self._http_client, "GET", url)
             role_names = res.data.decode("utf-8").split("\n")
             if not role_names:
-                raise ValueError(
-                    "no IAM roles attached to EC2 service {0}".format(url),
-                )
+                raise ValueError(f"no IAM roles attached to EC2 service {url}")
             url += "/" + role_names[0].strip("\r")
 
         self._credentials = self.fetch(url)
@@ -611,3 +594,66 @@ class WebIdentityProvider(WebIdentityClientGrantsProvider):
 
     def _is_web_identity(self):
         return True
+
+
+class CertificateIdentityProvider(Provider):
+    """Credential provider using AssumeRoleWithCertificate API."""
+
+    def __init__(
+            self, sts_endpoint, cert_file=None, key_file=None,
+            key_password=None, ca_certs=None, duration_seconds=0,
+            http_client=None,
+    ):
+        if urlsplit(sts_endpoint).scheme != "https":
+            raise ValueError("STS endpoint scheme must be HTTPS")
+
+        if bool(http_client) != (cert_file and key_file):
+            pass
+        else:
+            raise ValueError(
+                "either cert/key file or custom http_client must be provided",
+            )
+
+        self._sts_endpoint = sts_endpoint + "?" + urlencode(
+            {
+                "Action": "AssumeRoleWithCertificate",
+                "Version": "2011-06-15",
+                "DurationSeconds": str(
+                    duration_seconds
+                    if duration_seconds > _DEFAULT_DURATION_SECONDS
+                    else _DEFAULT_DURATION_SECONDS
+                ),
+            },
+        )
+        self._http_client = http_client or urllib3.PoolManager(
+            maxsize=10,
+            cert_file=cert_file,
+            cert_reqs='CERT_REQUIRED',
+            key_file=key_file,
+            key_password=key_password,
+            ca_certs=ca_certs or certifi.where(),
+            retries=urllib3.Retry(
+                total=5,
+                backoff_factor=0.2,
+                status_forcelist=[500, 502, 503, 504],
+            ),
+        )
+        self._credentials = None
+
+    def retrieve(self):
+        """Retrieve credentials."""
+
+        if self._credentials and not self._credentials.is_expired():
+            return self._credentials
+
+        res = _urlopen(
+            self._http_client,
+            "POST",
+            self._sts_endpoint,
+        )
+
+        self._credentials = _parse_credentials(
+            res.data.decode(), "AssumeRoleWithCertificateResult",
+        )
+
+        return self._credentials

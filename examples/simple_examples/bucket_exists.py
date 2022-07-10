@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,15 +24,13 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
-# loop = asyncio.get_event_loop()
+async def main():
+    result = await client.bucket_exists("my-bucket")
+    if result:
+        print("my-bucket exists")
+    else:
+        print("my-bucket does not exist")
 
-# res = loop.run_until_complete(
-#     client.bucket_exists("my-bucket")
-# )
-res=asyncio.run(client.bucket_exists("my-bucket"))
-if res:
-    print("my-bucket exists")
-else:
-    print("my-bucket does not exist")
-
-# loop.close()
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

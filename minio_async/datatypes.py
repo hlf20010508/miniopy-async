@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
-# 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import base64
 import datetime
 import json
 from collections import OrderedDict
-from urllib.parse import unquote
+from urllib.parse import unquote_plus
 from xml.etree import ElementTree as ET
 
 from .credentials import Credentials
@@ -57,7 +57,7 @@ class Bucket:
         return self._creation_date
 
     def __repr__(self):
-        return "{}({!r})".format(type(self).__name__, self.name)
+        return f"{type(self).__name__}('{self.name}')"
 
     def __str__(self):
         return self.name
@@ -76,16 +76,16 @@ class Bucket:
 class ListAllMyBucketsResult:
     """LissBuckets API result."""
 
-    def __init__(self, buckets: list):
+    def __init__(self, buckets):
         self._buckets = buckets
 
     @property
-    def buckets(self) -> list:
+    def buckets(self):
         """Get buckets."""
         return self._buckets
 
     @classmethod
-    def from_xml(cls, element):
+    def fromxml(cls, element):
         """Create new object with values from XML element."""
         element = find(element, "Buckets")
         buckets = []
@@ -196,8 +196,8 @@ class Object:
         return self._content_type
 
     @classmethod
-    def from_xml(cls, element, bucket_name, is_delete_marker=False,
-                 encoding_type=None):
+    def fromxml(cls, element, bucket_name, is_delete_marker=False,
+                encoding_type=None):
         """Create new object with values from XML element."""
         tag = findtext(element, "LastModified")
         last_modified = None if tag is None else from_iso8601utc(tag)
@@ -222,7 +222,7 @@ class Object:
 
         object_name = findtext(element, "Key", True)
         if encoding_type == "url":
-            object_name = unquote(object_name)
+            object_name = unquote_plus(object_name)
 
         return cls(
             bucket_name,
@@ -247,28 +247,28 @@ async def parse_list_objects(response, bucket_name=None):
     encoding_type = findtext(element, "EncodingType")
     elements = findall(element, "Contents")
     objects = [
-        Object.from_xml(tag, bucket_name, encoding_type=encoding_type)
+        Object.fromxml(tag, bucket_name, encoding_type=encoding_type)
         for tag in elements
     ]
     marker = objects[-1].object_name if objects else None
 
     elements = findall(element, "Version")
     objects += [
-        Object.from_xml(tag, bucket_name, encoding_type=encoding_type)
+        Object.fromxml(tag, bucket_name, encoding_type=encoding_type)
         for tag in elements
     ]
 
     elements = findall(element, "CommonPrefixes")
     objects += [
         Object(
-            bucket_name, unquote(findtext(tag, "Prefix", True))
+            bucket_name, unquote_plus(findtext(tag, "Prefix", True))
             if encoding_type == "url" else findtext(tag, "Prefix", True)
         ) for tag in elements
     ]
 
     elements = findall(element, "DeleteMarker")
     objects += [
-        Object.from_xml(tag, bucket_name, is_delete_marker=True,
+        Object.fromxml(tag, bucket_name, is_delete_marker=True,
                         encoding_type=encoding_type)
         for tag in elements
     ]
@@ -276,7 +276,7 @@ async def parse_list_objects(response, bucket_name=None):
     is_truncated = (findtext(element, "IsTruncated") or "").lower() == "true"
     key_marker = findtext(element, "NextKeyMarker")
     if key_marker and encoding_type == "url":
-        key_marker = unquote(key_marker)
+        key_marker = unquote_plus(key_marker)
     version_id_marker = findtext(element, "NextVersionIdMarker")
     continuation_token = findtext(element, "NextContinuationToken")
     if key_marker is not None:
@@ -284,7 +284,7 @@ async def parse_list_objects(response, bucket_name=None):
     if continuation_token is None:
         continuation_token = findtext(element, "NextMarker")
         if continuation_token and encoding_type == "url":
-            continuation_token = unquote(continuation_token)
+            continuation_token = unquote_plus(continuation_token)
     if continuation_token is None and is_truncated:
         continuation_token = marker
     return objects, is_truncated, continuation_token, version_id_marker
@@ -294,7 +294,7 @@ class CompleteMultipartUploadResult:
     """CompleteMultipartUpload API result."""
 
     def __init__(self, response, response_data):
-        element = ET.fromstring(response_data.decode())
+        element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
         self._location = findtext(element, "Location")
@@ -306,7 +306,7 @@ class CompleteMultipartUploadResult:
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -369,7 +369,7 @@ class Part:
         return self._size
 
     @classmethod
-    def from_xml(cls, element):
+    def fromxml(cls, element):
         """Create new object with values from XML element."""
         part_number = findtext(element, "PartNumber", True)
         etag = findtext(element, "ETag", True)
@@ -386,7 +386,7 @@ class ListPartsResult:
     """ListParts API result."""
 
     def __init__(self, response, response_data):
-        element = ET.fromstring(response_data.decode())
+        element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
         tag = find(element, "Initiator")
@@ -418,11 +418,11 @@ class ListPartsResult:
             self._is_truncated is not None and
             self._is_truncated.lower() == "true"
         )
-        self._parts = [Part.from_xml(tag) for tag in findall(element, "Part")]
+        self._parts = [Part.fromxml(tag) for tag in findall(element, "Part")]
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -492,7 +492,7 @@ class Upload:
         self._encoding_type = encoding_type
         self._object_name = findtext(element, "Key", True)
         self._object_name = (
-            unquote(self._object_name) if self._encoding_type == "url"
+            unquote_plus(self._object_name) if self._encoding_type == "url"
             else self._object_name
         )
         self._upload_id = findtext(element, "UploadId")
@@ -560,21 +560,21 @@ class ListMultipartUploadsResult:
     """ListMultipartUploads API result."""
 
     def __init__(self, response, response_data):
-        element = ET.fromstring(response_data.decode())
+        element = ET.fromstring(response_data)
         self._encoding_type = findtext(element, "EncodingType")
         self._bucket_name = findtext(element, "Bucket")
         self._key_marker = findtext(element, "KeyMarker")
         if self._key_marker:
             self._key_marker = (
-                unquote(self._key_marker) if self._encoding_type == "url"
+                unquote_plus(self._key_marker) if self._encoding_type == "url"
                 else self._key_marker
             )
         self._upload_id_marker = findtext(element, "UploadIdMarker")
         self._next_key_marker = findtext(element, "NextKeyMarker")
         if self._next_key_marker:
             self._next_key_marker = (
-                unquote(self._next_key_marker) if self._encoding_type == "url"
-                else self._next_key_marker
+                unquote_plus(self._next_key_marker)
+                if self._encoding_type == "url" else self._next_key_marker
             )
         self._next_upload_id_marker = findtext(element, "NextUploadIdMarker")
         self._max_uploads = findtext(element, "MaxUploads")
@@ -592,7 +592,7 @@ class ListMultipartUploadsResult:
 
     @classmethod
     async def from_async_response(cls, response):
-        return cls(response, await response.read())
+        return cls(response, await response.text())
 
     @property
     def bucket_name(self):
@@ -638,32 +638,6 @@ class ListMultipartUploadsResult:
     def uploads(self):
         """Get uploads."""
         return self._uploads
-
-
-class ObjectVersion:
-    def __init__(self, key, last_modified, etag, size):
-        self._key = key
-        self._last_modified = last_modified
-        self._etag = etag
-        self._size = size
-
-    @classmethod
-    def from_xml(cls, element):
-        key = findtext(element, "Key")
-        last_modified = findtext(element, "LastModified")
-        etag = findtext(element, "ETag")
-        size = findtext(element, "Size")
-
-        return cls(key, last_modified, etag, size)
-
-
-class ListVersionResult:
-    def __init__(self, name, prefix, key_marker, versions):
-        self._name = name
-        self._prefix = prefix
-        self._key_marker = key_marker
-        self._versions = versions
-
 
 
 _RESERVED_ELEMENTS = (
@@ -743,7 +717,7 @@ class PostPolicy:
                 )
         ):
             raise ValueError(
-                "{0} is unsupported for starts-with condition".format(element),
+                f"{element} is unsupported for starts-with condition",
             )
         if element in _RESERVED_ELEMENTS:
             raise ValueError(element + " cannot be set")

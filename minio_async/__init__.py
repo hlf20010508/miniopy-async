@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2015, 2016, 2017 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,27 +15,33 @@
 # limitations under the License.
 
 """
-minio - MinIO Python SDK for Amazon S3 Compatible Cloud Storage
+minio-async - Asynchronous MinIO Python SDK
 
-    >>> from minio_async import Minio
-    >>> client = Minio(
-    ...     "play.min.io",
-    ...     access_key="Q3AM3UQ867SPQQA43P2F",
-    ...     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    ... )
-    >>> buckets = client.list_buckets()
-    >>> for bucket in buckets:
-    ...     print(bucket.name, bucket.creation_date)
+>>> from minio_async import Minio
+>>> import asyncio
+>>> client = Minio(
+...     "play.min.io",
+...     access_key="Q3AM3UQ867SPQQA43P2F",
+...     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+...     secure=True  # http for False, https for True
+... )
+>>> loop = asyncio.get_event_loop()
+>>> buckets = loop.run_until_complete(
+...     client.list_buckets()
+... )
+>>> for bucket in buckets:
+...     print(bucket.name, bucket.creation_date)
+>>> loop.close()
 
-:copyright: (C) 2015-2020 MinIO, Inc.
+:Copyright © 2022 L-ING.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-__title__ = "minio-py"
-__author__ = "MinIO, Inc."
-__version__ = "1.0.1"
+__title__ = "minio-async"
+__author__ = "L-ING."
+__version__ = "1.1.0"
 __license__ = "Apache 2.0"
-__copyright__ = "Copyright 2015, 2016, 2017, 2018, 2019, 2020 MinIO, Inc."
+__copyright__ = "Copyright 2022 L-ING"
 
 import threading
 

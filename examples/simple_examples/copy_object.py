@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2016-2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,43 +15,52 @@
 # limitations under the License.
 
 from datetime import datetime, timezone
-
-from minio import Minio
-from minio.commonconfig import REPLACE, CopySource
+from minio_async import Minio
+from minio_async.commonconfig import REPLACE, CopySource
+import asyncio
 
 client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
-# copy an object from a bucket to another.
-result = client.copy_object(
-    "my-bucket",
-    "my-object",
-    CopySource("my-sourcebucket", "my-sourceobject"),
-)
-print(result.object_name, result.version_id)
+async def main():
+    # copy an object from a bucket to another.
+    print("example one")
+    result = await client.copy_object(
+        "my-job-bucket",
+        "my-copied-object1",
+        CopySource("my-bucket", "my-object"),
+    )
+    print(result.object_name, result.version_id)
 
-# copy an object with condition.
-result = client.copy_object(
-    "my-bucket",
-    "my-object",
-    CopySource(
-        "my-sourcebucket",
-        "my-sourceobject",
-        modified_since=datetime(2014, 4, 1, tzinfo=timezone.utc),
-    ),
-)
-print(result.object_name, result.version_id)
+    # copy an object with condition.
+    print("example two")
+    result = await client.copy_object(
+        "my-job-bucket",
+        "my-copied-object2",
+        CopySource(
+            "my-bucket",
+            "my-object",
+            modified_since=datetime(2014, 4, 1, tzinfo=timezone.utc),
+        ),
+    )
+    print(result.object_name, result.version_id)
 
-# copy an object from a bucket with replacing metadata.
-metadata = {"test_meta_key": "test_meta_value"}
-result = client.copy_object(
-    "my-bucket",
-    "my-object",
-    CopySource("my-sourcebucket", "my-sourceobject"),
-    metadata=metadata,
-    metadata_directive=REPLACE,
-)
-print(result.object_name, result.version_id)
+    # copy an object from a bucket with replacing metadata.
+    print("example three")
+    metadata = {"Content-Type": "application/octet-stream"}
+    result = await client.copy_object(
+        "my-job-bucket",
+        "my-copied-object3",
+        CopySource("my-bucket", "my-object"),
+        metadata=metadata,
+        metadata_directive=REPLACE,
+    )
+    print(result.object_name, result.version_id)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

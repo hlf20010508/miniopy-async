@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage.
-# Copyright (C) 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,14 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from minio import Minio
-from minio.commonconfig import ENABLED, Filter
-from minio.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
+from minio_async import Minio
+from minio_async.commonconfig import ENABLED, Filter
+from minio_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
+import asyncio
 
 client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
 )
 
 config = LifecycleConfig(
@@ -40,4 +42,10 @@ config = LifecycleConfig(
         ),
     ],
 )
-client.set_bucket_lifecycle("my-bucket", config)
+
+async def main():
+    await client.set_bucket_lifecycle("my-bucket", config)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

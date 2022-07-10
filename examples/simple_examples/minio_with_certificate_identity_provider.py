@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
-# (C) 2022 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
 # limitations under the License.
 #
 
-from minio import Minio
-from minio.credentials import CertificateIdentityProvider
+from minio_async import Minio
+from minio_async.credentials import CertificateIdentityProvider
+import asyncio
 
 # STS endpoint usually point to MinIO server.
 sts_endpoint = "https://STS-HOST:STS-PORT/"
@@ -33,6 +34,11 @@ provider = CertificateIdentityProvider(
 
 client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
 
-# Get information of an object.
-stat = client.stat_object("my-bucket", "my-object")
-print(stat)
+async def main():
+    # Get information of an object.
+    stat = await client.stat_object("my-bucket", "my-object")
+    print(stat)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
-# 2020 MinIO, Inc.
+# Asynchronous MinIO Python SDK
+# Copyright © 2022 L-ING.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class DeleteRequest:
         """Convert to XML."""
         element = Element("Delete")
         if self._quiet:
-            SubElement(element, "Quiet", str(self._quiet))
+            SubElement(element, "Quiet", "true")
         for obj in self._object_list:
             obj.toxml(element)
         return element
