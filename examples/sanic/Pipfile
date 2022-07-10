@@ -6,4 +6,4 @@ name = "pypi"
 [packages]
 sanic = "*"
 sanic-jinja2 = "*"
-miniopy-async = *
+miniopy-async = "*"
