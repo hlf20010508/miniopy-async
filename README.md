@@ -27,7 +27,7 @@ python setup.py install
 
 ## Install with pip
 
-Pypi
+PyPI
 ```sh
 pip install miniopy-async
 ```
@@ -46,7 +46,7 @@ pip install git+https://gitee.com/hlf01/miniopy-async.git
 
 ## Install with pipenv
 
-Pypi
+PyPI
 ```sh
 pipenv install miniopy-async
 ```
@@ -122,5 +122,6 @@ Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/ma
 <br/>
 
 ## Link
+- <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
 - <a href="https://github.com/hlf20010508/miniopy-async.git">miniopy-async</a> on Github
 - <a href="https://gitee.com/hlf01/miniopy-async.git">miniopy-async</a> on Gitee
