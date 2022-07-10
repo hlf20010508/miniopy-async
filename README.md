@@ -103,9 +103,9 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/master/examples">examples</a> on Github and <a href="https://gitee.com/hlf2001/minio-async/tree/master/examples">examples</a> on Gitee
+Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/master/examples">examples</a> on Github and <a href="https://gitee.com/hlf01/minio-async/tree/master/examples">examples</a> on Gitee
 
-Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/master/docs">docs</a> on Github and <a href="https://gitee.com/hlf2001/minio-async/tree/master/docs">docs</a> on Gitee
+Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/master/docs">docs</a> on Github and <a href="https://gitee.com/hlf01/minio-async/tree/master/docs">docs</a> on Gitee
 
 <br/>
 
