@@ -2,7 +2,7 @@
 > Asynchronous MinIO Python Client API
 
 ## Declaration
-This project based on Huseyn Mashadiyev's minio-async 1.0.0
+This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0
 
 <br/>
 
