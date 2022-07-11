@@ -21,7 +21,7 @@
 # Date: 2022-07-11
 
 """
-minio-async - Asynchronous MinIO Python SDK
+miniopy-async - Asynchronous MinIO Python SDK
 
 >>> from minio_async import Minio
 >>> import asyncio
@@ -43,11 +43,11 @@ minio-async - Asynchronous MinIO Python SDK
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-__title__ = "minio-async"
+__title__ = "miniopy-async"
 __author__ = "L-ING."
-__version__ = "1.1.0"
+__version__ = "1.3"
 __license__ = "Apache 2.0"
-__copyright__ = "Copyright 2022 L-ING"
+__copyright__ = "(C) 2022 L-ING <hlf01@icloud.com>"
 
 import threading
 

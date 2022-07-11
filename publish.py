@@ -17,7 +17,7 @@ import os
 import minio_async
 
 os.system('python setup.py sdist')
-os.system('twine upload dist/minio-async-%s.tar.gz' %
+os.system('twine upload dist/miniopy-async-%s.tar.gz' %
           minio_async.__version__)
 for file in os.listdir('minio_async.egg-info'):
     os.remove(os.path.join('minio_async.egg-info', file))

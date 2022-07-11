@@ -39,10 +39,10 @@ with codecs.open("README.md", encoding="utf-8") as file:
     readme = file.read()
 
 setup(
-    name="minio-async",
+    name="miniopy-async",
     description="Asynchronous MinIO Python SDK",
     author="L-ING",
-    url="https://github.com/hlf20010508/minio-async",
+    url="https://github.com/hlf20010508/minio-async/tree/miniopy-async",
     author_email="hlf01@icloud.com",
     version=version,
     long_description_content_type="text/markdown",
