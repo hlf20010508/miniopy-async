@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.notificationconfig import (NotificationConfig, PrefixFilterRule, QueueConfig)
+from miniopy_async import Minio
+from miniopy_async.notificationconfig import (NotificationConfig, PrefixFilterRule, QueueConfig)
 import asyncio
 
 client = Minio(

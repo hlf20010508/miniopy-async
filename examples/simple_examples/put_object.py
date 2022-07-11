@@ -22,10 +22,10 @@
 import io
 from datetime import datetime, timedelta
 from urllib.request import urlopen
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE, Tags
-from minio_async.retention import Retention
-from minio_async.sse import SseCustomerKey, SseKMS, SseS3
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE, Tags
+from miniopy_async.retention import Retention
+from miniopy_async.sse import SseCustomerKey, SseKMS, SseS3
 import asyncio
 
 client = Minio(

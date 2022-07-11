@@ -21,8 +21,8 @@
 
 import json
 import urllib3
-from minio_async import Minio
-from minio_async.credentials import WebIdentityProvider
+from miniopy_async import Minio
+from miniopy_async.credentials import WebIdentityProvider
 import asyncio
 
 

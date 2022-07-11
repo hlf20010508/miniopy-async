@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.sseconfig import Rule, SSEConfig
+from miniopy_async import Minio
+from miniopy_async.sseconfig import Rule, SSEConfig
 import asyncio
 
 client = Minio(

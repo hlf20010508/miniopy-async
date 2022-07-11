@@ -19,7 +19,7 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(

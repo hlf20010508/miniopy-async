@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.credentials import EnvAWSProvider
+from miniopy_async import Minio
+from miniopy_async.credentials import EnvAWSProvider
 import asyncio
 
 client = Minio("s3.amazonaws.com", credentials=EnvAWSProvider())

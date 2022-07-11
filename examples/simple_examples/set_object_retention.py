@@ -20,9 +20,9 @@
 # Date: 2022-07-11
 
 from datetime import datetime, timedelta
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE
-from minio_async.retention import Retention
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE
+from miniopy_async.retention import Retention
 import asyncio
 
 client = Minio(

@@ -19,9 +19,9 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE
-from minio_async.objectlockconfig import DAYS, ObjectLockConfig
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE
+from miniopy_async.objectlockconfig import DAYS, ObjectLockConfig
 import asyncio
 
 client = Minio(

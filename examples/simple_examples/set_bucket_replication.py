@@ -19,9 +19,9 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter
-from minio_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
+from miniopy_async import Minio
+from miniopy_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter
+from miniopy_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
 import asyncio
 
 client = Minio(

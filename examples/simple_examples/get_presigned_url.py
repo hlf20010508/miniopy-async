@@ -20,7 +20,7 @@
 # Date: 2022-07-11
 
 from datetime import timedelta
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 

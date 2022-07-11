@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.credentials import AssumeRoleProvider
+from miniopy_async import Minio
+from miniopy_async.credentials import AssumeRoleProvider
 import asyncio
 
 # STS endpoint usually point to MinIO server.

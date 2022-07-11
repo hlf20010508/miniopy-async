@@ -19,9 +19,9 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import ENABLED, Filter
-from minio_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
+from miniopy_async import Minio
+from miniopy_async.commonconfig import ENABLED, Filter
+from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
 import asyncio
 
 client = Minio(

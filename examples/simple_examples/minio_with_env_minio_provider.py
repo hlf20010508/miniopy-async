@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.credentials import EnvMinioProvider
+from miniopy_async import Minio
+from miniopy_async.credentials import EnvMinioProvider
 import asyncio
 
 client = Minio("MINIO-HOST:MINIO-PORT", credentials=EnvMinioProvider())

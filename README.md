@@ -50,12 +50,12 @@ pipenv install git+https://github.com/hlf20010508/minio-async.git@miniopy-async#
 
 ## Usage
 ```python
-import minio_async
+import miniopy_async
 ```
 
 ### Examples
 ```python
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -76,7 +76,7 @@ loop.close()
 
 ```python
 from sanic import Sanic
-from minio_async import Minio
+from miniopy_async import Minio
 
 app = Sanic(__name__)
 

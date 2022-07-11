@@ -17,7 +17,7 @@
 from sanic import Sanic
 from sanic.response import redirect
 from sanic_jinja2 import SanicJinja2
-from minio_async import Minio
+from miniopy_async import Minio
 import aiofiles
 import os
 from urllib import parse

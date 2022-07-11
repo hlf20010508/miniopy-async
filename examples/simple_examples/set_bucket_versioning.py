@@ -19,9 +19,9 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import ENABLED
-from minio_async.versioningconfig import VersioningConfig
+from miniopy_async import Minio
+from miniopy_async.commonconfig import ENABLED
+from miniopy_async.versioningconfig import VersioningConfig
 import asyncio
 
 client = Minio(

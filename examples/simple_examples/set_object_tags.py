@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import Tags
+from miniopy_async import Minio
+from miniopy_async.commonconfig import Tags
 import asyncio
 
 client = Minio(

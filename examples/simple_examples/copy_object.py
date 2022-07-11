@@ -20,8 +20,8 @@
 # Date: 2022-07-11
 
 from datetime import datetime, timezone
-from minio_async import Minio
-from minio_async.commonconfig import REPLACE, CopySource
+from miniopy_async import Minio
+from miniopy_async.commonconfig import REPLACE, CopySource
 import asyncio
 
 client = Minio(
