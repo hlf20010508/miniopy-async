@@ -31,7 +31,6 @@ import math
 import os
 import re
 import urllib.parse
-from asyncio import iscoroutine
 
 from .sse import Sse, SseCustomerKey
 from .time import to_iso8601utc

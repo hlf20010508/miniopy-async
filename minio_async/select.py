@@ -30,8 +30,6 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
-import asyncio
-import concurrent
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
