@@ -107,5 +107,5 @@ Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/mast
 <br/>
 
 ## Link
-- <a href="https://pypi.org/project/minio-async/">miniopy-async</a> on PyPI
-- <a href="https://github.com/hlf20010508/minio-async.git">miniopy-async</a> on Github
+- <a href="https://pypi.org/project/minio-async/">minio-async</a> on PyPI
+- <a href="https://github.com/hlf20010508/minio-async.git">minio-async</a> on Github
