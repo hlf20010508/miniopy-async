@@ -13,7 +13,7 @@ This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/Hu
 
 ## Build from source
 ```sh
-git clone -b miniopy-async https://github.com/hlf20010508/minio-async.git
+git clone -b miniopy-async https://github.com/hlf20010508/miniopy-async.git
 cd minio-async
 python setup.py install
 ```
@@ -29,7 +29,7 @@ pip install miniopy-async
 
 Github Repository
 ```sh
-pip install git+https://github.com/hlf20010508/minio-async.git@miniopy-async
+pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
 
 <br/>
@@ -43,7 +43,7 @@ pipenv install miniopy-async
 
 Github Repository
 ```sh
-pipenv install git+https://github.com/hlf20010508/minio-async.git@miniopy-async#egg=minio-async
+pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
 ```
 
 <br/>
@@ -100,12 +100,12 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async/examples">examples</a>
+Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>
 
-Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async/docs">docs</a>
+Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
 
 <br/>
 
 ## Link
 - <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
-- <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async">miniopy-async</a> on Github
+- <a href="https://github.com/hlf20010508/miniopy-async">miniopy-async</a> on Github

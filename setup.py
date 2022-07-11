@@ -21,12 +21,8 @@
 
 import codecs
 import re
-import sys
 
 from setuptools import setup
-
-if sys.argv[-1] == "publish":
-    sys.argv = sys.argv[:-1] + ["sdist", "upload"]
 
 with codecs.open("miniopy_async/__init__.py") as file:
     version = re.search(
@@ -42,7 +38,7 @@ setup(
     name="miniopy-async",
     description="Asynchronous MinIO Python Client API",
     author="L-ING",
-    url="https://github.com/hlf20010508/minio-async/tree/miniopy-async",
+    url="https://github.com/hlf20010508/miniopy-async",
     author_email="hlf01@icloud.com",
     version=version,
     long_description_content_type="text/markdown",
