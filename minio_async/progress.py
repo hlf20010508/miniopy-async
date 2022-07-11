@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# (C) 2018 MinIO, Inc.
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,7 +17,13 @@
 
 """
 This module implements a progress printer while communicating with MinIO server
+:copyright:
+(C) 2018 by MinIO, Inc.
+(C) 2022 L-ING <hlf01@icloud.com>
+:license: Apache 2.0, see LICENSE for more details.
 """
+
+
 import time
 
 _BAR_SIZE = 20

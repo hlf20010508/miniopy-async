@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
+# 2020 MinIO, Inc.
+# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +15,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+# NOTICE: This file has been changed and differs from the original
+# Author: L-ING
+# Date: 2022-07-11
 
 """XML utility module."""
 

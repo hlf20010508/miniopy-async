@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage, (C)
+# 2020 MinIO, Inc.
+# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +16,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTICE: This file has been changed and differs from the original
+# Author: L-ING
+# Date: 2022-07-11
+
 """Request/response of SelectObjectContent API."""
 
 from __future__ import absolute_import
@@ -24,8 +30,6 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
-import asyncio
-import concurrent
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"

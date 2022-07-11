@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# (C) 2015, 2016, 2017 MinIO, Inc.
+# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,8 +16,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTICE: This file has been changed and differs from the original
+# Author: L-ING
+# Date: 2022-07-11
+
 """
-minio-async - Asynchronous MinIO Python SDK
+miniopy-async - Asynchronous MinIO Python SDK
 
 >>> from minio_async import Minio
 >>> import asyncio
@@ -39,7 +45,7 @@ minio-async - Asynchronous MinIO Python SDK
 
 __title__ = "miniopy-async"
 __author__ = "L-ING."
-__version__ = "1.2"
+__version__ = "1.3"
 __license__ = "Apache 2.0"
 __copyright__ = "Copyright 2022 L-ING"
 

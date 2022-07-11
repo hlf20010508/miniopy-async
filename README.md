@@ -1,6 +1,9 @@
 # miniopy-async
 > Asynchronous MinIO Python SDK
 
+## Declaration
+This project based on Huseyn Mashadiyev's minio-async 1.0.0
+
 <br/>
 
 ## Dependencies
@@ -9,16 +12,8 @@
 <br/>
 
 ## Build from source
-Github Repository
 ```sh
 git clone https://github.com/hlf20010508/miniopy-async.git
-cd miniopy-async
-python setup.py install
-```
-
-Gitee Repository
-```sh
-git clone https://gitee.com/hlf01/miniopy-async.git
 cd miniopy-async
 python setup.py install
 ```
@@ -37,11 +32,6 @@ Github Repository
 pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
 
-Gitee Repository
-```sh
-pip install git+https://gitee.com/hlf01/miniopy-async.git
-```
-
 <br/>
 
 ## Install with pipenv
@@ -54,11 +44,6 @@ pipenv install miniopy-async
 Github Repository
 ```sh
 pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
-```
-
-Gitee Repository
-```sh
-pipenv install git+https://gitee.com/hlf01/miniopy-async.git#egg=miniopy-async
 ```
 
 <br/>
@@ -115,13 +100,12 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a> on Github and <a href="https://gitee.com/hlf01/miniopy-async/tree/master/examples">examples</a> on Gitee
+Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>
 
-Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a> on Github and <a href="https://gitee.com/hlf01/miniopy-async/tree/master/docs">docs</a> on Gitee
+Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
 
 <br/>
 
 ## Link
 - <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
 - <a href="https://github.com/hlf20010508/miniopy-async.git">miniopy-async</a> on Github
-- <a href="https://gitee.com/hlf01/miniopy-async.git">miniopy-async</a> on Gitee

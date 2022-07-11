@@ -1,6 +1,0 @@
-.venv/
-.DS_Store
-__pycache__/
-.vscode/
-Pipfile
-Pipfile.lock

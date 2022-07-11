@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# (C) 2015-2019 MinIO, Inc.
+# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,16 +16,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTICE: This file has been changed and differs from the original
+# Author: L-ING
+# Date: 2022-07-11
+
 # pylint: disable=too-many-lines
 
 """
-minio.error
-~~~~~~~~~~~~~~~~~~~
+minio_async.error
+~~~~~~~~~~~~~~~~~
 
 This module provides custom exception classes for MinIO library
 and API specific errors.
 
-:copyright: (c) 2015, 2016, 2017 by MinIO, Inc.
+:copyright:
+(C) 2015, 2016, 2017 by MinIO, Inc.
+(C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+(C) 2022 L-ING <hlf01@icloud.com>
 :license: Apache 2.0, see LICENSE for more details.
 
 """

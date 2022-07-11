@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # Asynchronous MinIO Python SDK
-# Copyright © 2022 L-ING.
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
