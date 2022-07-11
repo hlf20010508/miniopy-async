@@ -15,12 +15,12 @@ __Parameters__
 | `session_token` | _str_                              | (Optional) Session token of your account in S3 service. 
 | `secure`        | _bool_                             | (Optional) Flag to indicate to use secure (TLS) connection to S3 service or not.
 | `region`        | _str_                              | (Optional) Region name of buckets in S3 service.                   
-| `credentials`   | _minio_async.credentials.Provider_ | (Optional) Credentials provider of your account in S3 service.
+| `credentials`   | _miniopy_async.credentials.Provider_ | (Optional) Credentials provider of your account in S3 service.
 
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 
 # Create client with anonymous access.
 client = Minio("play.min.io")
@@ -96,7 +96,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -139,7 +139,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -173,7 +173,7 @@ __Parameters__
 
 __Example__
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -210,7 +210,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -256,7 +256,7 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -329,7 +329,7 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -365,7 +365,7 @@ __Example__
 
 ```py
 import json
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -448,7 +448,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -487,7 +487,7 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -522,8 +522,8 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.notificationconfig import (NotificationConfig, PrefixFilterRule, QueueConfig)
+from miniopy_async import Minio
+from miniopy_async.notificationconfig import (NotificationConfig, PrefixFilterRule, QueueConfig)
 import asyncio
 
 client = Minio(
@@ -567,7 +567,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -607,7 +607,7 @@ __Return Value__
 | Iterator of event records as _dict_ |
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -652,7 +652,7 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -687,8 +687,8 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.sseconfig import Rule, SSEConfig
+from miniopy_async import Minio
+from miniopy_async.sseconfig import Rule, SSEConfig
 import asyncio
 
 client = Minio(
@@ -723,7 +723,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -756,7 +756,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -791,9 +791,9 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import ENABLED
-from minio_async.versioningconfig import VersioningConfig
+from miniopy_async import Minio
+from miniopy_async.commonconfig import ENABLED
+from miniopy_async.versioningconfig import VersioningConfig
 import asyncio
 
 client = Minio(
@@ -826,7 +826,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -863,7 +863,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -898,9 +898,9 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter
-from minio_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
+from miniopy_async import Minio
+from miniopy_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter
+from miniopy_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
 import asyncio
 
 client = Minio(
@@ -956,7 +956,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -994,7 +994,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -1029,9 +1029,9 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import ENABLED, Filter
-from minio_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
+from miniopy_async import Minio
+from miniopy_async.commonconfig import ENABLED, Filter
+from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
 import asyncio
 
 client = Minio(
@@ -1081,7 +1081,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -1118,7 +1118,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -1153,8 +1153,8 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import Tags
+from miniopy_async import Minio
+from miniopy_async.commonconfig import Tags
 import asyncio
 
 client = Minio(
@@ -1191,7 +1191,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -1228,7 +1228,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -1263,9 +1263,9 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE
-from minio_async.objectlockconfig import DAYS, ObjectLockConfig
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE
+from miniopy_async.objectlockconfig import DAYS, ObjectLockConfig
 import asyncio
 
 client = Minio(
@@ -1315,8 +1315,8 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.sse import SseCustomerKey
+from miniopy_async import Minio
+from miniopy_async.sse import SseCustomerKey
 import asyncio
 
 client = Minio(
@@ -1387,8 +1387,8 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
+from miniopy_async import Minio
+from miniopy_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
 from aiostream.stream import list as alist
 import asyncio
 
@@ -1447,8 +1447,8 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.sse import SseCustomerKey
+from miniopy_async import Minio
+from miniopy_async.sse import SseCustomerKey
 import asyncio
 
 client = Minio(
@@ -1514,8 +1514,8 @@ __Example__
 
 ```py
 from datetime import datetime, timezone
-from minio_async import Minio
-from minio_async.commonconfig import REPLACE, CopySource
+from miniopy_async import Minio
+from miniopy_async.commonconfig import REPLACE, CopySource
 import asyncio
 
 client = Minio(
@@ -1594,9 +1594,9 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import ComposeSource
-from minio_async.sse import SseS3
+from miniopy_async import Minio
+from miniopy_async.commonconfig import ComposeSource
+from miniopy_async.sse import SseS3
 import asyncio
 
 client = Minio(
@@ -1682,10 +1682,10 @@ __Example__
 import io
 from datetime import datetime, timedelta
 from urllib.request import urlopen
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE, Tags
-from minio_async.retention import Retention
-from minio_async.sse import SseCustomerKey, SseKMS, SseS3
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE, Tags
+from miniopy_async.retention import Retention
+from miniopy_async.sse import SseCustomerKey, SseKMS, SseS3
 import asyncio
 
 client = Minio(
@@ -1710,7 +1710,7 @@ async def main():
     # Upload unknown sized data.
     print('example two')
     data = urlopen(
-        "https://raw.githubusercontent.com/hlf20010508/miniopy-async/master/README.md",
+        "https://raw.githubusercontent.com/hlf20010508/minio-async/miniopy-async/README.md",
     )
     result = await client.put_object(
         "my-bucket", "my-object", data, length=-1, part_size=10*1024*1024,
@@ -1847,10 +1847,10 @@ __Example__
 
 ```py
 from datetime import datetime, timedelta
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE, Tags
-from minio_async.retention import Retention
-from minio_async.sse import SseCustomerKey, SseKMS, SseS3
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE, Tags
+from miniopy_async.retention import Retention
+from miniopy_async.sse import SseCustomerKey, SseKMS, SseS3
 import asyncio
 
 client = Minio(
@@ -1992,8 +1992,8 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.sse import SseCustomerKey
+from miniopy_async import Minio
+from miniopy_async.sse import SseCustomerKey
 import asyncio
 
 client = Minio(
@@ -2059,7 +2059,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2109,8 +2109,8 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.deleteobjects import DeleteObject
+from miniopy_async import Minio
+from miniopy_async.deleteobjects import DeleteObject
 import asyncio
 
 client = Minio(
@@ -2169,7 +2169,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2208,7 +2208,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2245,8 +2245,8 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
-from minio_async.commonconfig import Tags
+from miniopy_async import Minio
+from miniopy_async.commonconfig import Tags
 import asyncio
 
 client = Minio(
@@ -2285,7 +2285,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2320,7 +2320,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2355,7 +2355,7 @@ __Parameters__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2400,7 +2400,7 @@ __Return Value__
 __Example__
 
 ```py
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -2438,9 +2438,9 @@ __Example__
 
 ```py
 from datetime import datetime, timedelta
-from minio_async import Minio
-from minio_async.commonconfig import GOVERNANCE
-from minio_async.retention import Retention
+from miniopy_async import Minio
+from miniopy_async.commonconfig import GOVERNANCE
+from miniopy_async.retention import Retention
 import asyncio
 
 client = Minio(
@@ -2489,7 +2489,7 @@ __Example__
 
 ```py
 from datetime import timedelta
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 async def main():
@@ -2561,7 +2561,7 @@ __Example__
 
 ```py
 from datetime import timedelta
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 async def main():
@@ -2628,8 +2628,8 @@ __Example__
 
 ```py
 from datetime import datetime, timedelta
-from minio_async import Minio
-from minio_async.datatypes import PostPolicy
+from miniopy_async import Minio
+from miniopy_async.datatypes import PostPolicy
 import asyncio
 
 client = Minio(
@@ -2690,7 +2690,7 @@ __Example__
 
 ```py
 from datetime import timedelta
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 async def main():

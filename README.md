@@ -1,13 +1,8 @@
 # miniopy-async
-> Asynchronous MinIO Python SDK
-
-## Notice
-This repository has been moved to [minio-async@miniopy-async](https://github.com/hlf20010508/minio-async/tree/miniopy-async)
-
-<br/>
+> Asynchronous MinIO Python Client API
 
 ## Declaration
-This project based on Huseyn Mashadiyev's minio-async 1.0.0
+This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0
 
 <br/>
 
@@ -18,8 +13,8 @@ This project based on Huseyn Mashadiyev's minio-async 1.0.0
 
 ## Build from source
 ```sh
-git clone https://github.com/hlf20010508/miniopy-async.git
-cd miniopy-async
+git clone -b miniopy-async https://github.com/hlf20010508/minio-async.git
+cd minio-async
 python setup.py install
 ```
 
@@ -34,7 +29,7 @@ pip install miniopy-async
 
 Github Repository
 ```sh
-pip install git+https://github.com/hlf20010508/miniopy-async.git
+pip install git+https://github.com/hlf20010508/minio-async.git@miniopy-async
 ```
 
 <br/>
@@ -48,19 +43,19 @@ pipenv install miniopy-async
 
 Github Repository
 ```sh
-pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
+pipenv install git+https://github.com/hlf20010508/minio-async.git@miniopy-async#egg=minio-async
 ```
 
 <br/>
 
 ## Usage
 ```python
-import minio_async
+import miniopy_async
 ```
 
 ### Examples
 ```python
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 client = Minio(
@@ -81,7 +76,7 @@ loop.close()
 
 ```python
 from sanic import Sanic
-from minio_async import Minio
+from miniopy_async import Minio
 
 app = Sanic(__name__)
 
@@ -105,12 +100,12 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>
+Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async/examples">examples</a>
 
-Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
+Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async/docs">docs</a>
 
 <br/>
 
 ## Link
 - <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
-- <a href="https://github.com/hlf20010508/miniopy-async.git">miniopy-async</a> on Github
+- <a href="https://github.com/hlf20010508/minio-async/tree/miniopy-async">miniopy-async</a> on Github

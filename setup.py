@@ -1,4 +1,4 @@
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# Asynchronous MinIO Python Client API
 # (C) 2015 MinIO, Inc.
 # (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
 # (C) 2022 L-ING <hlf01@icloud.com>
@@ -28,7 +28,7 @@ from setuptools import setup
 if sys.argv[-1] == "publish":
     sys.argv = sys.argv[:-1] + ["sdist", "upload"]
 
-with codecs.open("minio_async/__init__.py") as file:
+with codecs.open("miniopy_async/__init__.py") as file:
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         file.read(),
@@ -40,14 +40,14 @@ with codecs.open("README.md", encoding="utf-8") as file:
 
 setup(
     name="miniopy-async",
-    description="Asynchronous MinIO Python SDK",
+    description="Asynchronous MinIO Python Client API",
     author="L-ING",
-    url="https://github.com/hlf20010508/miniopy-async",
+    url="https://github.com/hlf20010508/minio-async/tree/miniopy-async",
     author_email="hlf01@icloud.com",
     version=version,
     long_description_content_type="text/markdown",
-    package_dir={"minio_async": "minio_async"},
-    packages=["minio_async", "minio_async.credentials"],
+    package_dir={"miniopy_async": "miniopy_async"},
+    packages=["miniopy_async", "miniopy_async.credentials"],
     install_requires=["certifi", "aiofile", "aiohttp", "urllib3"],
     tests_require=["mock", "nose"],
     license="Apache License 2.0",

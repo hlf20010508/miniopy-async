@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
+# Asynchronous MinIO Python Client API
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +17,7 @@
 from sanic import Sanic
 from sanic.response import redirect
 from sanic_jinja2 import SanicJinja2
-from minio_async import Minio
+from miniopy_async import Minio
 import aiofiles
 import os
 from urllib import parse

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
+# Asynchronous MinIO Python Client API
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,14 +14,22 @@
 # limitations under the License.
 
 import os
-import minio_async
+import shutil
 
+egg_info_path='miniopy_async.egg-info'
+dist_path='dist'
+build_path='build'
+
+def clear_cache():
+    if os.path.exists(egg_info_path):
+        shutil.rmtree(egg_info_path)
+    if os.path.exists(dist_path):
+        shutil.rmtree(dist_path)
+    if os.path.exists(build_path):
+        shutil.rmtree(build_path)
+
+clear_cache()
 os.system('python setup.py sdist')
-os.system('twine upload dist/miniopy-async-%s.tar.gz' %
-          minio_async.__version__)
-for file in os.listdir('miniopy_async.egg-info'):
-    os.remove(os.path.join('miniopy_async.egg-info', file))
-os.rmdir('miniopy_async.egg-info')
-for file in os.listdir('dist'):
-    os.remove(os.path.join('dist', file))
-os.rmdir('dist')
+os.system('python setup.py bdist_wheel')
+os.system('twine upload dist/*')
+clear_cache()

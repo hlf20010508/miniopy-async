@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# Asynchronous MinIO Python Client API
 # (C) 2020 MinIO, Inc.
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
@@ -20,7 +20,7 @@
 # Date: 2022-07-11
 
 from datetime import timedelta
-from minio_async import Minio
+from miniopy_async import Minio
 import asyncio
 
 

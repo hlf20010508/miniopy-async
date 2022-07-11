@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# Asynchronous MinIO Python Client API
 # (C) 2020 MinIO, Inc.
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
@@ -23,8 +23,8 @@
 # together and will pick the first available using priority order of the
 # 'providers' list
 
-from minio_async import Minio
-from minio_async.credentials import (AWSConfigProvider, ChainedProvider, EnvAWSProvider, IamAwsProvider)
+from miniopy_async import Minio
+from miniopy_async.credentials import (AWSConfigProvider, ChainedProvider, EnvAWSProvider, IamAwsProvider)
 import asyncio
 
 client = Minio(

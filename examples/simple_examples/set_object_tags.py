@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage.
+# Asynchronous MinIO Python Client API
 # Copyright (C) 2020 MinIO, Inc.
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
@@ -19,8 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from minio_async import Minio
-from minio_async.commonconfig import Tags
+from miniopy_async import Minio
+from miniopy_async.commonconfig import Tags
 import asyncio
 
 client = Minio(
