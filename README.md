@@ -1,6 +1,11 @@
 # miniopy-async
 > Asynchronous MinIO Python SDK
 
+## Notice
+This repository has been moved to [minio-async@miniopy-async](https://github.com/hlf20010508/minio-async/tree/miniopy-async)
+
+<br/>
+
 ## Declaration
 This project based on Huseyn Mashadiyev's minio-async 1.0.0
 
