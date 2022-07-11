@@ -1,6 +1,7 @@
 # MinIO Python Library for Amazon S3 Compatible Cloud Storage,
 # (C) 2015 MinIO, Inc.
 # (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
+# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +15,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# NOTICE: This file has been changed and differs from the original
+# Author: L-ING
+# Date: 2022-07-11
+
 import codecs
 import re
 import sys
@@ -23,7 +28,7 @@ from setuptools import setup
 if sys.argv[-1] == "publish":
     sys.argv = sys.argv[:-1] + ["sdist", "upload"]
 
-with codecs.open("minio/__init__.py") as file:
+with codecs.open("minio_async/__init__.py") as file:
     version = re.search(
         r'^__version__\s*=\s*[\'"]([^\'"]*)[\'"]',
         file.read(),
@@ -35,15 +40,15 @@ with codecs.open("README.md", encoding="utf-8") as file:
 
 setup(
     name="minio-async",
-    description="Asynchronous MinIO Python SDK for Amazon S3 Compatible Cloud Storage",
-    author="Huseyn Mashadiyev",
-    url="https://github.com/HuseynMashadiyev/minio-async",
-    author_email="mashadiyev.huseyn@gmail.com",
+    description="Asynchronous MinIO Python SDK",
+    author="L-ING",
+    url="https://github.com/hlf20010508/minio-async",
+    author_email="hlf01@icloud.com",
     version=version,
     long_description_content_type="text/markdown",
-    package_dir={"minio": "minio"},
-    packages=["minio", "minio.credentials"],
-    install_requires=["certifi", "aiofile", "aiohttp"],
+    package_dir={"minio_async": "minio_async"},
+    packages=["minio_async", "minio_async.credentials"],
+    install_requires=["certifi", "aiofile", "aiohttp", "urllib3"],
     tests_require=["mock", "nose"],
     license="Apache License 2.0",
     classifiers=[
@@ -53,13 +58,14 @@ setup(
         "Natural Language :: English",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],
     long_description=readme,
     package_data={"": ["LICENSE", "README.md"]},
     include_package_data=True,
+    python_requires='>3.6',
 )

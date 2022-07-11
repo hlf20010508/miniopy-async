@@ -1,96 +1,111 @@
-# Asynchronous MinIO Python SDK for Amazon S3 Compatible Cloud Storage [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io)
+# miniopy-async
+> Asynchronous MinIO Python SDK
 
-This project has been forked from original MinIO Python SDK and functionalities have been replaces with asynchronous patterns
+## Declaration
+This project based on Huseyn Mashadiyev's minio-async 1.0.0
 
-MinIO Python SDK is Simple Storage Service (aka S3) client to perform bucket and object operations to any Amazon S3 compatible object storage service.
+<br/>
 
-## Minimum Requirements
-Python 3.6 or higher.
+## Dependencies
+- Python>3.6
 
-## Download using pip
+<br/>
 
+## Build from source
 ```sh
-pip3 install minio-async
-```
-
-## Download source
-
-```sh
-git clone https://github.com/HuseynMashadiyev/minio-async
-cd minio-py
+git clone https://github.com/hlf20010508/minio-async.git
+cd minio-async
 python setup.py install
 ```
 
-## Quick Start Example - File Uploader
-This example program connects to an S3-compatible object storage server, make a bucket on that server, and upload a file to the bucket.
+<br/>
 
-You need the following items to connect to an S3-compatible object storage server:
+## Install with pip
 
-| Parameters | Description                                                |
-|------------|------------------------------------------------------------|
-| Endpoint   | URL to S3 service.                                         |
-| Access Key | Access key (aka user ID) of an account in the S3 service.  |
-| Secret Key | Secret key (aka password) of an account in the S3 service. |
-
-This example uses MinIO server playground [https://play.min.io](https://play.min.io). Feel free to use this service for test and development.
-
-### file_uploader.py
-```py
-from minio import Minio
-from minio.error import S3Error
-
-
-def main():
-    # Create a client with the MinIO server playground, its access key
-    # and secret key.
-    client = Minio(
-        "play.min.io",
-        access_key="Q3AM3UQ867SPQQA43P2F",
-        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    )
-
-    # Make 'asiatrip' bucket if not exist.
-    found = await client.bucket_exists("asiatrip")
-    if not found:
-        await client.make_bucket("asiatrip")
-    else:
-        print("Bucket 'asiatrip' already exists")
-
-    # Upload '/home/user/Photos/asiaphotos.zip' as object name
-    # 'asiaphotos-2015.zip' to bucket 'asiatrip'.
-    await client.fput_object(
-        "asiatrip", "asiaphotos-2015.zip", "/home/user/Photos/asiaphotos.zip",
-    )
-    print(
-        "'/home/user/Photos/asiaphotos.zip' is successfully uploaded as "
-        "object 'asiaphotos-2015.zip' to bucket 'asiatrip'."
-    )
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except S3Error as exc:
-        print("error occurred.", exc)
-```
-
-#### Run File Uploader
+PyPI
 ```sh
-$ python file_uploader.py
-'/home/user/Photos/asiaphotos.zip' is successfully uploaded as object 'asiaphotos-2015.zip' to bucket 'asiatrip'.
-
-$ mc ls play/asiatrip/
-[2016-06-02 18:10:29 PDT]  82KiB asiaphotos-2015.zip
+pip install minio-async
 ```
 
-## More References
-* [Python Client API Reference](https://docs.min.io/docs/python-client-api-reference)
-* [Examples](https://github.com/minio/minio-py/tree/release/examples)
+Github Repository
+```sh
+pip install git+https://github.com/hlf20010508/minio-async.git
+```
 
-## Explore Further
-* [Complete Documentation](https://docs.min.io)
+<br/>
 
-## Contribute
-Please refer [Contributors Guide](https://github.com/minio/minio-py/blob/release/CONTRIBUTING.md)
+## Install with pipenv
 
-[![PYPI](https://img.shields.io/pypi/v/minio.svg)](https://pypi.python.org/pypi/minio)
+PyPI
+```sh
+pipenv install minio-async
+```
+
+Github Repository
+```sh
+pipenv install git+https://github.com/hlf20010508/minio-async.git#egg=minio-async
+```
+
+<br/>
+
+## Usage
+```python
+import minio_async
+```
+
+### Examples
+```python
+from minio_async import Minio
+import asyncio
+
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
+)
+
+async def main():
+    url = await client.presigned_get_object("my-bucket", "my-object")
+    print('url:', url)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()
+```
+
+```python
+from sanic import Sanic
+from minio_async import Minio
+
+app = Sanic(__name__)
+
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True  # http for False, https for True
+)
+
+@app.route('/download', methods=['GET'])
+async def download(request):
+    print('downloading ...')
+    bucket=request.form.get('bucket')
+    fileName=request.form.get('fileName')
+
+    # decodeURI, for those which has other language in fileName, such as Chinese, Japanese, Korean
+    fileName = parse.unquote(fileName)
+
+    url = await client.presigned_get_object(bucket_name=bucket, object_name=fileName)
+    return redirect(url)
+```
+
+Check more examples in <a href="https://github.com/hlf20010508/minio-async/tree/master/examples">examples</a>
+
+Refer documents in <a href="https://github.com/hlf20010508/minio-async/tree/master/docs">docs</a>
+
+<br/>
+
+## Link
+- <a href="https://pypi.org/project/minio-async/">miniopy-async</a> on PyPI
+- <a href="https://github.com/hlf20010508/minio-async.git">miniopy-async</a> on Github
