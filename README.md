@@ -1,4 +1,4 @@
-# miniopy-async
+# minio-async
 > Asynchronous MinIO Python SDK
 
 ## Declaration
