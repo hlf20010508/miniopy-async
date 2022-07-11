@@ -43,9 +43,9 @@ minio-async - Asynchronous MinIO Python SDK
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-__title__ = "miniopy-async"
+__title__ = "minio-async"
 __author__ = "L-ING."
-__version__ = "1.2"
+__version__ = "1.1.0"
 __license__ = "Apache 2.0"
 __copyright__ = "Copyright 2022 L-ING"
 
