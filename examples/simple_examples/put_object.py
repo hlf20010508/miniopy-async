@@ -50,7 +50,7 @@ async def main():
     # Upload unknown sized data.
     print('example two')
     data = urlopen(
-        "https://raw.githubusercontent.com/hlf20010508/minio-async/miniopy-async/README.md",
+        "https://raw.githubusercontent.com/hlf20010508/miniopy-async/master/README.md",
     )
     result = await client.put_object(
         "my-bucket", "my-object", data, length=-1, part_size=10*1024*1024,
