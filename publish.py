@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python SDK
+# Asynchronous MinIO Python API
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");

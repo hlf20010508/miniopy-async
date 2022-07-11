@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# Asynchronous MinIO Python API
 # (C) 2021 MinIO, Inc.
 # (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
 # (C) 2022 L-ING <hlf01@icloud.com>

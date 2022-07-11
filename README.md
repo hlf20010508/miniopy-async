@@ -1,5 +1,5 @@
 # miniopy-async
-> Asynchronous MinIO Python SDK
+> Asynchronous MinIO Python API
 
 ## Declaration
 This project based on Huseyn Mashadiyev's minio-async 1.0.0

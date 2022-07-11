@@ -1,4 +1,4 @@
-# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
+# Asynchronous MinIO Python API
 # (C) 2015 MinIO, Inc.
 # (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
 # (C) 2022 L-ING <hlf01@icloud.com>
@@ -40,7 +40,7 @@ with codecs.open("README.md", encoding="utf-8") as file:
 
 setup(
     name="miniopy-async",
-    description="Asynchronous MinIO Python SDK",
+    description="Asynchronous MinIO Python API",
     author="L-ING",
     url="https://github.com/hlf20010508/minio-async/tree/miniopy-async",
     author_email="hlf01@icloud.com",
