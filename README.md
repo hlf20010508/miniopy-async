@@ -1,15 +1,38 @@
 # miniopy-async
 > Asynchronous MinIO Python Client API
 
-## Declaration
-This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0
+<br/>
+
+## Catalogue
+- [Declaration](#declaration)
+- [Dependencies](#dependencies)
+- [Build from source](#build)
+- [Install](#install)
+    - [Install with pip](#pip)
+    - [Install with pipenv](#pipenv)
+- [Usage](#usage)
+    - [Examples](#examples)
+- [Link](#link)
 
 <br/>
+
+<anchor id="declaration"></anchor>
+
+## Declaration
+- This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0.
+- This project has fixed some bugs of minio-async and added some new functions.
+- Miniopy-async 1.2 has been pulled request to minio-async.
+
+<br/>
+
+<anchor id="dependencies"></anchor>
 
 ## Dependencies
 - Python>3.6
 
 <br/>
+
+<anchor id="build"></anchor>
 
 ## Build from source
 ```sh
@@ -20,7 +43,13 @@ python setup.py install
 
 <br/>
 
-## Install with pip
+<anchor id="install"></anchor>
+
+## Install
+
+<anchor id="pip"></anchor>
+
+### Install with pip
 
 PyPI
 ```sh
@@ -34,7 +63,9 @@ pip install git+https://github.com/hlf20010508/miniopy-async.git
 
 <br/>
 
-## Install with pipenv
+<anchor id="pipenv"></anchor>
+
+### Install with pipenv
 
 PyPI
 ```sh
@@ -48,10 +79,14 @@ pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-
 
 <br/>
 
+<anchor id="usage"></anchor>
+
 ## Usage
 ```python
 import miniopy_async
 ```
+
+<anchor id="examples"></anchor>
 
 ### Examples
 ```python
@@ -105,6 +140,8 @@ Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tre
 Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
 
 <br/>
+
+<anchor id="link"></anchor>
 
 ## Link
 - <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
