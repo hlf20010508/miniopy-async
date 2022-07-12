@@ -16,7 +16,7 @@
 
 <br/>
 
-<anchor id="declaration"></anchor>
+<span id="declaration"></span>
 
 ## Declaration
 - This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0.
@@ -25,14 +25,14 @@
 
 <br/>
 
-<anchor id="dependencies"></anchor>
+<span id="dependencies"></span>
 
 ## Dependencies
 - Python>3.6
 
 <br/>
 
-<anchor id="build"></anchor>
+<span id="build"></span>
 
 ## Build from source
 ```sh
@@ -43,11 +43,11 @@ python setup.py install
 
 <br/>
 
-<anchor id="install"></anchor>
+<span id="install"></span>
 
 ## Install
 
-<anchor id="pip"></anchor>
+<span id="pip"></span>
 
 ### Install with pip
 
@@ -63,7 +63,7 @@ pip install git+https://github.com/hlf20010508/miniopy-async.git
 
 <br/>
 
-<anchor id="pipenv"></anchor>
+<span id="pipenv"></span>
 
 ### Install with pipenv
 
@@ -79,14 +79,14 @@ pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-
 
 <br/>
 
-<anchor id="usage"></anchor>
+<span id="usage"></span>
 
 ## Usage
 ```python
 import miniopy_async
 ```
 
-<anchor id="examples"></anchor>
+<span id="examples"></span>
 
 ### Examples
 ```python
@@ -141,7 +141,7 @@ Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/ma
 
 <br/>
 
-<anchor id="link"></anchor>
+<span id="link"></span>
 
 ## Link
 - <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
