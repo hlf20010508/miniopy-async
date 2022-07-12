@@ -61,8 +61,6 @@ Github Repository
 pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
 
-<br/>
-
 <span id="pipenv"></span>
 
 ### Install with pipenv
