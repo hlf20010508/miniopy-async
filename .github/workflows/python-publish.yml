@@ -19,7 +19,7 @@ jobs:
   deploy:
 
     runs-on: ubuntu-latest
-
+    if: github.repository_owner == 'hlf20010508'
     steps:
     - uses: actions/checkout@v3
     - name: Set up Python
