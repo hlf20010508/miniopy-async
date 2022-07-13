@@ -226,6 +226,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         self._async_http = aiohttp.ClientSession()
         response = await self._async_http.request(method, urlunsplit(url), data=body, headers=headers)
+        await self.close()
 
         if response.status in [200, 204, 206]:
             return response
@@ -388,6 +389,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         )
 
         element = ET.fromstring(await response.text())
+
         if not element.text:
             region = "us-east-1"
         elif element.text == "EU":
