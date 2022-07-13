@@ -5,7 +5,7 @@
  labels: ''
  assignees: ''
 
- ---
+---
 
 # Bug Report
 
