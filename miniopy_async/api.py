@@ -223,7 +223,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                 headers.get("x-amz-content-sha256"),
                 date,
             )
-        print("URL: ", urlunsplit(url))
 
         self._async_http = aiohttp.ClientSession()
         response = await self._async_http.request(method, urlunsplit(url), data=body, headers=headers)
