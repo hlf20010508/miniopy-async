@@ -159,8 +159,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             credentials = StaticProvider(access_key, secret_key, session_token)
         self._provider = credentials
 
-        self._async_http = None
-
     def _handle_redirect_response(
         self,
         method,
@@ -440,9 +438,6 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         self._region_map[bucket_name] = region
         return region
-
-    async def close(self) -> None:
-        await self._async_http.close()
 
     def set_app_info(self, app_name, app_version):
         """
