@@ -265,6 +265,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 data=body,
                 headers=headers
             )
+            await response.read()
 
         if response.status in [200, 204, 206]:
             return response
