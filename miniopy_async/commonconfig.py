@@ -176,9 +176,9 @@ class Filter:
 
     def __init__(self, and_operator=None, prefix=None, tag=None):
         valid = (
-            (and_operator is not None) ^
-            (prefix is not None) ^
-            (tag is not None)
+                (and_operator is not None) ^
+                (prefix is not None) ^
+                (tag is not None)
         )
         if not valid:
             raise ValueError("only one of and, prefix or tag must be provided")
@@ -253,9 +253,9 @@ class BaseRule:
     def parsexml(element):
         """Parse XML and return filter and ID."""
         return (
-            None if find(element, "Filter") is None
-            else Filter.fromxml(element)
-        ), findtext(element, "ID")
+                   None if find(element, "Filter") is None
+                   else Filter.fromxml(element)
+               ), findtext(element, "ID")
 
     def toxml(self, element):
         """Convert to XML."""
@@ -276,10 +276,12 @@ class ObjectConditionalReadArgs:
     """Base argument class holds condition properties for reading object."""
     __metaclass__ = ABCMeta
 
-    def __init__(self, bucket_name, object_name, region=None, version_id=None,
-                 ssec=None, offset=None, length=None, match_etag=None,
-                 not_match_etag=None, modified_since=None,
-                 unmodified_since=None):
+    def __init__(
+        self, bucket_name, object_name, region=None, version_id=None,
+        ssec=None, offset=None, length=None, match_etag=None,
+        not_match_etag=None, modified_since=None,
+        unmodified_since=None
+    ):
         if ssec is not None and not isinstance(ssec, SseCustomerKey):
             raise ValueError("ssec must be SseCustomerKey type")
         if offset is not None and offset < 0:
@@ -394,6 +396,7 @@ class ObjectConditionalReadArgs:
 
 class CopySource(ObjectConditionalReadArgs):
     """A source object defintion for copy_object method."""
+
     @classmethod
     def of(cls, src):
         """Create CopySource from another source."""
@@ -407,10 +410,12 @@ class CopySource(ObjectConditionalReadArgs):
 class ComposeSource(ObjectConditionalReadArgs):
     """A source object defintion for compose_object method."""
 
-    def __init__(self, bucket_name, object_name, region=None, version_id=None,
-                 ssec=None, offset=None, length=None, match_etag=None,
-                 not_match_etag=None, modified_since=None,
-                 unmodified_since=None):
+    def __init__(
+        self, bucket_name, object_name, region=None, version_id=None,
+        ssec=None, offset=None, length=None, match_etag=None,
+        not_match_etag=None, modified_since=None,
+        unmodified_since=None
+    ):
         super().__init__(
             bucket_name, object_name, region, version_id, ssec, offset, length,
             match_etag, not_match_etag, modified_since, unmodified_since,
@@ -420,8 +425,9 @@ class ComposeSource(ObjectConditionalReadArgs):
 
     def _validate_size(self, object_size):
         """Validate object size with offset and length."""
+
         def make_error(name, value):
-            ver = ("?versionId="+self._version_id) if self._version_id else ""
+            ver = ("?versionId=" + self._version_id) if self._version_id else ""
             return ValueError(
                 f"Source {self._bucket_name}/{self._object_name}{ver}: "
                 f"{name} {value} is beyond object size {object_size}"
@@ -433,8 +439,8 @@ class ComposeSource(ObjectConditionalReadArgs):
             if self._length > object_size:
                 raise make_error("length", self._length)
             offset = self._offset or 0
-            if offset+self.length > object_size:
-                raise make_error("compose size", offset+self._length)
+            if offset + self.length > object_size:
+                raise make_error("compose size", offset + self._length)
 
     def build_headers(self, object_size, etag):
         """Build headers."""

@@ -23,7 +23,6 @@ This module implements a progress printer while communicating with MinIO server
 :license: Apache 2.0, see LICENSE for more details.
 """
 
-
 import time
 
 _BAR_SIZE = 20
@@ -46,13 +45,14 @@ _DISPLAY_FORMAT = '|%s| %s/%s %s [elapsed: %s left: %s, %s MB/sec]'
 _REFRESH_CHAR = '\r'
 
 
-class Progress():
+class Progress:
     """
         Constructs a :class:`Progress` object.
         :param interval: Sets the time interval to be displayed on the screen.
         :param stdout: Sets the standard output
         :return: :class:`Progress` object
     """
+
     def __init__(self, object_name, total_length):
         self.object_name = object_name
         self.total_length = total_length
@@ -62,7 +62,7 @@ class Progress():
         self.last_printed_len = 0
         self.current_size = 0
 
-        self.initial_time = time.time()       
+        self.initial_time = time.time()
 
     def update(self, size):
         """
@@ -71,20 +71,28 @@ class Progress():
                      bytes.
         """
         if not isinstance(size, int):
-            raise ValueError('{} type can not be displayed. '
-                             'Please change it to Int.'.format(type(size)))
+            raise ValueError(
+                f'{type(size)} type can not be displayed. '
+                'Please change it to Int.'
+            )
+
         displayed_time = time.time() - self.initial_time
-        self.current_size+=size
-        self.print_status(current_size=self.current_size,
-                            total_length=self.total_length,
-                            displayed_time=displayed_time,
-                            prefix=self.prefix)
+        self.current_size += size
+        self.print_status(
+            current_size=self.current_size,
+            total_length=self.total_length,
+            displayed_time=displayed_time,
+            prefix=self.prefix
+        )
 
     def print_status(self, current_size, total_length, displayed_time, prefix):
         formatted_str = prefix + format_string(
-            current_size, total_length, displayed_time)
-        print(_REFRESH_CHAR + formatted_str + ' ' *
-                          max(self.last_printed_len - len(formatted_str), 0))
+            current_size, total_length, displayed_time
+        )
+        print(
+            _REFRESH_CHAR + formatted_str + ' ' *
+            max(self.last_printed_len - len(formatted_str), 0)
+        )
         self.last_printed_len = len(formatted_str)
 
 
@@ -95,6 +103,7 @@ def seconds_to_time(seconds):
     """
     minutes, seconds = divmod(int(seconds), 60)
     hours, m = divmod(minutes, 60)
+
     if hours:
         return _HOURS_OF_ELAPSED % (hours, m, seconds)
     else:
@@ -113,20 +122,37 @@ def format_string(current_size, total_length, elapsed_time):
     elapsed_str = seconds_to_time(elapsed_time)
 
     rate = _RATE_FORMAT % (
-        n_to_mb / elapsed_time) if elapsed_time else _UNKNOWN_SIZE
+            n_to_mb / elapsed_time
+    ) if elapsed_time else _UNKNOWN_SIZE
+
     frac = float(current_size) / total_length
     bar_length = int(frac * _BAR_SIZE)
-    bar = (_FINISHED_BAR * bar_length +
-           _REMAINING_BAR * (_BAR_SIZE - bar_length))
+
+    bar = (
+            _FINISHED_BAR * bar_length +
+            _REMAINING_BAR * (_BAR_SIZE - bar_length)
+    )
+
     percentage = _PERCENTAGE_FORMAT % (frac * 100)
+
     left_str = (
         seconds_to_time(
-            elapsed_time / current_size * (total_length - current_size))
-        if current_size else _UNKNOWN_SIZE)
+            elapsed_time / current_size * (total_length - current_size)
+        )
+        if current_size else _UNKNOWN_SIZE
+    )
 
     humanized_total = _HUMANINZED_FORMAT % (
-        total_length / _KILOBYTE / _KILOBYTE) + _STR_MEGABYTE
+            total_length / _KILOBYTE / _KILOBYTE
+    ) + _STR_MEGABYTE
+
     humanized_n = _HUMANINZED_FORMAT % n_to_mb + _STR_MEGABYTE
 
-    return _DISPLAY_FORMAT % (bar, humanized_n, humanized_total, percentage,
-                              elapsed_str, left_str, rate)
+    return _DISPLAY_FORMAT % (
+        bar, humanized_n,
+        humanized_total,
+        percentage,
+        elapsed_str,
+        left_str,
+        rate
+    )
