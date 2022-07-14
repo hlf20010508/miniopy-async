@@ -329,9 +329,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             code, message = func() if func else (None, None)
             if not code:
                 raise ServerError(
-                    "server failed with HTTP status code {}".format(
-                        response.status,
-                    ),
+                    f"server failed with HTTP status code {response.status}",
+                    response.status
                 )
             response_error = S3Error(
                 code,
