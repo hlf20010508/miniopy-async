@@ -260,14 +260,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                 date,
             )
 
-        self._async_http = aiohttp.ClientSession()
-        response = await self._async_http.request(
-            method,
-            urlunsplit(url),
-            data=body,
-            headers=headers
-        )
-        await self.close()
+        async with aiohttp.ClientSession() as session:
+            response = await session.request(
+                method,
+                urlunsplit(url),
+                data=body,
+                headers=headers
+            )
 
         if response.status in [200, 204, 206]:
             return response
