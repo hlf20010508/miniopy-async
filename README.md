@@ -36,8 +36,8 @@
 
 ## Build from source
 ```sh
-git clone -b miniopy-async https://github.com/hlf20010508/miniopy-async.git
-cd minio-async
+git clone https://github.com/hlf20010508/miniopy-async.git
+cd miniopy-async
 python setup.py install
 ```
 
