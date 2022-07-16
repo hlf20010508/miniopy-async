@@ -21,8 +21,8 @@
 
 ## Declaration
 - This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0.
-- This project has fixed some bugs of minio-async and added some new functions.
-- Miniopy-async 1.2 has been pulled request to minio-async.
+- This project has fixed some bugs of minio-async and added some new features.
+- Miniopy-async 1.2 has been pulled requests to minio-async.
 
 <span id="requirements"></span>
 
