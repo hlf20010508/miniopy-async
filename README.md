@@ -1,6 +1,14 @@
 # miniopy-async
 > Asynchronous MinIO Python Client API
 
+![PyPI](https://img.shields.io/pypi/v/miniopy-async)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)  
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hlf20010508/miniopy-async/Upload%20Python%20Package)
+![GitHub repo size](https://img.shields.io/github/repo-size/hlf20010508/miniopy-async)
+![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)
+![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)
+
 <br/>
 
 ## Catalogue
