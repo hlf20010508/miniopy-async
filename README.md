@@ -1,24 +1,21 @@
 # miniopy-async
 > Asynchronous MinIO Python Client API
 
-![PyPI](https://img.shields.io/pypi/v/miniopy-async)
-![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)  
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hlf20010508/miniopy-async/Upload%20Python%20Package)
-![GitHub repo size](https://img.shields.io/github/repo-size/hlf20010508/miniopy-async)
-![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)
-![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)
+[![PyPI](https://img.shields.io/pypi/v/miniopy-async)](https://pypi.org/project/miniopy-async/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)](https://pypi.org/project/miniopy-async/)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)](https://pypi.org/project/miniopy-async/)  
+[![GitHub Workflow Status](https://img.shields.io/github/workflow/status/hlf20010508/miniopy-async/Upload%20Python%20Package)](https://github.com/hlf20010508/miniopy-async/actions/workflows/python-publish.yml)
+[![GitHub repo size](https://img.shields.io/github/repo-size/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async)
+[![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/issues?q=is%3Aissue+is%3Aclosed)
+[![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/pulls?q=is%3Apr+is%3Aclosed)
 
 ## Catalogue
 - [Declaration](#declaration)
-- [Dependencies](#dependencies)
+- [Minimum Requirements](#requirements)
 - [Build from source](#build)
-- [Install](#install)
-    - [Install with pip](#pip)
-    - [Install with pipenv](#pipenv)
-- [Usage](#usage)
-    - [Examples](#examples)
-- [Link](#link)
+- [Installation](#installation)
+- [Quick Start](#example)
+- [More References](#references)
 
 <span id="declaration"></span>
 
@@ -27,9 +24,9 @@
 - This project has fixed some bugs of minio-async and added some new functions.
 - Miniopy-async 1.2 has been pulled request to minio-async.
 
-<span id="dependencies"></span>
+<span id="requirements"></span>
 
-## Dependencies
+## Minimum Requirements
 - Python>3.6
 
 <span id="build"></span>
@@ -41,9 +38,9 @@ cd miniopy-async
 python setup.py install
 ```
 
-<span id="install"></span>
+<span id="installation"></span>
 
-## Install
+## Installation
 
 <span id="pip"></span>
 
@@ -73,17 +70,10 @@ Github Repository
 pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
 ```
 
-<span id="usage"></span>
+<span id="example"></span>
 
-## Usage
-```python
-import miniopy_async
-```
-
-<span id="examples"></span>
-
-### Examples
-```python
+## Quick Start
+```py
 from miniopy_async import Minio
 import asyncio
 
@@ -103,7 +93,7 @@ loop.run_until_complete(main())
 loop.close()
 ```
 
-```python
+```py
 from sanic import Sanic
 from miniopy_async import Minio
 
@@ -129,11 +119,9 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>  
-Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
+<span id="references"></span>
 
-<span id="link"></span>
+## More References
 
-## Link
-- <a href="https://pypi.org/project/miniopy-async/">miniopy-async</a> on PyPI
-- <a href="https://github.com/hlf20010508/miniopy-async">miniopy-async</a> on Github
+<a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">Python Client API Reference</a>  
+<a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">Examples</a>
