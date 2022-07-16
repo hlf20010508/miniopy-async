@@ -9,8 +9,6 @@
 ![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)
 ![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)
 
-<br/>
-
 ## Catalogue
 - [Declaration](#declaration)
 - [Dependencies](#dependencies)
@@ -22,8 +20,6 @@
     - [Examples](#examples)
 - [Link](#link)
 
-<br/>
-
 <span id="declaration"></span>
 
 ## Declaration
@@ -31,14 +27,10 @@
 - This project has fixed some bugs of minio-async and added some new functions.
 - Miniopy-async 1.2 has been pulled request to minio-async.
 
-<br/>
-
 <span id="dependencies"></span>
 
 ## Dependencies
 - Python>3.6
-
-<br/>
 
 <span id="build"></span>
 
@@ -48,8 +40,6 @@ git clone https://github.com/hlf20010508/miniopy-async.git
 cd miniopy-async
 python setup.py install
 ```
-
-<br/>
 
 <span id="install"></span>
 
@@ -82,8 +72,6 @@ Github Repository
 ```sh
 pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
 ```
-
-<br/>
 
 <span id="usage"></span>
 
@@ -141,11 +129,8 @@ async def download(request):
     return redirect(url)
 ```
 
-Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>
-
+Check more examples in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">examples</a>  
 Refer documents in <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">docs</a>
-
-<br/>
 
 <span id="link"></span>
 
