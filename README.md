@@ -41,11 +41,7 @@ python setup.py install
 <span id="installation"></span>
 
 ## Installation
-
-<span id="pip"></span>
-
 ### Install with pip
-
 PyPI
 ```sh
 pip install miniopy-async
@@ -56,10 +52,7 @@ Github Repository
 pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
 
-<span id="pipenv"></span>
-
 ### Install with pipenv
-
 PyPI
 ```sh
 pipenv install miniopy-async
@@ -122,6 +115,5 @@ async def download(request):
 <span id="references"></span>
 
 ## More References
-
-<a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">Python Client API Reference</a>  
-<a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">Examples</a>
+- <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">Python Client API Reference</a>  
+- <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">Examples</a>
