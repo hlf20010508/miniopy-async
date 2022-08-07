@@ -89,6 +89,7 @@ loop.close()
 ```py
 from sanic import Sanic
 from miniopy_async import Minio
+from urllib import parse
 
 app = Sanic(__name__)
 
