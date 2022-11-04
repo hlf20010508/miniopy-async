@@ -27,6 +27,8 @@ from __future__ import absolute_import, division, unicode_literals
 import base64
 import errno
 import hashlib
+import inspect
+import io
 import math
 import os
 import re
@@ -155,16 +157,18 @@ def get_part_info(object_size, part_size):
 
 async def read_part_data(stream, size, part_data=b''):
     """Read part data of given size from stream."""
-    size -= len(part_data)
-    while size:
-        data = stream.read(size)
+    is_co_function = inspect.iscoroutinefunction(stream.read)
+    buffer = io.BytesIO()
+    buffer.write(part_data)
+    while buffer.tell() < size:
+        if is_co_function:
+            data = await stream.read(size)
+        else:
+            data = stream.read(size)
         if not data:
             break  # EOF reached
-        if not isinstance(data, bytes):
-            raise ValueError("read() must return 'bytes' object")
-        part_data += data
-        size -= len(data)
-    return part_data
+        buffer.write(data)
+    return buffer.getvalue()
 
 
 def makedirs(path):
