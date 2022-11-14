@@ -33,6 +33,7 @@ import asyncio
 import itertools
 import os
 import platform
+import weakref
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from urllib.parse import urlunsplit
@@ -231,6 +232,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         body=None,
         headers=None,
         query_params=None,
+        session=None,
     ):
         """Execute HTTP request."""
         credentials = self._provider.retrieve() if self._provider else None
@@ -258,19 +260,25 @@ class Minio:  # pylint: disable=too-many-public-methods
                 date,
             )
 
-        async with aiohttp.ClientSession() as session:
-            response = await session.request(
-                method,
-                urlunsplit(url),
-                data=body,
-                headers=headers
-            )
-            await response.read()
+        if session is None:
+            session = aiohttp.ClientSession()
+            should_attach_finalizer = True
+        else:
+            should_attach_finalizer = False
+
+        response = await session.request(
+            method,
+            urlunsplit(url),
+            data=body,
+            headers=headers)
+
+        if should_attach_finalizer:
+            _attach_finalizer(response, session, asyncio.get_running_loop())
 
         if response.status in [200, 204, 206]:
             return response
 
-        response_data = await response.text()
+        response_data = await response.content.read(10240)
         content_types = response.headers.get("content-type", "").split(";")
         if method != "HEAD" and "application/xml" not in content_types:
             raise InvalidResponseError(
@@ -4024,3 +4032,15 @@ class Minio:  # pylint: disable=too-many-public-methods
             headers=extra_headers,
         )
         return await ListPartsResult.from_async_response(response)
+
+
+def _attach_finalizer(
+        res: aiohttp.ClientResponse, session: aiohttp.ClientSession, loop: asyncio.AbstractEventLoop):
+    weakref.finalize(
+        # This attaches a finalizer to the response object.
+        # The finalizer holds a reference to the session, so that
+        # the finalizer must be done before the session can be GC-ed.
+        res,
+        asyncio.run_coroutine_threadsafe,
+        session.close(),
+        loop)
