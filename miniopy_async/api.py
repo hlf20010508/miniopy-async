@@ -273,7 +273,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             headers=headers)
 
         if should_attach_finalizer:
-            _attach_finalizer(response, session)
+            _attach_finalizer(response, session, asyncio.get_running_loop())
 
         if response.status in [200, 204, 206]:
             return response
@@ -4034,18 +4034,18 @@ class Minio:  # pylint: disable=too-many-public-methods
         return await ListPartsResult.from_async_response(response)
 
 def _attach_finalizer(
-    res: aiohttp.ClientResponse,
-    session: aiohttp.ClientSession
-    ):
+        res: aiohttp.ClientResponse,
+        session: aiohttp.ClientSession,
+        loop: asyncio.AbstractEventLoop):
     '''
     This attaches a finalizer to the response object.
     The finalizer holds a reference to the session, so that
     the finalizer must be done before the session can be GC-ed.
     '''
-    task = asyncio.ensure_future
-    finalizer = weakref.finalize(
+    weakref.finalize(
         res,
-        asyncio.ensure_future,
-        session.close()
-    )
-    finalizer()
+        # `session.close()` might be submitted to the eventLoop from a different
+        # thread than the one running the eventLoop. Therefore, we need `run_coroutine_threadsafe`
+        asyncio.run_coroutine_threadsafe,
+        session.close(),
+        loop)
