@@ -278,7 +278,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if response.status in [200, 204, 206]:
             return response
 
-        response_data = await response.content.read(10240)
+        response_data = await response.content.read()
         content_types = response.headers.get("content-type", "").split(";")
         if method != "HEAD" and "application/xml" not in content_types:
             raise InvalidResponseError(
