@@ -24,10 +24,10 @@
 
 from __future__ import absolute_import, division, unicode_literals
 
+import asyncio
 import base64
 import errno
 import hashlib
-import inspect
 import io
 import math
 import os
@@ -157,7 +157,7 @@ def get_part_info(object_size, part_size):
 
 async def read_part_data(stream, size, part_data=b''):
     """Read part data of given size from stream."""
-    is_co_function = inspect.iscoroutinefunction(stream.read)
+    is_co_function = asyncio.iscoroutinefunction(stream.read)
     buffer = io.BytesIO()
     buffer.write(part_data)
     while buffer.tell() < size:
