@@ -314,10 +314,11 @@ def _metadata_to_headers(metadata):
             ) from exc
         return value
 
-    def normalize_value(values):
-        if not isinstance(values, (list, tuple)):
-            values = [values]
-        return [to_string(value) for value in values]
+    def normalize_value(value):
+        #if not isinstance(values, (list, tuple)):
+        #    values = [values]
+        #return [to_string(value) for value in values]
+        return to_string(value)
 
     return {
         normalize_key(key): normalize_value(value)
