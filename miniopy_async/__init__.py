@@ -45,7 +45,7 @@ miniopy-async - Asynchronous MinIO Python Client API
 
 __title__ = "miniopy-async"
 __author__ = "L-ING."
-__version__ = "1.11"
+__version__ = "1.12"
 __license__ = "Apache 2.0"
 __copyright__ = "(C) 2022 L-ING <hlf01@icloud.com>"
 
