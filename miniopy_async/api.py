@@ -159,6 +159,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if access_key:
             credentials = StaticProvider(access_key, secret_key, session_token)
         self._provider = credentials
+        self.session = aiohttp.ClientSession()
 
     def _handle_redirect_response(
         self,
@@ -223,6 +224,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         headers["x-amz-date"] = time.to_amz_date(date)
         return headers, date
 
+    async def closeSession(self):
+        await self.session.close()
+
     async def _url_open(  # pylint: disable=too-many-branches
         self,
         method,
@@ -261,7 +265,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
         if session is None:
-            session = aiohttp.ClientSession()
+            session = self.session
             # should_attach_finalizer = True
         # else:
             # should_attach_finalizer = False
