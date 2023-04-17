@@ -30,7 +30,6 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
-from time import  sleep
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
