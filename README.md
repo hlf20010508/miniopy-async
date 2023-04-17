@@ -86,7 +86,7 @@ loop.close()
 ```
 
 ```py
-from sanic import Sanic
+from sanic import Sanic, response
 from miniopy_async import Minio
 from urllib import parse
 
@@ -99,17 +99,18 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
+# http://127.0.0.1:8000/download?bucket=my-bucket&fileName=testfile
 @app.route('/download', methods=['GET'])
 async def download(request):
     print('downloading ...')
-    bucket=request.form.get('bucket')
-    fileName=request.form.get('fileName')
+    bucket=request.args.get('bucket')
+    fileName=request.args.get('fileName')
 
     # decodeURI, for those which has other language in fileName, such as Chinese, Japanese, Korean
     fileName = parse.unquote(fileName)
 
     url = await client.presigned_get_object(bucket_name=bucket, object_name=fileName)
-    return redirect(url)
+    return response.redirect(url)
 ```
 
 <span id="references"></span>

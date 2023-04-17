@@ -397,7 +397,7 @@ class Part:
 class ListPartsResult:
     """ListParts API result."""
 
-    def __init__(self, response, response_data):
+    def __init__(self, response_data):
         element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
@@ -433,8 +433,8 @@ class ListPartsResult:
         self._parts = [Part.fromxml(tag) for tag in findall(element, "Part")]
 
     @classmethod
-    async def from_async_response(cls, response):
-        return cls(response, await response.text())
+    async def from_async_response(cls, response_data):
+        return cls(response_data)
 
     @property
     def bucket_name(self):
@@ -571,7 +571,7 @@ class Upload:
 class ListMultipartUploadsResult:
     """ListMultipartUploads API result."""
 
-    def __init__(self, response, response_data):
+    def __init__(self, response_data):
         element = ET.fromstring(response_data)
         self._encoding_type = findtext(element, "EncodingType")
         self._bucket_name = findtext(element, "Bucket")
@@ -603,8 +603,8 @@ class ListMultipartUploadsResult:
         ]
 
     @classmethod
-    async def from_async_response(cls, response):
-        return cls(response, await response.text())
+    async def from_async_response(cls, response_data):
+        return cls(response_data)
 
     @property
     def bucket_name(self):

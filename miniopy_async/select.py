@@ -30,6 +30,7 @@ from io import BytesIO
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
+from time import  sleep
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
@@ -349,8 +350,9 @@ class SelectObjectReader:
     Minio.select_object_content() API.
     """
 
-    def __init__(self, response):
+    def __init__(self, response, session):
         self._response = response
+        self._session = session
         self._stats = None
         self._payload = None
 
@@ -368,10 +370,11 @@ class SelectObjectReader:
         """Return this is not writeable."""
         return False
 
-    def close(self):
+    async def close(self):
         """Close response and release network resources."""
         self._response.close()
-        self._response.release()
+        await self._response.release()
+        await self._session.close()
 
     def stats(self):
         """Get stats information."""
@@ -379,8 +382,6 @@ class SelectObjectReader:
 
     async def _read(self):
         """Read and decode response."""
-        if self._response.closed:
-            return 0
         prelude = await _read(self._response.content, 8)
         prelude_crc = await _read(self._response.content, 4)
         if _crc32(prelude) != _int(prelude_crc):
@@ -412,7 +413,7 @@ class SelectObjectReader:
             )
 
         if headers.get(":event-type") == "End":
-            return 0
+            return -1
 
         payload_length = total_length - header_length - 16
         if headers.get(":event-type") == "Cont" or payload_length < 1:
@@ -443,5 +444,6 @@ class SelectObjectReader:
                     result = self._payload[:num_bytes]
                 self._payload = self._payload[len(result):]
                 yield result
-            if await self._read() <= 0:
+            if await self._read() < 0:
+                await self.close()
                 break
