@@ -368,30 +368,36 @@ class Minio:  # pylint: disable=too-many-public-methods
         region = await self._get_region(bucket_name, None)
 
         try:
-            return await self._url_open(
-                method,
-                region,
-                bucket_name=bucket_name,
-                object_name=object_name,
-                body=body,
-                headers=headers,
-                query_params=query_params,
-            )
+            async with aiohttp.ClientSession() as session:
+                response = await self._url_open(
+                    method,
+                    region,
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    body=body,
+                    headers=headers,
+                    query_params=query_params,
+                    session=session,
+                )
+            return response
         except S3Error as exc:
             if exc.code != "RetryHead":
                 raise
 
         # Retry only once on RetryHead error.
         try:
-            return await self._url_open(
-                method,
-                region,
-                bucket_name=bucket_name,
-                object_name=object_name,
-                body=body,
-                headers=headers,
-                query_params=query_params,
-            )
+            async with aiohttp.ClientSession() as session:
+                response = await self._url_open(
+                    method,
+                    region,
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    body=body,
+                    headers=headers,
+                    query_params=query_params,
+                    session=session,
+                )
+            return response
         except S3Error as exc:
             if exc.code != "RetryHead":
                 raise
@@ -429,12 +435,14 @@ class Minio:  # pylint: disable=too-many-public-methods
             return region
 
         # Execute GetBucketLocation REST API to get region of the bucket.
-        response = await self._url_open(
-            "GET",
-            "us-east-1",
-            bucket_name=bucket_name,
-            query_params={"location": ""},
-        )
+        async with aiohttp.ClientSession() as session:
+            response = await self._url_open(
+                "GET",
+                "us-east-1",
+                bucket_name=bucket_name,
+                query_params={"location": ""},
+                session=session,
+            )
 
         element = ET.fromstring(await response.text())
 
@@ -610,13 +618,15 @@ class Minio:  # pylint: disable=too-many-public-methods
             element = Element("CreateBucketConfiguration")
             SubElement(element, "LocationConstraint", location)
             body = getbytes(element)
-        await self._url_open(
-            "PUT",
-            location,
-            bucket_name=bucket_name,
-            body=body,
-            headers=headers,
-        )
+        async with aiohttp.ClientSession() as session:
+            await self._url_open(
+                "PUT",
+                location,
+                bucket_name=bucket_name,
+                body=body,
+                headers=headers,
+                session=session,
+            )
         self._region_map[bucket_name] = location
 
     async def list_buckets(self) -> list:
