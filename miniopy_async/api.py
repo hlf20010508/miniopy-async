@@ -256,16 +256,10 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         if session is None:
             session = aiohttp.ClientSession()
-            # should_attach_finalizer = True
-        # else:
-        # should_attach_finalizer = False
 
         response = await session.request(
             method, urlunsplit(url), data=body, headers=headers
         )
-
-        # if should_attach_finalizer:
-        #     _attach_finalizer(response, session, asyncio.get_running_loop())
 
         if response.status in [200, 204, 206]:
             return response
