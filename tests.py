@@ -250,7 +250,7 @@ async def get_object():
 async def select_object_content():
     try:
         test_content = b"1" * 1024 * 512
-        file_name = 'testfile-3'
+        file_name = "testfile-3"
         with open(file_name, "wb") as file:
             file.write(test_content)
         await client.fput_object(bucket_name, file_name, file_name)
