@@ -371,8 +371,8 @@ class SelectObjectReader:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        return self.close()
+    async def __aexit__(self, exc_type, exc_value, exc_traceback):
+        return await self.close()
 
     def readable(self):  # pylint: disable=no-self-use
         """Return this is readable."""
@@ -394,6 +394,8 @@ class SelectObjectReader:
 
     async def _read(self):
         """Read and decode response."""
+        if self._response.closed:
+            return 0
         prelude = await _read(self._response.content, 8)
         prelude_crc = await _read(self._response.content, 4)
         if _crc32(prelude) != _int(prelude_crc):
@@ -427,7 +429,7 @@ class SelectObjectReader:
             )
 
         if headers.get(":event-type") == "End":
-            return -1
+            return 0
 
         payload_length = total_length - header_length - 16
         if headers.get(":event-type") == "Cont" or payload_length < 1:
@@ -458,6 +460,6 @@ class SelectObjectReader:
                     result = self._payload[:num_bytes]
                 self._payload = self._payload[len(result) :]
                 yield result
-            if await self._read() < 0:
+            if await self._read() <= 0:
                 await self.close()
                 break

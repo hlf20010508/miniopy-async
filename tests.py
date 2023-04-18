@@ -11,10 +11,17 @@ from miniopy_async.versioningconfig import VersioningConfig
 from miniopy_async.sseconfig import Rule as sseRule, SSEConfig
 from miniopy_async.datatypes import PostPolicy
 from miniopy_async.deleteobjects import DeleteObject
+from miniopy_async.select import (
+    CSVInputSerialization,
+    CSVOutputSerialization,
+    SelectRequest,
+)
+from aiostream.stream import list as alist
 import asyncio
 import os
 import json
 from datetime import datetime, timedelta
+import traceback
 
 client = Minio(
     "play.min.io",
@@ -34,8 +41,8 @@ async def create_bucket():
         if not await client.bucket_exists(bucket_name):
             await client.make_bucket(bucket_name)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("create_bucket")
 
 
@@ -48,8 +55,8 @@ async def put_object():
             await client.fput_object(bucket_name, file_name, file_name)
             os.remove(file_name)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("put_object")
 
 
@@ -60,8 +67,8 @@ async def compose_object():
         ]
         await client.compose_object(bucket_name, "composed-object", sources)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("compose_object")
 
 
@@ -73,8 +80,8 @@ async def copy_object():
             CopySource(bucket_name, test_file_name[0]),
         )
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("copy_object")
 
 
@@ -82,8 +89,8 @@ async def set_bucket_versioning():
     try:
         await client.set_bucket_versioning(bucket_name, VersioningConfig(ENABLED))
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_bucket_versioning")
 
 
@@ -94,8 +101,8 @@ async def set_bucket_encryption():
             SSEConfig(sseRule.new_sse_s3_rule()),
         )
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_bucket_encryption")
 
 
@@ -113,8 +120,8 @@ async def set_bucket_lifecycle():
         )
         await client.set_bucket_lifecycle(bucket_name, lifecycle_config)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_bucket_lifecycle")
 
 
@@ -139,8 +146,8 @@ async def set_bucket_policy():
         }
         await client.set_bucket_policy(bucket_name, json.dumps(bucket_policy))
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_bucket_policy")
 
 
@@ -151,8 +158,8 @@ async def set_bucket_tags():
         bucket_tags["User"] = "jsmith"
         await client.set_bucket_tags(bucket_name, bucket_tags)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_bucket_tags")
 
 
@@ -163,8 +170,8 @@ async def set_object_tags():
         object_tags["User"] = "jsmith"
         await client.set_object_tags(bucket_name, test_file_name[0], object_tags)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("set_object_tags")
 
 
@@ -172,8 +179,8 @@ async def stat_object():
     try:
         await client.stat_object(bucket_name, test_file_name[0])
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("stat_object")
 
 
@@ -181,8 +188,8 @@ async def presigned_get_object():
     try:
         await client.presigned_get_object(bucket_name, test_file_name[0])
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("presigned_get_object")
 
 
@@ -190,8 +197,8 @@ async def presigned_put_object():
     try:
         await client.presigned_put_object(bucket_name, test_file_name[0])
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("presigned_put_object")
 
 
@@ -207,8 +214,8 @@ async def presigned_post_policy():
         )
         await client.presigned_post_policy(bucket_post_policy)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("presigned_post_policy")
 
 
@@ -216,8 +223,8 @@ async def list_buckets():
     try:
         await client.list_buckets()
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("list_buckets")
 
 
@@ -225,8 +232,8 @@ async def list_objects():
     try:
         await client.list_objects(bucket_name)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("list_objects")
 
 
@@ -235,17 +242,42 @@ async def get_object():
         await client.fget_object(bucket_name, test_file_name[0], "testfile")
         os.remove("testfile")
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("get_object")
+
+
+async def select_object_content():
+    try:
+        test_content = b"1" * 1024 * 512
+        file_name = 'testfile-3'
+        with open(file_name, "wb") as file:
+            file.write(test_content)
+        await client.fput_object(bucket_name, file_name, file_name)
+        os.remove(file_name)
+        result = await client.select_object_content(
+            bucket_name,
+            file_name,
+            SelectRequest(
+                "select * from s3object",
+                CSVInputSerialization(),
+                CSVOutputSerialization(),
+                request_progress=True,
+            ),
+        )
+        for data in await alist(result.stream()):
+            data.decode()
+    except:
+        traceback.print_exc()
+        error_func_list.append("select_object_content")
 
 
 async def remove_object():
     try:
         await client.remove_object(bucket_name, test_file_name[0])
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("remove_object")
 
 
@@ -257,8 +289,8 @@ async def remove_objects():
             [DeleteObject(obj.object_name, obj.version_id) for obj in objs],
         )
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("remove_objects")
 
 
@@ -266,8 +298,8 @@ async def remove_bucket():
     try:
         await client.remove_bucket(bucket_name)
         print("Pass")
-    except Exception as e:
-        print(repr(e))
+    except:
+        traceback.print_exc()
         error_func_list.append("remove_bucket")
 
 
@@ -306,6 +338,8 @@ async def main():
     await list_objects()
     print("Testing get object...")
     await get_object()
+    print("Testing select object content...")
+    await select_object_content()
     print("Testing remove object...")
     await remove_object()
     print("Testing remove objects...")
