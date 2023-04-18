@@ -3165,10 +3165,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         Example::
             from miniopy_async import Minio
-            from miniopy_async.commonconfig import DISABLED, ENABLED,
-            AndOperator, Filter
-            from miniopy_async.replicationconfig import (
-            DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
+            from miniopy_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter, Tags
+            from miniopy_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
             import asyncio
 
             client = Minio(
@@ -3177,6 +3175,10 @@ class Minio:  # pylint: disable=too-many-public-methods
                 secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
                 secure=True  # http for False, https for True
             )
+
+            bucket_tags = Tags.new_bucket_tags()
+            bucket_tags["Project"] = "Project One"
+            bucket_tags["User"] = "jsmith"
 
             config = ReplicationConfig(
                 "REPLACE-WITH-ACTUAL-ROLE",
@@ -3192,7 +3194,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                         rule_filter=Filter(
                             AndOperator(
                                 "TaxDocs",
-                                {"key1": "value1", "key2": "value2"},
+                                bucket_tags,
                             ),
                         ),
                         rule_id="rule1",
