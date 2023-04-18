@@ -26,45 +26,51 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # List objects information.
-    print('example one')
+    print("example one")
     objects = await client.list_objects("my-bucket")
     for obj in objects:
-        print('obj:',obj)
+        print("obj:", obj)
 
     # List objects information whose names starts with "my/prefix/".
-    print('example two')
+    print("example two")
     objects = await client.list_objects("my-bucket", prefix="my/prefix/")
     for obj in objects:
-        print('obj:',obj)
+        print("obj:", obj)
 
     # List objects information recursively.
-    print('example three')
+    print("example three")
     objects = await client.list_objects("my-bucket", recursive=True)
     for obj in objects:
-        print('obj:',obj)
+        print("obj:", obj)
 
     # List objects information recursively whose names starts with
     # "my/prefix/".
-    print('example four')
+    print("example four")
     objects = await client.list_objects(
-        "my-bucket", prefix="my/prefix/", recursive=True,
+        "my-bucket",
+        prefix="my/prefix/",
+        recursive=True,
     )
     for obj in objects:
-        print('obj:',obj)
+        print("obj:", obj)
 
     # List objects information recursively after object name
     # "my/prefix/world/1".
-    print('example five')
+    print("example five")
     objects = await client.list_objects(
-        "my-bucket", recursive=True, start_after="my/prefix/world/1",
+        "my-bucket",
+        recursive=True,
+        start_after="my/prefix/world/1",
     )
     for obj in objects:
-        print('obj:',obj)
+        print("obj:", obj)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

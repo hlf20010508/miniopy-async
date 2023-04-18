@@ -42,8 +42,7 @@ def get_jwt(client_id, client_secret, idp_endpoint):
 
 # IDP endpoint.
 idp_endpoint = (
-    "https://IDP-HOST:IDP-PORT/auth/realms/master"
-    "/protocol/openid-connect/token"
+    "https://IDP-HOST:IDP-PORT/auth/realms/master" "/protocol/openid-connect/token"
 )
 
 # Client-ID to fetch JWT.
@@ -56,15 +55,18 @@ client_secret = "PASSWORD"
 sts_endpoint = "http://STS-HOST:STS-PORT/"
 
 provider = ClientGrantsProvider(
-    lambda: get_jwt(client_id, client_secret, idp_endpoint), sts_endpoint,
+    lambda: get_jwt(client_id, client_secret, idp_endpoint),
+    sts_endpoint,
 )
 
 client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
+
 
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

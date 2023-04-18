@@ -26,20 +26,23 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # Remove object.
-    print('example one')
+    print("example one")
     await client.remove_object("my-bucket", "my-object")
 
     # Remove version of an object.
-    print('example two')
+    print("example two")
     await client.remove_object(
-        "my-bucket", "my-object",
+        "my-bucket",
+        "my-object",
         version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
     )
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

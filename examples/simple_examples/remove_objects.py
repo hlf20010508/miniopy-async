@@ -27,12 +27,13 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # Remove list of objects.
-    print('example one')
+    print("example one")
     errors = await client.remove_objects(
         "my-bucket",
         [
@@ -45,17 +46,15 @@ async def main():
         print("error occured when deleting object", error)
 
     # Remove a prefix recursively.
-    print('example two')
-    delete_object_list = [DeleteObject(obj.object_name)
-        for obj in await client.list_objects(
-            "my-bucket",
-            "my/prefix/",
-            recursive=True
-        )
+    print("example two")
+    delete_object_list = [
+        DeleteObject(obj.object_name)
+        for obj in await client.list_objects("my-bucket", "my/prefix/", recursive=True)
     ]
     errors = await client.remove_objects("my-bucket", delete_object_list)
     for error in errors:
         print("error occured when deleting object", error)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

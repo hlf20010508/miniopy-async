@@ -23,27 +23,30 @@ from datetime import timedelta
 from miniopy_async import Minio
 import asyncio
 
+
 async def main():
     client = Minio(
         "play.min.io",
         access_key="Q3AM3UQ867SPQQA43P2F",
         secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-        secure=True  # http for False, https for True
+        secure=True,  # http for False, https for True
     )
 
     # Get presigned URL string to download 'my-object' in
     # 'my-bucket' with default expiry (i.e. 7 days).
-    print('example one')
+    print("example one")
     url = await client.presigned_get_object("my-bucket", "my-object")
-    print('url:', url)
+    print("url:", url)
 
     # Get presigned URL string to download 'my-object' in
     # 'my-bucket' with two hours expiry.
-    print('example two')
+    print("example two")
     url = await client.presigned_get_object(
-        "my-bucket", "my-object", expires=timedelta(hours=2),
+        "my-bucket",
+        "my-object",
+        expires=timedelta(hours=2),
     )
-    print('url:', url)
+    print("url:", url)
 
     # Get presigned URL string to download 'my-object' in
     # 'my-bucket' with public IP address when using private IP address.
@@ -51,16 +54,17 @@ async def main():
         "127.0.0.1:9000",
         access_key="your access key",
         secret_key="you secret key",
-        secure=False  # http for False, https for True
+        secure=False,  # http for False, https for True
     )
 
-    print('example three')
+    print("example three")
     url = await client.presigned_get_object(
         "my-bucket",
         "my-object",
-        change_host='https://YOURHOST:YOURPORT',
+        change_host="https://YOURHOST:YOURPORT",
     )
-    print('url:', url)
+    print("url:", url)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

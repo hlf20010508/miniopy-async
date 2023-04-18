@@ -43,8 +43,7 @@ def _set_locale(name):
 def _to_utc(value):
     """Convert to UTC time if value is not naive."""
     return (
-        value.astimezone(timezone.utc).replace(tzinfo=None)
-        if value.tzinfo else value
+        value.astimezone(timezone.utc).replace(tzinfo=None) if value.tzinfo else value
     )
 
 
@@ -66,16 +65,15 @@ def to_iso8601utc(value):
         return None
 
     value = _to_utc(value)
-    return (
-        value.strftime("%Y-%m-%dT%H:%M:%S.") + value.strftime("%f")[:3] + "Z"
-    )
+    return value.strftime("%Y-%m-%dT%H:%M:%S.") + value.strftime("%f")[:3] + "Z"
 
 
 def from_http_header(value):
     """Parse HTTP header date formatted string to datetime."""
     with _set_locale("C"):
         return datetime.strptime(
-            value, _HTTP_HEADER_FORMAT,
+            value,
+            _HTTP_HEADER_FORMAT,
         ).replace(tzinfo=timezone.utc)
 
 

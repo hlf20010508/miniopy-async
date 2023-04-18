@@ -113,11 +113,17 @@ class Object:
         self,  # pylint: disable=too-many-arguments
         bucket_name,
         object_name,
-        last_modified=None, etag=None,
-        size=None, metadata=None,
-        version_id=None, is_latest=None, storage_class=None,
-        owner_id=None, owner_name=None, content_type=None,
-        is_delete_marker=False
+        last_modified=None,
+        etag=None,
+        size=None,
+        metadata=None,
+        version_id=None,
+        is_latest=None,
+        storage_class=None,
+        owner_id=None,
+        owner_name=None,
+        content_type=None,
+        is_delete_marker=False,
     ):
         self._bucket_name = bucket_name
         self._object_name = object_name
@@ -204,10 +210,7 @@ class Object:
         return self._content_type
 
     @classmethod
-    def fromxml(
-        cls, element, bucket_name, is_delete_marker=False,
-        encoding_type=None
-    ):
+    def fromxml(cls, element, bucket_name, is_delete_marker=False, encoding_type=None):
         """Create new object with values from XML element."""
         tag = findtext(element, "LastModified")
         last_modified = None if tag is None else from_iso8601utc(tag)
@@ -220,7 +223,8 @@ class Object:
 
         tag = find(element, "Owner")
         owner_id, owner_name = (
-            (None, None) if tag is None
+            (None, None)
+            if tag is None
             else (findtext(tag, "ID"), findtext(tag, "DisplayName"))
         )
 
@@ -271,16 +275,18 @@ async def parse_list_objects(response, bucket_name=None):
     elements = findall(element, "CommonPrefixes")
     objects += [
         Object(
-            bucket_name, unquote_plus(findtext(tag, "Prefix", True))
-            if encoding_type == "url" else findtext(tag, "Prefix", True)
-        ) for tag in elements
+            bucket_name,
+            unquote_plus(findtext(tag, "Prefix", True))
+            if encoding_type == "url"
+            else findtext(tag, "Prefix", True),
+        )
+        for tag in elements
     ]
 
     elements = findall(element, "DeleteMarker")
     objects += [
         Object.fromxml(
-            tag, bucket_name, is_delete_marker=True,
-            encoding_type=encoding_type
+            tag, bucket_name, is_delete_marker=True, encoding_type=encoding_type
         )
         for tag in elements
     ]
@@ -362,7 +368,7 @@ class Part:
 
     @property
     def part_number(self):
-        """Get part number. """
+        """Get part number."""
         return self._part_number
 
     @property
@@ -397,28 +403,21 @@ class Part:
 class ListPartsResult:
     """ListParts API result."""
 
-    def __init__(self, response, response_data):
+    def __init__(self, response_data):
         element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
         tag = find(element, "Initiator")
-        self._initiator_id = (
-            None if tag is None else findtext(tag, "ID")
-        )
-        self._initiator_name = (
-            None if tag is None else findtext(tag, "DisplayName")
-        )
+        self._initiator_id = None if tag is None else findtext(tag, "ID")
+        self._initiator_name = None if tag is None else findtext(tag, "DisplayName")
         tag = find(element, "Owner")
-        self._owner_id = (
-            None if tag is None else findtext(tag, "ID")
-        )
-        self._owner_name = (
-            None if tag is None else findtext(tag, "DisplayName")
-        )
+        self._owner_id = None if tag is None else findtext(tag, "ID")
+        self._owner_name = None if tag is None else findtext(tag, "DisplayName")
         self._storage_class = findtext(element, "StorageClass")
         self._part_number_marker = findtext(element, "PartNumberMarker")
         self._next_part_number_marker = findtext(
-            element, "NextPartNumberMarker",
+            element,
+            "NextPartNumberMarker",
         )
         if self._next_part_number_marker:
             self._next_part_number_marker = int(self._next_part_number_marker)
@@ -427,14 +426,13 @@ class ListPartsResult:
             self._max_parts = int(self._max_parts)
         self._is_truncated = findtext(element, "IsTruncated")
         self._is_truncated = (
-                self._is_truncated is not None and
-                self._is_truncated.lower() == "true"
+            self._is_truncated is not None and self._is_truncated.lower() == "true"
         )
         self._parts = [Part.fromxml(tag) for tag in findall(element, "Part")]
 
     @classmethod
-    async def from_async_response(cls, response):
-        return cls(response, await response.text())
+    async def from_async_response(cls, response_data):
+        return cls(response_data)
 
     @property
     def bucket_name(self):
@@ -498,30 +496,23 @@ class ListPartsResult:
 
 
 class Upload:
-    """ Upload information of a multipart upload."""
+    """Upload information of a multipart upload."""
 
     def __init__(self, element, encoding_type=None):
         self._encoding_type = encoding_type
         self._object_name = findtext(element, "Key", True)
         self._object_name = (
-            unquote_plus(self._object_name) if self._encoding_type == "url"
+            unquote_plus(self._object_name)
+            if self._encoding_type == "url"
             else self._object_name
         )
         self._upload_id = findtext(element, "UploadId")
         tag = find(element, "Initiator")
-        self._initiator_id = (
-            None if tag is None else findtext(tag, "ID")
-        )
-        self._initiator_name = (
-            None if tag is None else findtext(tag, "DisplayName")
-        )
+        self._initiator_id = None if tag is None else findtext(tag, "ID")
+        self._initiator_name = None if tag is None else findtext(tag, "DisplayName")
         tag = find(element, "Owner")
-        self._owner_id = (
-            None if tag is None else findtext(tag, "ID")
-        )
-        self._owner_name = (
-            None if tag is None else findtext(tag, "DisplayName")
-        )
+        self._owner_id = None if tag is None else findtext(tag, "ID")
+        self._owner_name = None if tag is None else findtext(tag, "DisplayName")
         self._storage_class = findtext(element, "StorageClass")
         self._initiated_time = findtext(element, "Initiated")
         if self._initiated_time:
@@ -571,14 +562,15 @@ class Upload:
 class ListMultipartUploadsResult:
     """ListMultipartUploads API result."""
 
-    def __init__(self, response, response_data):
+    def __init__(self, response_data):
         element = ET.fromstring(response_data)
         self._encoding_type = findtext(element, "EncodingType")
         self._bucket_name = findtext(element, "Bucket")
         self._key_marker = findtext(element, "KeyMarker")
         if self._key_marker:
             self._key_marker = (
-                unquote_plus(self._key_marker) if self._encoding_type == "url"
+                unquote_plus(self._key_marker)
+                if self._encoding_type == "url"
                 else self._key_marker
             )
         self._upload_id_marker = findtext(element, "UploadIdMarker")
@@ -586,7 +578,8 @@ class ListMultipartUploadsResult:
         if self._next_key_marker:
             self._next_key_marker = (
                 unquote_plus(self._next_key_marker)
-                if self._encoding_type == "url" else self._next_key_marker
+                if self._encoding_type == "url"
+                else self._next_key_marker
             )
         self._next_upload_id_marker = findtext(element, "NextUploadIdMarker")
         self._max_uploads = findtext(element, "MaxUploads")
@@ -594,17 +587,15 @@ class ListMultipartUploadsResult:
             self._max_uploads = int(self._max_uploads)
         self._is_truncated = findtext(element, "IsTruncated")
         self._is_truncated = (
-                self._is_truncated is not None and
-                self._is_truncated.lower() == "true"
+            self._is_truncated is not None and self._is_truncated.lower() == "true"
         )
         self._uploads = [
-            Upload(tag, self._encoding_type)
-            for tag in findall(element, "Upload")
+            Upload(tag, self._encoding_type) for tag in findall(element, "Upload")
         ]
 
     @classmethod
-    async def from_async_response(cls, response):
-        return cls(response, await response.text())
+    async def from_async_response(cls, response_data):
+        return cls(response_data)
 
     @property
     def bucket_name(self):
@@ -696,14 +687,11 @@ class PostPolicy:
         if not element:
             raise ValueError("condition element cannot be empty")
         element = _trim_dollar(element)
-        if (
-                element in
-                [
-                    "success_action_redirect",
-                    "redirect",
-                    "content-length-range",
-                ]
-        ):
+        if element in [
+            "success_action_redirect",
+            "redirect",
+            "content-length-range",
+        ]:
             raise ValueError(element + " is unsupported for equals condition")
         if element in _RESERVED_ELEMENTS:
             raise ValueError(element + " cannot be set")
@@ -723,12 +711,8 @@ class PostPolicy:
         if not element:
             raise ValueError("condition element cannot be empty")
         element = _trim_dollar(element)
-        if (
-                element in ["success_action_status", "content-length-range"] or
-                (
-                        element.startswith("x-amz-") and
-                        not element.startswith("x-amz-meta-")
-                )
+        if element in ["success_action_status", "content-length-range"] or (
+            element.startswith("x-amz-") and not element.startswith("x-amz-meta-")
         ):
             raise ValueError(
                 f"{element} is unsupported for starts-with condition",
@@ -773,8 +757,8 @@ class PostPolicy:
         if not region:
             raise ValueError("region cannot be empty")
         if (
-                "key" not in self._conditions[_EQ] and
-                "key" not in self._conditions[_STARTS_WITH]
+            "key" not in self._conditions[_EQ]
+            and "key" not in self._conditions[_STARTS_WITH]
         ):
             raise ValueError("key condition must be set")
 
@@ -801,7 +785,10 @@ class PostPolicy:
 
         policy = base64.b64encode(json.dumps(policy).encode())
         signature = post_presign_v4(
-            policy.decode(), creds.secret_key, utcnow, region,
+            policy.decode(),
+            creds.secret_key,
+            utcnow,
+            region,
         )
         form_data = {
             "x-amz-algorithm": _ALGORITHM,
@@ -847,7 +834,7 @@ class AsyncEventIterable:
         if not line:
             return None
         event = json.loads(line)
-        if event['Records']:
+        if event["Records"]:
             return event
         return None
 

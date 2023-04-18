@@ -27,8 +27,9 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     events = await client.listen_bucket_notification(
@@ -37,7 +38,8 @@ async def main():
         events=["s3:ObjectCreated:*", "s3:ObjectRemoved:*"],
     )
     async for event in events:
-        print('event:',event)
+        print("event:", event)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

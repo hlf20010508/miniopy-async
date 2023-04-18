@@ -81,8 +81,7 @@ class CommonConfig:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, events, config_id, prefix_filter_rule,
-                 suffix_filter_rule):
+    def __init__(self, events, config_id, prefix_filter_rule, suffix_filter_rule):
         if not events:
             raise ValueError("events must be provided")
         self._events = events
@@ -149,13 +148,22 @@ class CommonConfig:
 class CloudFuncConfig(CommonConfig):
     """Cloud function configuration."""
 
-    def __init__(self, cloud_func, events, config_id=None,
-                 prefix_filter_rule=None, suffix_filter_rule=None):
+    def __init__(
+        self,
+        cloud_func,
+        events,
+        config_id=None,
+        prefix_filter_rule=None,
+        suffix_filter_rule=None,
+    ):
         if not cloud_func:
             raise ValueError("cloud function must be provided")
         self._cloud_func = cloud_func
         super().__init__(
-            events, config_id, prefix_filter_rule, suffix_filter_rule,
+            events,
+            config_id,
+            prefix_filter_rule,
+            suffix_filter_rule,
         )
 
     @property
@@ -167,14 +175,11 @@ class CloudFuncConfig(CommonConfig):
     def fromxml(cls, element):
         """Create new object with values from XML element."""
         cloud_func = findtext(element, "CloudFunction", True)
-        (events, config_id, prefix_filter_rule,
-         suffix_filter_rule) = cls.parsexml(element)
+        (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
+            element
+        )
         return cls(
-            cloud_func,
-            events,
-            config_id,
-            prefix_filter_rule,
-            suffix_filter_rule
+            cloud_func, events, config_id, prefix_filter_rule, suffix_filter_rule
         )
 
     def toxml(self, element):
@@ -188,13 +193,22 @@ class CloudFuncConfig(CommonConfig):
 class QueueConfig(CommonConfig):
     """Queue configuration."""
 
-    def __init__(self, queue, events, config_id=None,
-                 prefix_filter_rule=None, suffix_filter_rule=None):
+    def __init__(
+        self,
+        queue,
+        events,
+        config_id=None,
+        prefix_filter_rule=None,
+        suffix_filter_rule=None,
+    ):
         if not queue:
             raise ValueError("queue must be provided")
         self._queue = queue
         super().__init__(
-            events, config_id, prefix_filter_rule, suffix_filter_rule,
+            events,
+            config_id,
+            prefix_filter_rule,
+            suffix_filter_rule,
         )
 
     @property
@@ -206,15 +220,10 @@ class QueueConfig(CommonConfig):
     def fromxml(cls, element):
         """Create new object with values from XML element."""
         queue = findtext(element, "Queue", True)
-        (events, config_id, prefix_filter_rule,
-         suffix_filter_rule) = cls.parsexml(element)
-        return cls(
-            queue,
-            events,
-            config_id,
-            prefix_filter_rule,
-            suffix_filter_rule
+        (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
+            element
         )
+        return cls(queue, events, config_id, prefix_filter_rule, suffix_filter_rule)
 
     def toxml(self, element):
         """Convert to XML."""
@@ -227,13 +236,22 @@ class QueueConfig(CommonConfig):
 class TopicConfig(CommonConfig):
     """Get topic configuration."""
 
-    def __init__(self, topic, events, config_id=None,
-                 prefix_filter_rule=None, suffix_filter_rule=None):
+    def __init__(
+        self,
+        topic,
+        events,
+        config_id=None,
+        prefix_filter_rule=None,
+        suffix_filter_rule=None,
+    ):
         if not topic:
             raise ValueError("topic must be provided")
         self._topic = topic
         super().__init__(
-            events, config_id, prefix_filter_rule, suffix_filter_rule,
+            events,
+            config_id,
+            prefix_filter_rule,
+            suffix_filter_rule,
         )
 
     @property
@@ -245,15 +263,10 @@ class TopicConfig(CommonConfig):
     def fromxml(cls, element):
         """Create new object with values from XML element."""
         topic = findtext(element, "Topic", True)
-        (events, config_id, prefix_filter_rule,
-         suffix_filter_rule) = cls.parsexml(element)
-        return cls(
-            topic,
-            events,
-            config_id,
-            prefix_filter_rule,
-            suffix_filter_rule
+        (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
+            element
         )
+        return cls(topic, events, config_id, prefix_filter_rule, suffix_filter_rule)
 
     def toxml(self, element):
         """Convert to XML."""
@@ -266,8 +279,12 @@ class TopicConfig(CommonConfig):
 class NotificationConfig:
     """Notification configuration."""
 
-    def __init__(self, cloud_func_config_list=None, queue_config_list=None,
-                 topic_config_list=None):
+    def __init__(
+        self,
+        cloud_func_config_list=None,
+        queue_config_list=None,
+        topic_config_list=None,
+    ):
         self._cloud_func_config_list = cloud_func_config_list or []
         self._queue_config_list = queue_config_list or []
         self._topic_config_list = topic_config_list or []
@@ -303,7 +320,9 @@ class NotificationConfig:
         for tag in elements:
             topic_config_list.append(TopicConfig.fromxml(tag))
         return cls(
-            cloud_func_config_list, queue_config_list, topic_config_list,
+            cloud_func_config_list,
+            queue_config_list,
+            topic_config_list,
         )
 
     def toxml(self, element):

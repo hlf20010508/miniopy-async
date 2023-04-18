@@ -30,97 +30,129 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # Upload data.
     print("example one")
     result = await client.fput_object(
-        "my-bucket", "my-object1", "my-filename",
+        "my-bucket",
+        "my-object1",
+        "my-filename",
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with content-type.
     print("example two")
     result = await client.fput_object(
-        "my-bucket", "my-object2", "my-filename",
+        "my-bucket",
+        "my-object2",
+        "my-filename",
         content_type="application/octet-stream",
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with metadata.
     print("example three")
     result = await client.fput_object(
-        "my-bucket", "my-object3", "my-filename",
+        "my-bucket",
+        "my-object3",
+        "my-filename",
         metadata={"Content-Type": "application/octet-stream"},
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with customer key type of server-side encryption.
     print("example four")
     result = await client.fput_object(
-        "my-bucket", "my-object4", "my-filename",
+        "my-bucket",
+        "my-object4",
+        "my-filename",
         sse=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with KMS type of server-side encryption.
     print("example five")
     result = await client.fput_object(
-        "my-bucket", "my-object5", "my-filename",
+        "my-bucket",
+        "my-object5",
+        "my-filename",
         sse=SseKMS("KMS-KEY-ID", {"Key1": "Value1", "Key2": "Value2"}),
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with S3 type of server-side encryption.
     print("example six")
     result = await client.fput_object(
-        "my-bucket", "my-object6", "my-filename",
+        "my-bucket",
+        "my-object6",
+        "my-filename",
         sse=SseS3(),
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
     # Upload data with tags, retention and legal-hold.
     print("example seven")
     date = datetime.utcnow().replace(
-        hour=0, minute=0, second=0, microsecond=0,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
     ) + timedelta(days=30)
     tags = Tags(for_object=True)
     tags["User"] = "jsmith"
     result = await client.fput_object(
-        "my-bucket", "my-object7", "my-filename",
+        "my-bucket",
+        "my-object7",
+        "my-filename",
         tags=tags,
         retention=Retention(GOVERNANCE, date),
         legal_hold=True,
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
 
@@ -131,9 +163,12 @@ async def main():
     )
     print(
         "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name, result.etag, result.version_id,
+            result.object_name,
+            result.etag,
+            result.version_id,
         ),
     )
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

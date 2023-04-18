@@ -26,14 +26,16 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     if await client.is_object_legal_hold_enabled("my-bucket", "my-object"):
         print("legal hold is enabled on my-object")
     else:
         print("legal hold is not enabled on my-object")
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

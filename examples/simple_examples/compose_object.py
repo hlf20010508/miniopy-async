@@ -28,7 +28,7 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
 
 # Each part must larger than 5MB
@@ -38,16 +38,17 @@ sources = [
     ComposeSource("my-job-bucket", "my-object-part-three"),
 ]
 
+
 async def main():
     # Create my-bucket/my-object by combining source object
     # list.
-    print('example one')
+    print("example one")
     result = await client.compose_object("my-bucket", "my-object", sources)
     print(result.object_name, result.version_id)
 
     # Create my-bucket/my-object with user metadata by combining
     # source object list.
-    print('example two')
+    print("example two")
     result = await client.compose_object(
         "my-bucket",
         "my-object",
@@ -58,14 +59,10 @@ async def main():
 
     # Create my-bucket/my-object with user metadata and
     # server-side encryption by combining source object list.
-    print('example three')
-    result = await client.compose_object(
-        "my-bucket",
-        "my-object",
-        sources,
-        sse=SseS3()
-    )
+    print("example three")
+    result = await client.compose_object("my-bucket", "my-object", sources, sse=SseS3())
     print(result.object_name, result.version_id)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

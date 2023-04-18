@@ -58,12 +58,14 @@ provider = AssumeRoleProvider(
     external_id=external_id,
 )
 
-client = Minio("MINIO-HOST:MINIO-PORT", secure = False, credentials=provider)
+client = Minio("MINIO-HOST:MINIO-PORT", secure=False, credentials=provider)
+
 
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

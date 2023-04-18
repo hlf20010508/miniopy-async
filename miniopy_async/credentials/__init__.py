@@ -24,8 +24,18 @@
 
 # pylint: disable=unused-import
 from .credentials import Credentials
-from .providers import (AssumeRoleProvider, AWSConfigProvider, ChainedProvider,
-                        ClientGrantsProvider, EnvAWSProvider, EnvMinioProvider,
-                        IamAwsProvider, LdapIdentityProvider,
-                        MinioClientConfigProvider, Provider, StaticProvider,
-                        WebIdentityProvider, CertificateIdentityProvider)
+from .providers import (
+    AssumeRoleProvider,
+    AWSConfigProvider,
+    ChainedProvider,
+    ClientGrantsProvider,
+    EnvAWSProvider,
+    EnvMinioProvider,
+    IamAwsProvider,
+    LdapIdentityProvider,
+    MinioClientConfigProvider,
+    Provider,
+    StaticProvider,
+    WebIdentityProvider,
+    CertificateIdentityProvider,
+)

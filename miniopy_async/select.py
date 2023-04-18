@@ -52,14 +52,11 @@ class InputSerialization:
     __metaclass__ = ABCMeta
 
     def __init__(self, compression_type):
-        if (
-                compression_type is not None and
-                compression_type not in [
-                    COMPRESSION_TYPE_NONE,
-                    COMPRESSION_TYPE_GZIP,
-                    COMPRESSION_TYPE_BZIP2,
-                ]
-        ):
+        if compression_type is not None and compression_type not in [
+            COMPRESSION_TYPE_NONE,
+            COMPRESSION_TYPE_GZIP,
+            COMPRESSION_TYPE_BZIP2,
+        ]:
             raise ValueError(
                 "compression type must be {0}, {1} or {2}".format(
                     COMPRESSION_TYPE_NONE,
@@ -79,23 +76,26 @@ class InputSerialization:
 class CSVInputSerialization(InputSerialization):
     """CSV input serialization."""
 
-    def __init__(self, compression_type=None,
-                 allow_quoted_record_delimiter=None, comments=None,
-                 field_delimiter=None, file_header_info=None,
-                 quote_character=None, quote_escape_character=None,
-                 record_delimiter=None):
+    def __init__(
+        self,
+        compression_type=None,
+        allow_quoted_record_delimiter=None,
+        comments=None,
+        field_delimiter=None,
+        file_header_info=None,
+        quote_character=None,
+        quote_escape_character=None,
+        record_delimiter=None,
+    ):
         super().__init__(compression_type)
         self._allow_quoted_record_delimiter = allow_quoted_record_delimiter
         self._comments = comments
         self._field_delimiter = field_delimiter
-        if (
-                file_header_info is not None and
-                file_header_info not in [
-                    FILE_HEADER_INFO_USE,
-                    FILE_HEADER_INFO_IGNORE,
-                    FILE_HEADER_INFO_NONE,
-                ]
-        ):
+        if file_header_info is not None and file_header_info not in [
+            FILE_HEADER_INFO_USE,
+            FILE_HEADER_INFO_IGNORE,
+            FILE_HEADER_INFO_NONE,
+        ]:
             raise ValueError(
                 "file header info must be {0}, {1} or {2}".format(
                     FILE_HEADER_INFO_USE,
@@ -141,13 +141,14 @@ class JSONInputSerialization(InputSerialization):
 
     def __init__(self, compression_type=None, json_type=None):
         super().__init__(compression_type)
-        if (
-                json_type is not None and
-                json_type not in [JSON_TYPE_DOCUMENT, JSON_TYPE_LINES]
-        ):
+        if json_type is not None and json_type not in [
+            JSON_TYPE_DOCUMENT,
+            JSON_TYPE_LINES,
+        ]:
             raise ValueError(
                 "json type must be {0} or {1}".format(
-                    JSON_TYPE_DOCUMENT, JSON_TYPE_LINES,
+                    JSON_TYPE_DOCUMENT,
+                    JSON_TYPE_LINES,
                 ),
             )
         self._json_type = json_type
@@ -175,21 +176,25 @@ class ParquetInputSerialization(InputSerialization):
 class CSVOutputSerialization:
     """CSV output serialization."""
 
-    def __init__(self, field_delimiter=None, quote_character=None,
-                 quote_escape_character=None, quote_fields=None,
-                 record_delimiter=None):
+    def __init__(
+        self,
+        field_delimiter=None,
+        quote_character=None,
+        quote_escape_character=None,
+        quote_fields=None,
+        record_delimiter=None,
+    ):
         self._field_delimiter = field_delimiter
         self._quote_character = quote_character
         self._quote_escape_character = quote_escape_character
-        if (
-                quote_fields is not None and
-                quote_fields not in [
-                    QUOTE_FIELDS_ALWAYS, QUOTE_FIELDS_ASNEEDED,
-                ]
-        ):
+        if quote_fields is not None and quote_fields not in [
+            QUOTE_FIELDS_ALWAYS,
+            QUOTE_FIELDS_ASNEEDED,
+        ]:
             raise ValueError(
                 "quote fields must be {0} or {1}".format(
-                    QUOTE_FIELDS_ALWAYS, QUOTE_FIELDS_ASNEEDED,
+                    QUOTE_FIELDS_ALWAYS,
+                    QUOTE_FIELDS_ASNEEDED,
                 ),
             )
         self._quote_fields = quote_fields
@@ -230,17 +235,23 @@ class JSONOutputSerialization:
 class SelectRequest:
     """Select object content request."""
 
-    def __init__(self, expression, input_serialization, output_serialization,
-                 request_progress=False, scan_start_range=None,
-                 scan_end_range=None):
+    def __init__(
+        self,
+        expression,
+        input_serialization,
+        output_serialization,
+        request_progress=False,
+        scan_start_range=None,
+        scan_end_range=None,
+    ):
         self._expession = expression
         if not isinstance(
-                input_serialization,
-                (
-                    CSVInputSerialization,
-                    JSONInputSerialization,
-                    ParquetInputSerialization,
-                ),
+            input_serialization,
+            (
+                CSVInputSerialization,
+                JSONInputSerialization,
+                ParquetInputSerialization,
+            ),
         ):
             raise ValueError(
                 "input serialization must be CSVInputSerialization, "
@@ -248,8 +259,8 @@ class SelectRequest:
             )
         self._input_serialization = input_serialization
         if not isinstance(
-                output_serialization,
-                (CSVOutputSerialization, JSONOutputSerialization),
+            output_serialization,
+            (CSVOutputSerialization, JSONOutputSerialization),
         ):
             raise ValueError(
                 "output serialization must be CSVOutputSerialization or "
@@ -273,7 +284,9 @@ class SelectRequest:
         )
         if self._request_progress:
             SubElement(
-                SubElement(element, "RequestProgress"), "Enabled", "true",
+                SubElement(element, "RequestProgress"),
+                "Enabled",
+                "true",
             )
         if self._scan_start_range or self._scan_end_range:
             tag = SubElement(element, "ScanRange")
@@ -299,7 +312,7 @@ def _int(data):
 
 def _crc32(data):
     """Wrapper to binascii.crc32()."""
-    return crc32(data) & 0xffffffff
+    return crc32(data) & 0xFFFFFFFF
 
 
 def _decode_header(data):
@@ -349,16 +362,17 @@ class SelectObjectReader:
     Minio.select_object_content() API.
     """
 
-    def __init__(self, response):
+    def __init__(self, response, session):
         self._response = response
+        self._session = session
         self._stats = None
         self._payload = None
 
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        return self.close()
+    async def __aexit__(self, exc_type, exc_value, exc_traceback):
+        return await self.close()
 
     def readable(self):  # pylint: disable=no-self-use
         """Return this is readable."""
@@ -368,10 +382,11 @@ class SelectObjectReader:
         """Return this is not writeable."""
         return False
 
-    def close(self):
+    async def close(self):
         """Close response and release network resources."""
         self._response.close()
-        self._response.release()
+        await self._response.release()
+        await self._session.close()
 
     def stats(self):
         """Get stats information."""
@@ -386,7 +401,8 @@ class SelectObjectReader:
         if _crc32(prelude) != _int(prelude_crc):
             raise IOError(
                 "prelude CRC mismatch; expected: {0}, got: {1}".format(
-                    _crc32(prelude), _int(prelude_crc),
+                    _crc32(prelude),
+                    _int(prelude_crc),
                 ),
             )
 
@@ -407,7 +423,8 @@ class SelectObjectReader:
         if headers.get(":message-type") == "error":
             raise MinioException(
                 "{0}: {1}".format(
-                    headers.get(":error-code"), headers.get(":error-message"),
+                    headers.get(":error-code"),
+                    headers.get(":error-message"),
                 ),
             )
 
@@ -418,7 +435,7 @@ class SelectObjectReader:
         if headers.get(":event-type") == "Cont" or payload_length < 1:
             return await self._read()
 
-        payload = data[header_length:header_length+payload_length]
+        payload = data[header_length : header_length + payload_length]
         if headers.get(":event-type") in ["Progress", "Stats"]:
             self._stats = Stats(payload)
             return await self._read()
@@ -431,7 +448,7 @@ class SelectObjectReader:
             "unknown event-type {0}".format(headers.get(":event-type")),
         )
 
-    async def stream(self, num_bytes=32*1024):
+    async def stream(self, num_bytes=32 * 1024):
         """
         Stream extracted payload from response data. Upon completion, caller
         should call self.close() to release network resources.
@@ -441,7 +458,8 @@ class SelectObjectReader:
                 result = self._payload
                 if num_bytes < len(self._payload):
                     result = self._payload[:num_bytes]
-                self._payload = self._payload[len(result):]
+                self._payload = self._payload[len(result) :]
                 yield result
             if await self._read() <= 0:
+                await self.close()
                 break

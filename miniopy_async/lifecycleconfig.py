@@ -33,6 +33,7 @@ from .xml import Element, SubElement, find, findall, findtext
 
 class DateDays:
     """Base class holds date and days of Transition and Expiration."""
+
     __metaclass__ = ABCMeta
 
     def __init__(self, date=None, days=None):
@@ -62,7 +63,9 @@ class DateDays:
         """Convert to XML."""
         if self._date is not None:
             SubElement(
-                element, "Date", to_iso8601utc(self._date),
+                element,
+                "Date",
+                to_iso8601utc(self._date),
             )
         if self._days:
             SubElement(element, "Days", str(self._days))
@@ -164,8 +167,7 @@ class NoncurrentVersionExpiration:
 class Expiration(DateDays):
     """Expiration."""
 
-    def __init__(self, date=None, days=None,
-                 expired_object_delete_marker=None):
+    def __init__(self, date=None, days=None, expired_object_delete_marker=None):
         super().__init__(date, days)
         self._expired_object_delete_marker = expired_object_delete_marker
 
@@ -180,13 +182,13 @@ class Expiration(DateDays):
         element = find(element, "Expiration")
         date, days = cls.parsexml(element)
         expired_object_delete_marker = findtext(
-            element, "ExpiredObjectDeleteMarker",
+            element,
+            "ExpiredObjectDeleteMarker",
         )
         if expired_object_delete_marker is not None:
             if expired_object_delete_marker.title() not in ["False", "True"]:
                 raise ValueError(
-                    "value of ExpiredObjectDeleteMarker must be "
-                    "'True' or 'False'",
+                    "value of ExpiredObjectDeleteMarker must be " "'True' or 'False'",
                 )
             expired_object_delete_marker = (
                 expired_object_delete_marker.title() == "True"
@@ -240,13 +242,19 @@ class AbortIncompleteMultipartUpload:
 
 
 class Rule(BaseRule):
-    """Lifecycle rule. """
+    """Lifecycle rule."""
 
-    def __init__(self, status, abort_incomplete_multipart_upload=None,
-                 expiration=None, rule_filter=None, rule_id=None,
-                 noncurrent_version_expiration=None,
-                 noncurrent_version_transition=None,
-                 transition=None):
+    def __init__(
+        self,
+        status,
+        abort_incomplete_multipart_upload=None,
+        expiration=None,
+        rule_filter=None,
+        rule_id=None,
+        noncurrent_version_expiration=None,
+        noncurrent_version_transition=None,
+        transition=None,
+    ):
         check_status(status)
         if not rule_filter:
             raise ValueError("Rule filter must be provided")
@@ -254,9 +262,7 @@ class Rule(BaseRule):
         super().__init__(rule_filter, rule_id)
 
         self._status = status
-        self._abort_incomplete_multipart_upload = (
-            abort_incomplete_multipart_upload
-        )
+        self._abort_incomplete_multipart_upload = abort_incomplete_multipart_upload
         self._expiration = expiration
         self._noncurrent_version_expiration = noncurrent_version_expiration
         self._noncurrent_version_transition = noncurrent_version_transition
@@ -297,32 +303,31 @@ class Rule(BaseRule):
         """Create new object with values from XML element."""
         status = findtext(element, "Status", True)
         abort_incomplete_multipart_upload = (
-            None if find(element, "AbortIncompleteMultipartUpload") is None
+            None
+            if find(element, "AbortIncompleteMultipartUpload") is None
             else AbortIncompleteMultipartUpload.fromxml(element)
         )
         expiration = (
-            None if find(element, "Expiration") is None
-            else Expiration.fromxml(element)
+            None if find(element, "Expiration") is None else Expiration.fromxml(element)
         )
         rule_filter, rule_id = cls.parsexml(element)
         noncurrent_version_expiration = (
-            None if find(element, "NoncurrentVersionExpiration") is None
+            None
+            if find(element, "NoncurrentVersionExpiration") is None
             else NoncurrentVersionExpiration.fromxml(element)
         )
         noncurrent_version_transition = (
-            None if find(element, "NoncurrentVersionTransition") is None
+            None
+            if find(element, "NoncurrentVersionTransition") is None
             else NoncurrentVersionTransition.fromxml(element)
         )
         transition = (
-            None if find(element, "Transition") is None
-            else Transition.fromxml(element)
+            None if find(element, "Transition") is None else Transition.fromxml(element)
         )
 
         return cls(
             status,
-            abort_incomplete_multipart_upload=(
-                abort_incomplete_multipart_upload
-            ),
+            abort_incomplete_multipart_upload=(abort_incomplete_multipart_upload),
             expiration=expiration,
             rule_filter=rule_filter,
             rule_id=rule_id,
