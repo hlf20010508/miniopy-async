@@ -76,9 +76,11 @@ client = Minio(
     secure=True  # http for False, https for True
 )
 
+
 async def main():
     url = await client.presigned_get_object("my-bucket", "my-object")
     print('url:', url)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
@@ -98,6 +100,7 @@ client = Minio(
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
     secure=True  # http for False, https for True
 )
+
 
 # http://127.0.0.1:8000/download?bucket=my-bucket&fileName=testfile
 @app.route('/download', methods=['GET'])

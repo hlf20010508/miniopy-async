@@ -26,21 +26,23 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True
+    secure=True,
 )
+
 
 async def main():
     # Create bucket.
-    print('example one')
+    print("example one")
     await client.make_bucket("my-bucket1")
 
     # Create bucket on specific region.
-    print('example two')
+    print("example two")
     await client.make_bucket("my-bucket2", "us-east-1")
 
     # Create bucket with object-lock feature on specific region.
-    print('example three')
+    print("example three")
     await client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

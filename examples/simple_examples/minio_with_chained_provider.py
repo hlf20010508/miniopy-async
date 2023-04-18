@@ -24,7 +24,12 @@
 # 'providers' list
 
 from miniopy_async import Minio
-from miniopy_async.credentials import (AWSConfigProvider, ChainedProvider, EnvAWSProvider, IamAwsProvider)
+from miniopy_async.credentials import (
+    AWSConfigProvider,
+    ChainedProvider,
+    EnvAWSProvider,
+    IamAwsProvider,
+)
 import asyncio
 
 client = Minio(
@@ -35,13 +40,15 @@ client = Minio(
             AWSConfigProvider(),
             EnvAWSProvider(),
         ]
-    )
+    ),
 )
+
 
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

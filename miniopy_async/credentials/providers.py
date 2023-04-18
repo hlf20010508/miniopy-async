@@ -74,15 +74,12 @@ def _urlopen(http_client, method, url, body=None, headers=None):
 
 def _user_home_dir():
     """Return current user home folder."""
-    return (
-        os.environ.get("HOME") or
-        os.environ.get("UserProfile") or
-        str(Path.home())
-    )
+    return os.environ.get("HOME") or os.environ.get("UserProfile") or str(Path.home())
 
 
 class Provider:  # pylint: disable=too-few-public-methods
     """Credential retriever."""
+
     __metaclass__ = ABCMeta
 
     @abstractmethod
@@ -94,9 +91,17 @@ class AssumeRoleProvider(Provider):
     """Assume-role credential provider."""
 
     def __init__(
-            self, sts_endpoint, access_key, secret_key, duration_seconds=0,
-            policy=None, region=None, role_arn=None, role_session_name=None,
-            external_id=None, http_client=None,
+        self,
+        sts_endpoint,
+        access_key,
+        secret_key,
+        duration_seconds=0,
+        policy=None,
+        region=None,
+        role_arn=None,
+        role_session_name=None,
+        external_id=None,
+        http_client=None,
     ):
         self._sts_endpoint = sts_endpoint
         self._access_key = access_key
@@ -134,9 +139,8 @@ class AssumeRoleProvider(Provider):
         url = urlsplit(sts_endpoint)
         self._url = url
         self._host = url.netloc
-        if (
-                (url.scheme == "http" and url.port == 80) or
-                (url.scheme == "https" and url.port == 443)
+        if (url.scheme == "http" and url.port == 80) or (
+            url.scheme == "https" and url.port == 443
         ):
             self._host = url.hostname
         self._credentials = None
@@ -170,7 +174,8 @@ class AssumeRoleProvider(Provider):
         )
 
         self._credentials = _parse_credentials(
-            res.data.decode(), "AssumeRoleResult",
+            res.data.decode(),
+            "AssumeRoleResult",
         )
 
         return self._credentials
@@ -216,12 +221,11 @@ class EnvAWSProvider(Provider):
         """Retrieve credentials."""
         return Credentials(
             access_key=(
-                os.environ.get("AWS_ACCESS_KEY_ID") or
-                os.environ.get("AWS_ACCESS_KEY")
+                os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY")
             ),
             secret_key=(
-                os.environ.get("AWS_SECRET_ACCESS_KEY") or
-                os.environ.get("AWS_SECRET_KEY")
+                os.environ.get("AWS_SECRET_ACCESS_KEY")
+                or os.environ.get("AWS_SECRET_KEY")
             ),
             session_token=os.environ.get("AWS_SESSION_TOKEN"),
         )
@@ -243,9 +247,9 @@ class AWSConfigProvider(Provider):
 
     def __init__(self, filename=None, profile=None):
         self._filename = (
-            filename or
-            os.environ.get("AWS_SHARED_CREDENTIALS_FILE") or
-            os.path.join(_user_home_dir(), ".aws", "credentials")
+            filename
+            or os.environ.get("AWS_SHARED_CREDENTIALS_FILE")
+            or os.path.join(_user_home_dir(), ".aws", "credentials")
         )
         self._profile = profile or os.environ.get("AWS_PROFILE") or "default"
 
@@ -292,13 +296,10 @@ class MinioClientConfigProvider(Provider):
     """Credential provider from MinIO Client configuration file."""
 
     def __init__(self, filename=None, alias=None):
-        self._filename = (
-            filename or
-            os.path.join(
-                _user_home_dir(),
-                "mc" if sys.platform == "win32" else ".mc",
-                "config.json",
-            )
+        self._filename = filename or os.path.join(
+            _user_home_dir(),
+            "mc" if sys.platform == "win32" else ".mc",
+            "config.json",
         )
         self._alias = alias or os.environ.get("MINIO_ALIAS") or "s3"
 
@@ -338,7 +339,7 @@ def _check_loopback_host(url):
 
 
 def _get_jwt_token(token_file):
-    """Read and return content of token file. """
+    """Read and return content of token file."""
     try:
         with open(token_file, encoding="utf-8") as file:
             return {"access_token": file.read(), "expires_in": "0"}
@@ -371,7 +372,7 @@ class IamAwsProvider(Provider):
         self._credentials = None
 
     def fetch(self, url):
-        """Fetch credentials from EC2/ECS. """
+        """Fetch credentials from EC2/ECS."""
 
         res = _urlopen(self._http_client, "GET", url)
         data = json.loads(res.data)
@@ -422,8 +423,8 @@ class IamAwsProvider(Provider):
         else:
             if not url:
                 url = (
-                    "http://169.254.169.254" +
-                    "/latest/meta-data/iam/security-credentials/"
+                    "http://169.254.169.254"
+                    + "/latest/meta-data/iam/security-credentials/"
                 )
 
             res = _urlopen(self._http_client, "GET", url)
@@ -440,15 +441,23 @@ class LdapIdentityProvider(Provider):
     """Credential provider using AssumeRoleWithLDAPIdentity API."""
 
     def __init__(
-            self, sts_endpoint, ldap_username, ldap_password, http_client=None,
+        self,
+        sts_endpoint,
+        ldap_username,
+        ldap_password,
+        http_client=None,
     ):
-        self._sts_endpoint = sts_endpoint + "?" + urlencode(
-            {
-                "Action": "AssumeRoleWithLDAPIdentity",
-                "Version": "2011-06-15",
-                "LDAPUsername": ldap_username,
-                "LDAPPassword": ldap_password,
-            },
+        self._sts_endpoint = (
+            sts_endpoint
+            + "?"
+            + urlencode(
+                {
+                    "Action": "AssumeRoleWithLDAPIdentity",
+                    "Version": "2011-06-15",
+                    "LDAPUsername": ldap_username,
+                    "LDAPPassword": ldap_password,
+                },
+            )
         )
         self._http_client = http_client or urllib3.PoolManager(
             retries=urllib3.Retry(
@@ -472,7 +481,8 @@ class LdapIdentityProvider(Provider):
         )
 
         self._credentials = _parse_credentials(
-            res.data.decode(), "AssumeRoleWithLDAPIdentityResult",
+            res.data.decode(),
+            "AssumeRoleWithLDAPIdentityResult",
         )
 
         return self._credentials
@@ -491,12 +501,18 @@ class StaticProvider(Provider):
 
 class WebIdentityClientGrantsProvider(Provider):
     """Base class for WebIdentity and ClientGrants credentials provider."""
+
     __metaclass__ = ABCMeta
 
     def __init__(
-            self, jwt_provider_func, sts_endpoint,
-            duration_seconds=0, policy=None, role_arn=None,
-            role_session_name=None, http_client=None,
+        self,
+        jwt_provider_func,
+        sts_endpoint,
+        duration_seconds=0,
+        policy=None,
+        role_arn=None,
+        role_session_name=None,
+        http_client=None,
     ):
         self._jwt_provider_func = jwt_provider_func
         self._sts_endpoint = sts_endpoint
@@ -529,9 +545,7 @@ class WebIdentityClientGrantsProvider(Provider):
         if expiry <= 0:
             return expiry
 
-        return (
-            _MIN_DURATION_SECONDS if expiry < _MIN_DURATION_SECONDS else expiry
-        )
+        return _MIN_DURATION_SECONDS if expiry < _MIN_DURATION_SECONDS else expiry
 
     def retrieve(self):
         """Retrieve credentials."""
@@ -583,11 +597,18 @@ class ClientGrantsProvider(WebIdentityClientGrantsProvider):
     """Credential provider using AssumeRoleWithClientGrants API."""
 
     def __init__(
-            self, jwt_provider_func, sts_endpoint,
-            duration_seconds=0, policy=None, http_client=None,
+        self,
+        jwt_provider_func,
+        sts_endpoint,
+        duration_seconds=0,
+        policy=None,
+        http_client=None,
     ):
         super().__init__(
-            jwt_provider_func, sts_endpoint, duration_seconds, policy,
+            jwt_provider_func,
+            sts_endpoint,
+            duration_seconds,
+            policy,
             http_client=http_client,
         )
 
@@ -606,9 +627,14 @@ class CertificateIdentityProvider(Provider):
     """Credential provider using AssumeRoleWithCertificate API."""
 
     def __init__(
-            self, sts_endpoint, cert_file=None, key_file=None,
-            key_password=None, ca_certs=None, duration_seconds=0,
-            http_client=None,
+        self,
+        sts_endpoint,
+        cert_file=None,
+        key_file=None,
+        key_password=None,
+        ca_certs=None,
+        duration_seconds=0,
+        http_client=None,
     ):
         if urlsplit(sts_endpoint).scheme != "https":
             raise ValueError("STS endpoint scheme must be HTTPS")
@@ -620,21 +646,25 @@ class CertificateIdentityProvider(Provider):
                 "either cert/key file or custom http_client must be provided",
             )
 
-        self._sts_endpoint = sts_endpoint + "?" + urlencode(
-            {
-                "Action": "AssumeRoleWithCertificate",
-                "Version": "2011-06-15",
-                "DurationSeconds": str(
-                    duration_seconds
-                    if duration_seconds > _DEFAULT_DURATION_SECONDS
-                    else _DEFAULT_DURATION_SECONDS
-                ),
-            },
+        self._sts_endpoint = (
+            sts_endpoint
+            + "?"
+            + urlencode(
+                {
+                    "Action": "AssumeRoleWithCertificate",
+                    "Version": "2011-06-15",
+                    "DurationSeconds": str(
+                        duration_seconds
+                        if duration_seconds > _DEFAULT_DURATION_SECONDS
+                        else _DEFAULT_DURATION_SECONDS
+                    ),
+                },
+            )
         )
         self._http_client = http_client or urllib3.PoolManager(
             maxsize=10,
             cert_file=cert_file,
-            cert_reqs='CERT_REQUIRED',
+            cert_reqs="CERT_REQUIRED",
             key_file=key_file,
             key_password=key_password,
             ca_certs=ca_certs or certifi.where(),
@@ -659,7 +689,8 @@ class CertificateIdentityProvider(Provider):
         )
 
         self._credentials = _parse_credentials(
-            res.data.decode(), "AssumeRoleWithCertificateResult",
+            res.data.decode(),
+            "AssumeRoleWithCertificateResult",
         )
 
         return self._credentials

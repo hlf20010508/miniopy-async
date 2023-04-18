@@ -28,25 +28,26 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
 
 policy = PostPolicy(
-    "my-bucket", datetime.utcnow() + timedelta(days=10),
+    "my-bucket",
+    datetime.utcnow() + timedelta(days=10),
 )
 policy.add_starts_with_condition("key", "my/object/prefix/")
-policy.add_content_length_range_condition(1*1024*1024, 10*1024*1024)
+policy.add_content_length_range_condition(1 * 1024 * 1024, 10 * 1024 * 1024)
+
 
 async def main():
     form_data = await client.presigned_post_policy(policy)
     curl_cmd = (
-        "curl -X POST "
-        "https://play.min.io/my-bucket "
-        "{0} -F file=@<FILE>"
+        "curl -X POST " "https://play.min.io/my-bucket " "{0} -F file=@<FILE>"
     ).format(
         " ".join(["-F {0}={1}".format(k, v) for k, v in form_data.items()]),
     )
-    print('curl_cmd:',curl_cmd)
+    print("curl_cmd:", curl_cmd)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

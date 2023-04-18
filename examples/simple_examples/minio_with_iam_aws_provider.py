@@ -25,12 +25,13 @@ import asyncio
 
 client = Minio("s3.amazonaws.com", credentials=IamAwsProvider())
 
+
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
 
+
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()
-

@@ -28,8 +28,9 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # copy an object from a bucket to another.
@@ -65,6 +66,7 @@ async def main():
         metadata_directive=REPLACE,
     )
     print(result.object_name, result.version_id)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

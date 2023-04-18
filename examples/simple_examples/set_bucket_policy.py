@@ -27,12 +27,13 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # Example anonymous read-only bucket policy.
-    print('example one')
+    print("example one")
     policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -53,7 +54,7 @@ async def main():
     await client.set_bucket_policy("my-bucket", json.dumps(policy))
 
     # Example anonymous read-write bucket policy.
-    print('example two')
+    print("example two")
     policy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -82,6 +83,7 @@ async def main():
         ],
     }
     await client.set_bucket_policy("my-bucket", json.dumps(policy))
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

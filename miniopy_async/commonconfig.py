@@ -155,10 +155,7 @@ class AndOperator:
         """Create new object with values from XML element."""
         element = find(element, "And")
         prefix = findtext(element, "Prefix")
-        tags = (
-            None if find(element, "Tag") is None
-            else Tags.fromxml(element)
-        )
+        tags = None if find(element, "Tag") is None else Tags.fromxml(element)
         return cls(prefix, tags)
 
     def toxml(self, element):
@@ -175,11 +172,7 @@ class Filter:
     """Lifecycle rule filter."""
 
     def __init__(self, and_operator=None, prefix=None, tag=None):
-        valid = (
-                (and_operator is not None) ^
-                (prefix is not None) ^
-                (tag is not None)
-        )
+        valid = (and_operator is not None) ^ (prefix is not None) ^ (tag is not None)
         if not valid:
             raise ValueError("only one of and, prefix or tag must be provided")
         self._and_operator = and_operator
@@ -206,8 +199,7 @@ class Filter:
         """Create new object with values from XML element."""
         element = find(element, "Filter")
         and_operator = (
-            None if find(element, "And") is None
-            else AndOperator.fromxml(element)
+            None if find(element, "And") is None else AndOperator.fromxml(element)
         )
         prefix = findtext(element, "Prefix")
         tag = None if find(element, "Tag") is None else Tag.fromxml(element)
@@ -227,6 +219,7 @@ class Filter:
 
 class BaseRule:
     """Base rule class for Replication and Lifecycle."""
+
     __metaclass__ = ABCMeta
 
     def __init__(self, rule_filter=None, rule_id=None):
@@ -253,9 +246,8 @@ class BaseRule:
     def parsexml(element):
         """Parse XML and return filter and ID."""
         return (
-                   None if find(element, "Filter") is None
-                   else Filter.fromxml(element)
-               ), findtext(element, "ID")
+            None if find(element, "Filter") is None else Filter.fromxml(element)
+        ), findtext(element, "ID")
 
     def toxml(self, element):
         """Convert to XML."""
@@ -274,13 +266,22 @@ def check_status(status):
 
 class ObjectConditionalReadArgs:
     """Base argument class holds condition properties for reading object."""
+
     __metaclass__ = ABCMeta
 
     def __init__(
-        self, bucket_name, object_name, region=None, version_id=None,
-        ssec=None, offset=None, length=None, match_etag=None,
-        not_match_etag=None, modified_since=None,
-        unmodified_since=None
+        self,
+        bucket_name,
+        object_name,
+        region=None,
+        version_id=None,
+        ssec=None,
+        offset=None,
+        length=None,
+        match_etag=None,
+        not_match_etag=None,
+        modified_since=None,
+        unmodified_since=None,
     ):
         if ssec is not None and not isinstance(ssec, SseCustomerKey):
             raise ValueError("ssec must be SseCustomerKey type")
@@ -292,14 +293,12 @@ class ObjectConditionalReadArgs:
             raise ValueError("match_etag must not be empty")
         if not_match_etag is not None and not_match_etag == "":
             raise ValueError("not_match_etag must not be empty")
-        if (
-                modified_since is not None and
-                not isinstance(modified_since, datetime.datetime)
+        if modified_since is not None and not isinstance(
+            modified_since, datetime.datetime
         ):
             raise ValueError("modified_since must be datetime.datetime type")
-        if (
-                unmodified_since is not None and
-                not isinstance(unmodified_since, datetime.datetime)
+        if unmodified_since is not None and not isinstance(
+            unmodified_since, datetime.datetime
         ):
             raise ValueError("unmodified_since must be datetime.datetime type")
 
@@ -384,12 +383,12 @@ class ObjectConditionalReadArgs:
         if self._not_match_etag:
             headers["x-amz-copy-source-if-none-match"] = self._not_match_etag
         if self._modified_since:
-            headers["x-amz-copy-source-if-modified-since"] = (
-                to_http_header(self._modified_since)
+            headers["x-amz-copy-source-if-modified-since"] = to_http_header(
+                self._modified_since
             )
         if self._unmodified_since:
-            headers["x-amz-copy-source-if-unmodified-since"] = (
-                to_http_header(self._unmodified_since)
+            headers["x-amz-copy-source-if-unmodified-since"] = to_http_header(
+                self._unmodified_since
             )
         return headers
 
@@ -401,9 +400,17 @@ class CopySource(ObjectConditionalReadArgs):
     def of(cls, src):
         """Create CopySource from another source."""
         return cls(
-            src.bucket_name, src.object_name, src.region, src.version_id,
-            src.ssec, src.offset, src.length, src.match_etag,
-            src.not_match_etag, src.modified_since, src.unmodified_since,
+            src.bucket_name,
+            src.object_name,
+            src.region,
+            src.version_id,
+            src.ssec,
+            src.offset,
+            src.length,
+            src.match_etag,
+            src.not_match_etag,
+            src.modified_since,
+            src.unmodified_since,
         )
 
 
@@ -411,14 +418,31 @@ class ComposeSource(ObjectConditionalReadArgs):
     """A source object defintion for compose_object method."""
 
     def __init__(
-        self, bucket_name, object_name, region=None, version_id=None,
-        ssec=None, offset=None, length=None, match_etag=None,
-        not_match_etag=None, modified_since=None,
-        unmodified_since=None
+        self,
+        bucket_name,
+        object_name,
+        region=None,
+        version_id=None,
+        ssec=None,
+        offset=None,
+        length=None,
+        match_etag=None,
+        not_match_etag=None,
+        modified_since=None,
+        unmodified_since=None,
     ):
         super().__init__(
-            bucket_name, object_name, region, version_id, ssec, offset, length,
-            match_etag, not_match_etag, modified_since, unmodified_since,
+            bucket_name,
+            object_name,
+            region,
+            version_id,
+            ssec,
+            offset,
+            length,
+            match_etag,
+            not_match_etag,
+            modified_since,
+            unmodified_since,
         )
         self._object_size = None
         self._headers = None
@@ -455,8 +479,7 @@ class ComposeSource(ObjectConditionalReadArgs):
         """Get object size."""
         if self._object_size is None:
             raise MinioException(
-                "build_headers() must be called prior to "
-                "this method invocation",
+                "build_headers() must be called prior to " "this method invocation",
             )
         return self._object_size
 
@@ -465,8 +488,7 @@ class ComposeSource(ObjectConditionalReadArgs):
         """Get headers."""
         if self._headers is None:
             raise MinioException(
-                "build_headers() must be called prior to "
-                "this method invocation",
+                "build_headers() must be called prior to " "this method invocation",
             )
         return self._headers.copy()
 
@@ -474,7 +496,15 @@ class ComposeSource(ObjectConditionalReadArgs):
     def of(cls, src):
         """Create ComposeSource from another source."""
         return cls(
-            src.bucket_name, src.object_name, src.region, src.version_id,
-            src.ssec, src.offset, src.length, src.match_etag,
-            src.not_match_etag, src.modified_since, src.unmodified_since,
+            src.bucket_name,
+            src.object_name,
+            src.region,
+            src.version_id,
+            src.ssec,
+            src.offset,
+            src.length,
+            src.match_etag,
+            src.not_match_etag,
+            src.modified_since,
+            src.unmodified_since,
         )

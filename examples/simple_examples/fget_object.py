@@ -27,8 +27,9 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     # Download data of an object.
@@ -38,16 +39,21 @@ async def main():
     # Download data of an object of version-ID.
     print("example two")
     await client.fget_object(
-        "my-bucket", "my-object", "my-filename",
+        "my-bucket",
+        "my-object",
+        "my-filename",
         version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
     )
 
     # Download data of an SSE-C encrypted object.
     print("example three")
     await client.fget_object(
-        "my-bucket", "my-object", "my-filename",
+        "my-bucket",
+        "my-object",
+        "my-filename",
         ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
     )
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

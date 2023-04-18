@@ -20,7 +20,11 @@
 # Date: 2022-07-11
 
 from miniopy_async import Minio
-from miniopy_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
+from miniopy_async.select import (
+    CSVInputSerialization,
+    CSVOutputSerialization,
+    SelectRequest,
+)
 from aiostream.stream import list as alist
 import asyncio
 
@@ -28,8 +32,9 @@ client = Minio(
     "play.min.io",
     access_key="Q3AM3UQ867SPQQA43P2F",
     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True  # http for False, https for True
+    secure=True,  # http for False, https for True
 )
+
 
 async def main():
     result = await client.select_object_content(
@@ -43,10 +48,11 @@ async def main():
         ),
     )
     print(type(result.stream()))
-    print('data:')
+    print("data:")
     for data in await alist(result.stream()):
         print(data.decode())
-    print('status:',result.stats())
+    print("status:", result.stats())
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

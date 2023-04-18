@@ -36,10 +36,12 @@ provider = LdapIdentityProvider(sts_endpoint, ldap_username, ldap_password)
 
 client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
 
+
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

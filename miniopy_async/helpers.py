@@ -44,20 +44,20 @@ MAX_PART_SIZE = 5 * 1024 * 1024 * 1024  # 5GiB
 MIN_PART_SIZE = 5 * 1024 * 1024  # 5MiB
 
 _VALID_BUCKETNAME_REGEX = re.compile(
-    '^[A-Za-z0-9][A-Za-z0-9\\.\\-\\_\\:]{1,61}[A-Za-z0-9]$')
-_VALID_BUCKETNAME_STRICT_REGEX = re.compile(
-    '^[a-z0-9][a-z0-9\\.\\-]{1,61}[a-z0-9]$')
-_VALID_IP_ADDRESS = re.compile(
-    r'^(\d+\.){3}\d+$')
+    "^[A-Za-z0-9][A-Za-z0-9\\.\\-\\_\\:]{1,61}[A-Za-z0-9]$"
+)
+_VALID_BUCKETNAME_STRICT_REGEX = re.compile("^[a-z0-9][a-z0-9\\.\\-]{1,61}[a-z0-9]$")
+_VALID_IP_ADDRESS = re.compile(r"^(\d+\.){3}\d+$")
 _ALLOWED_HOSTNAME_REGEX = re.compile(
-    '^((?!-)(?!_)[A-Z_\\d-]{1,63}(?<!-)(?<!_)\\.)*((?!_)(?!-)' +
-    '[A-Z_\\d-]{1,63}(?<!-)(?<!_))$',
-    re.IGNORECASE)
+    "^((?!-)(?!_)[A-Z_\\d-]{1,63}(?<!-)(?<!_)\\.)*((?!_)(?!-)"
+    + "[A-Z_\\d-]{1,63}(?<!-)(?<!_))$",
+    re.IGNORECASE,
+)
 
-_EXTRACT_REGION_REGEX = re.compile('s3[.-]?(.+?).amazonaws.com')
+_EXTRACT_REGION_REGEX = re.compile("s3[.-]?(.+?).amazonaws.com")
 
 
-def quote(resource, safe='/', encoding=None, errors=None):
+def quote(resource, safe="/", encoding=None, errors=None):
     """
     Wrapper to urllib.parse.quote() replacing back to '~' for older python
     versions.
@@ -70,7 +70,7 @@ def quote(resource, safe='/', encoding=None, errors=None):
     ).replace("%7E", "~")
 
 
-def queryencode(query, safe='', encoding=None, errors=None):
+def queryencode(query, safe="", encoding=None, errors=None):
     """Encode query parameter value."""
     return quote(query, safe, encoding, errors)
 
@@ -89,8 +89,11 @@ def headers_to_strings(headers, titled_key=False):
                         "Signature=*REDACTED*",
                         value if isinstance(value, str) else str(value),
                     ),
-                ) if titled_key else value,
-            ) for key, value in headers.items()
+                )
+                if titled_key
+                else value,
+            )
+            for key, value in headers.items()
         ]
     )
 
@@ -114,10 +117,9 @@ def _validate_sizes(object_size, part_size):
     if object_size >= 0:
         if object_size > MAX_MULTIPART_OBJECT_SIZE:
             raise ValueError(
-                (
-                    "object size {0} is not supported; "
-                    "maximum allowed 5TiB"
-                ).format(object_size),
+                ("object size {0} is not supported; " "maximum allowed 5TiB").format(
+                    object_size
+                ),
             )
     elif part_size <= 0:
         raise ValueError(
@@ -136,9 +138,12 @@ def _get_part_info(object_size, part_size):
         part_size = min(part_size, object_size)
         return part_size, math.ceil(object_size / part_size) if part_size else 1
 
-    part_size = math.ceil(
-        math.ceil(object_size / MAX_MULTIPART_COUNT) / MIN_PART_SIZE,
-    ) * MIN_PART_SIZE
+    part_size = (
+        math.ceil(
+            math.ceil(object_size / MAX_MULTIPART_COUNT) / MIN_PART_SIZE,
+        )
+        * MIN_PART_SIZE
+    )
     return part_size, math.ceil(object_size / part_size) if part_size else 1
 
 
@@ -155,7 +160,7 @@ def get_part_info(object_size, part_size):
     return part_size, part_count
 
 
-async def read_part_data(stream, size, part_data=b''):
+async def read_part_data(stream, size, part_data=b""):
     """Read part data of given size from stream."""
     is_co_function = asyncio.iscoroutinefunction(stream.read)
     buffer = io.BytesIO()
@@ -192,36 +197,38 @@ def check_bucket_name(bucket_name, strict=False):
     # Verify bucket name is not empty
     bucket_name = str(bucket_name).strip()
     if not bucket_name:
-        raise ValueError('Bucket name cannot be empty.')
+        raise ValueError("Bucket name cannot be empty.")
 
     # Verify bucket name length.
     if len(bucket_name) < 3:
-        raise ValueError('Bucket name cannot be less than'
-                         ' 3 characters.')
+        raise ValueError("Bucket name cannot be less than" " 3 characters.")
     if len(bucket_name) > 63:
-        raise ValueError('Bucket name cannot be greater than'
-                         ' 63 characters.')
+        raise ValueError("Bucket name cannot be greater than" " 63 characters.")
 
     match = _VALID_IP_ADDRESS.match(bucket_name)
     if match:
-        raise ValueError('Bucket name cannot be an ip address')
+        raise ValueError("Bucket name cannot be an ip address")
 
-    unallowed_successive_chars = ['..', '.-', '-.']
+    unallowed_successive_chars = ["..", ".-", "-."]
     if any(x in bucket_name for x in unallowed_successive_chars):
-        raise ValueError('Bucket name contains invalid '
-                         'successive chars '
-                         + str(unallowed_successive_chars) + '.')
+        raise ValueError(
+            "Bucket name contains invalid "
+            "successive chars " + str(unallowed_successive_chars) + "."
+        )
 
     if strict:
         match = _VALID_BUCKETNAME_STRICT_REGEX.match(bucket_name)
         if (not match) or match.end() != len(bucket_name):
-            raise ValueError('Bucket name contains invalid '
-                             'characters (strictly enforced).')
+            raise ValueError(
+                "Bucket name contains invalid " "characters (strictly enforced)."
+            )
 
     match = _VALID_BUCKETNAME_REGEX.match(bucket_name)
     if (not match) or match.end() != len(bucket_name):
-        raise ValueError('Bucket name does not follow S3 standards.'
-                         ' Bucket: {0}'.format(bucket_name))
+        raise ValueError(
+            "Bucket name does not follow S3 standards."
+            " Bucket: {0}".format(bucket_name)
+        )
 
 
 def check_non_empty_string(string):
@@ -276,13 +283,13 @@ def sha256_hash(data):
     """Compute SHA-256 of data and return hash as hex encoded value."""
     if data is None:
         return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    sha256sum = hashlib.sha256(data.encode() if isinstance(data, str) else data).hexdigest()
+    sha256sum = hashlib.sha256(
+        data.encode() if isinstance(data, str) else data
+    ).hexdigest()
     return sha256sum.decode() if isinstance(sha256sum, bytes) else sha256sum
 
 
-def url_replace(
-        url, scheme=None, netloc=None, path=None, query=None, fragment=None
-):
+def url_replace(url, scheme=None, netloc=None, path=None, query=None, fragment=None):
     """Return new URL with replaced properties in given URL."""
     return urllib.parse.SplitResult(
         scheme if scheme is not None else url.scheme,
@@ -315,9 +322,9 @@ def _metadata_to_headers(metadata):
         return value
 
     def normalize_value(value):
-        #if not isinstance(values, (list, tuple)):
+        # if not isinstance(values, (list, tuple)):
         #    values = [values]
-        #return [to_string(value) for value in values]
+        # return [to_string(value) for value in values]
         return to_string(value)
 
     return {
@@ -333,19 +340,19 @@ def normalize_headers(headers):
     def guess_user_metadata(key):
         key = key.lower()
         return not (
-                key.startswith("x-amz-") or
-                key in [
-                    "cache-control",
-                    "content-encoding",
-                    "content-type",
-                    "content-disposition",
-                    "content-language",
-                ]
+            key.startswith("x-amz-")
+            or key
+            in [
+                "cache-control",
+                "content-encoding",
+                "content-type",
+                "content-disposition",
+                "content-language",
+            ]
         )
 
     user_metadata = {
-        key: value for key, value in headers.items()
-        if guess_user_metadata(key)
+        key: value for key, value in headers.items() if guess_user_metadata(key)
     }
 
     # Remove guessed user metadata.
@@ -369,8 +376,8 @@ def genheaders(headers, sse, tags, retention, legal_hold):
         headers["x-amz-tagging"] = tagging
     if retention and retention.mode:
         headers["x-amz-object-lock-mode"] = retention.mode
-        headers["x-amz-object-lock-retain-until-date"] = (
-            to_iso8601utc(retention.retain_until_date)
+        headers["x-amz-object-lock-retain-until-date"] = to_iso8601utc(
+            retention.retain_until_date
         )
     if legal_hold:
         headers["x-amz-object-lock-legal-hold"] = "ON"
@@ -429,35 +436,23 @@ class BaseURL:
         if url.password:
             raise ValueError("password in endpoint is not allowed")
 
-        if (
-                (url.scheme == "http" and url.port == 80) or
-                (url.scheme == "https" and url.port == 443)
+        if (url.scheme == "http" and url.port == 80) or (
+            url.scheme == "https" and url.port == 443
         ):
             url = url_replace(url, netloc=host)
 
         self._accelerate_host_flag = host.startswith("s3-accelerate.")
-        self._is_aws_host = (
-                (
-                        host.startswith("s3.") or self._accelerate_host_flag
-                ) and
-                (
-                        host.endswith(".amazonaws.com") or
-                        host.endswith(".amazonaws.com.cn")
-                )
+        self._is_aws_host = (host.startswith("s3.") or self._accelerate_host_flag) and (
+            host.endswith(".amazonaws.com") or host.endswith(".amazonaws.com.cn")
         )
-        self._virtual_style_flag = (
-                self._is_aws_host or host.endswith("aliyuncs.com")
-        )
+        self._virtual_style_flag = self._is_aws_host or host.endswith("aliyuncs.com")
 
         region_in_host = None
         if self._is_aws_host:
             is_aws_china_host = host.endswith(".cn")
             url = url_replace(
                 url,
-                netloc=(
-                    "amazonaws.com.cn"
-                    if is_aws_china_host else "amazonaws.com"
-                ),
+                netloc=("amazonaws.com.cn" if is_aws_china_host else "amazonaws.com"),
             )
             region_in_host = _extract_region(host)
 
@@ -527,8 +522,12 @@ class BaseURL:
         self._virtual_style_flag = flag
 
     def build(
-            self, method, region,
-            bucket_name=None, object_name=None, query_params=None,
+        self,
+        method,
+        region,
+        bucket_name=None,
+        object_name=None,
+        query_params=None,
     ):
         """Build URL for given information."""
 
@@ -551,19 +550,20 @@ class BaseURL:
             url = url_replace(url, path="/")
             return (
                 url_replace(url, netloc="s3." + region + "." + host)
-                if self._is_aws_host else url
+                if self._is_aws_host
+                else url
             )
 
         enforce_path_style = (
             # CreateBucket API requires path style in Amazon AWS S3.
-                (method == "PUT" and not object_name and not query_params) or
-
-                # GetBucketLocation API requires path style in Amazon AWS S3.
-                (query_params and "location" in query_params) or
-
-                # Use path style for bucket name containing '.' which causes
-                # SSL certificate validation error.
-                ("." in bucket_name and self._url.scheme == "https")
+            (method == "PUT" and not object_name and not query_params)
+            or
+            # GetBucketLocation API requires path style in Amazon AWS S3.
+            (query_params and "location" in query_params)
+            or
+            # Use path style for bucket name containing '.' which causes
+            # SSL certificate validation error.
+            ("." in bucket_name and self._url.scheme == "https")
         )
 
         if self._is_aws_host:
@@ -608,8 +608,14 @@ class ObjectWriteResult:
     """Result class of any APIs doing object creation."""
 
     def __init__(
-            self, bucket_name, object_name, version_id, etag, http_headers,
-            last_modified=None, location=None,
+        self,
+        bucket_name,
+        object_name,
+        version_id,
+        etag,
+        http_headers,
+        last_modified=None,
+        location=None,
     ):
         self._bucket_name = bucket_name
         self._object_name = object_name

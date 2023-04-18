@@ -28,6 +28,7 @@ test_file_name = ["testfile-1", "testfile-2"]
 
 error_func_list = []
 
+
 async def create_bucket():
     try:
         if not await client.bucket_exists(bucket_name):
@@ -35,7 +36,8 @@ async def create_bucket():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('create_bucket')
+        error_func_list.append("create_bucket")
+
 
 async def put_object():
     try:
@@ -48,7 +50,7 @@ async def put_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('put_object')
+        error_func_list.append("put_object")
 
 
 async def compose_object():
@@ -60,7 +62,7 @@ async def compose_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('compose_object')
+        error_func_list.append("compose_object")
 
 
 async def copy_object():
@@ -73,7 +75,7 @@ async def copy_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('copy_object')
+        error_func_list.append("copy_object")
 
 
 async def set_bucket_versioning():
@@ -82,7 +84,7 @@ async def set_bucket_versioning():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_bucket_versioning')
+        error_func_list.append("set_bucket_versioning")
 
 
 async def set_bucket_encryption():
@@ -94,7 +96,7 @@ async def set_bucket_encryption():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_bucket_encryption')
+        error_func_list.append("set_bucket_encryption")
 
 
 async def set_bucket_lifecycle():
@@ -113,7 +115,7 @@ async def set_bucket_lifecycle():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_bucket_lifecycle')
+        error_func_list.append("set_bucket_lifecycle")
 
 
 async def set_bucket_policy():
@@ -139,7 +141,7 @@ async def set_bucket_policy():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_bucket_policy')
+        error_func_list.append("set_bucket_policy")
 
 
 async def set_bucket_tags():
@@ -151,7 +153,7 @@ async def set_bucket_tags():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_bucket_tags')
+        error_func_list.append("set_bucket_tags")
 
 
 async def set_object_tags():
@@ -163,7 +165,7 @@ async def set_object_tags():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('set_object_tags')
+        error_func_list.append("set_object_tags")
 
 
 async def stat_object():
@@ -172,7 +174,7 @@ async def stat_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('stat_object')
+        error_func_list.append("stat_object")
 
 
 async def presigned_get_object():
@@ -181,7 +183,7 @@ async def presigned_get_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('presigned_get_object')
+        error_func_list.append("presigned_get_object")
 
 
 async def presigned_put_object():
@@ -190,7 +192,7 @@ async def presigned_put_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('presigned_put_object')
+        error_func_list.append("presigned_put_object")
 
 
 async def presigned_post_policy():
@@ -207,7 +209,7 @@ async def presigned_post_policy():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('presigned_post_policy')
+        error_func_list.append("presigned_post_policy")
 
 
 async def list_buckets():
@@ -216,7 +218,7 @@ async def list_buckets():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('list_buckets')
+        error_func_list.append("list_buckets")
 
 
 async def list_objects():
@@ -225,7 +227,7 @@ async def list_objects():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('list_objects')
+        error_func_list.append("list_objects")
 
 
 async def get_object():
@@ -235,7 +237,7 @@ async def get_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('get_object')
+        error_func_list.append("get_object")
 
 
 async def remove_object():
@@ -244,7 +246,7 @@ async def remove_object():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('remove_object')
+        error_func_list.append("remove_object")
 
 
 async def remove_objects():
@@ -257,7 +259,7 @@ async def remove_objects():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('remove_objects')
+        error_func_list.append("remove_objects")
 
 
 async def remove_bucket():
@@ -266,7 +268,7 @@ async def remove_bucket():
         print("Pass")
     except Exception as e:
         print(repr(e))
-        error_func_list.append('remove_bucket')
+        error_func_list.append("remove_bucket")
 
 
 async def main():
@@ -317,8 +319,8 @@ loop.run_until_complete(main())
 loop.close()
 
 if len(error_func_list) == 0:
-    print('\nAll Pass')
+    print("\nAll Pass")
 else:
-    print('\nError Functions:')
+    print("\nError Functions:")
     for error_func in error_func_list:
         print(error_func)

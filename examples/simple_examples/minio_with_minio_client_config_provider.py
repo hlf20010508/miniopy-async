@@ -24,13 +24,16 @@ from miniopy_async.credentials import MinioClientConfigProvider
 import asyncio
 
 client = Minio(
-    "MINIO-HOST:MINIO-PORT", credentials=MinioClientConfigProvider(),
+    "MINIO-HOST:MINIO-PORT",
+    credentials=MinioClientConfigProvider(),
 )
+
 
 async def main():
     # Get information of an object.
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
+
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
