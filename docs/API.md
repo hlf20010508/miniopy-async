@@ -1293,22 +1293,23 @@ loop.close()
 
 <a id="get_object"></a>
 
-### get_object(bucket_name, object_name, offset=0, length=0, request_headers=None, ssec=None, version_id=None, extra_query_params=None)
+### get_object(bucket_name, object_name, session, offset=0, length=0, request_headers=None, ssec=None, version_id=None, extra_query_params=None)
 
-Gets data from offset to length of an object. Returned response should be closed after use to release network resources. To reuse the connection, it's required to call `response.release()` explicitly.
+Gets data from offset to length of an object. Returned response should be closed after use to release network resources.
 
 __Parameters__
 
-| Param                | Type             | Description                                          |
-|:---------------------|:-----------------|:-----------------------------------------------------|
-| `bucket_name`        | _str_            | Name of the bucket.                                  |
-| `object_name`        | _str_            | Object name in the bucket.                           |
-| `offset`             | _int_            | Start byte position of object data.                  |
-| `length`             | _int_            | Number of bytes of object data from offset.          |
-| `request_headers`    | _dict_           | Any additional headers to be added with GET request. |
-| `ssec`               | _SseCustomerKey_ | Server-side encryption customer key.                 |
-| `version_id`         | _str_            | Version-ID of the object.                            |
-| `extra_query_params` | _dict_           | Extra query parameters for advanced usage.           |
+| Param                | Type                    | Description                                          |
+|:---------------------|:------------------------|:-----------------------------------------------------|
+| `bucket_name`        | _str_                   | Name of the bucket.                                  |
+| `object_name`        | _str_                   | Object name in the bucket.                           |
+| `session`            | _aiohttp.ClientSession_ | aiohttp.ClientSession object.                        |
+| `offset`             | _int_                   | Start byte position of object data.                  |
+| `length`             | _int_                   | Number of bytes of object data from offset.          |
+| `request_headers`    | _dict_                  | Any additional headers to be added with GET request. |
+| `ssec`               | _SseCustomerKey_        | Server-side encryption customer key.                 |
+| `version_id`         | _str_                   | Version-ID of the object.                            |
+| `extra_query_params` | _dict_                  | Extra query parameters for advanced usage.           |
 
 __Return Value__
 
@@ -1331,37 +1332,38 @@ client = Minio(
 )
 
 async def main():
-    try:
-        # Get data of an object.
-        print('example one')
-        response = await client.get_object("my-bucket", "my-object")
+    # Get data of an object.
+    print('example one')
+    async with aiohttp.ClientSession() as session:
+        response = await client.get_object("my-bucket", "my-object", session)
         # Read data from response.
 
-        # Get data of an object from offset and length.
-        print('example two')
+    # Get data of an object from offset and length.
+    print('example two')
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
-            "my-bucket", "my-object", offset=512, length=1024,
+            "my-bucket", "my-object", session, offset=512, length=1024,
         )
         # Read data from response.
 
-        # Get data of an object of version-ID.
-        print('example three')
+    # Get data of an object of version-ID.
+    print('example three')
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
-            "my-bucket", "my-object",
+            "my-bucket", "my-object", sessioin
             version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
         )
         # Read data from response.
 
-        # Get data of an SSE-C encrypted object.
-        print('example four')
+    # Get data of an SSE-C encrypted object.
+    print('example four')
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
-            "my-bucket", "my-object",
-            ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+            "my-bucket", "my-object", session
+            ssec=SseCustomerKey(
+            b"32byteslongsecretkeymustprovided"),
         )
         # Read data from response.
-    finally:
-        response.close()
-        await response.release()
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

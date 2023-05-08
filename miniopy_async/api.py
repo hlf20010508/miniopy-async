@@ -1480,12 +1480,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                 response = await self.get_object(
                     bucket_name,
                     object_name,
+                    session,
                     offset=offset,
                     request_headers=request_headers,
                     ssec=ssec,
                     version_id=version_id,
                     extra_query_params=extra_query_params,
-                    session=session,
                 )
                 async with aiofile.async_open(tmp_file_path, "wb") as tmp_file:
                     async for data in response.content.iter_chunked(n=1024 * 1024):
@@ -1501,13 +1501,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name,
         object_name,
+        session,
         offset=0,
         length=0,
         request_headers=None,
         ssec=None,
         version_id=None,
         extra_query_params=None,
-        session=None,
     ):
         """
         Get data of an object. Returned response should be closed after use to
@@ -1516,6 +1516,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param bucket_name: Name of the bucket.
         :param object_name: Object name in the bucket.
+        :param session: :class:`aiohttp.ClientSession()` object.
         :param offset: Start byte position of object data.
         :param length: Number of bytes of object data from offset.
         :param request_headers: Any additional headers to be added with GET
@@ -1538,38 +1539,38 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
             async def main():
-                try:
-                    # Get data of an object.
-                    print('example one')
-                    response = await client.get_object("my-bucket", "my-object")
+                # Get data of an object.
+                print('example one')
+                async with aiohttp.ClientSession() as session:
+                    response = await client.get_object("my-bucket", "my-object", session)
                     # Read data from response.
 
-                    # Get data of an object from offset and length.
-                    print('example two')
+                # Get data of an object from offset and length.
+                print('example two')
+                async with aiohttp.ClientSession() as session:
                     response = await client.get_object(
-                        "my-bucket", "my-object", offset=512, length=1024,
+                        "my-bucket", "my-object", session, offset=512, length=1024,
                     )
                     # Read data from response.
 
-                    # Get data of an object of version-ID.
-                    print('example three')
+                # Get data of an object of version-ID.
+                print('example three')
+                async with aiohttp.ClientSession() as session:
                     response = await client.get_object(
-                        "my-bucket", "my-object",
+                        "my-bucket", "my-object", sessioin
                         version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
                     )
                     # Read data from response.
 
-                    # Get data of an SSE-C encrypted object.
-                    print('example four')
+                # Get data of an SSE-C encrypted object.
+                print('example four')
+                async with aiohttp.ClientSession() as session:
                     response = await client.get_object(
-                        "my-bucket", "my-object",
+                        "my-bucket", "my-object", session
                         ssec=SseCustomerKey(
                         b"32byteslongsecretkeymustprovided"),
                     )
                     # Read data from response.
-                finally:
-                    response.close()
-                    await response.release()
 
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())

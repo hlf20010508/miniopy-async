@@ -22,6 +22,7 @@ import os
 import json
 from datetime import datetime, timedelta
 import traceback
+import aiohttp
 
 client = Minio(
     "play.min.io",
@@ -239,12 +240,23 @@ async def list_objects():
 
 async def get_object():
     try:
+        async with aiohttp.ClientSession() as session:
+            response = await client.get_object(bucket_name, test_file_name[0], session)
+            await response.content.read()
+            print("Pass")
+    except:
+        traceback.print_exc()
+        error_func_list.append("get_object")
+
+
+async def fget_object():
+    try:
         await client.fget_object(bucket_name, test_file_name[0], "testfile")
         os.remove("testfile")
         print("Pass")
     except:
         traceback.print_exc()
-        error_func_list.append("get_object")
+        error_func_list.append("fget_object")
 
 
 async def select_object_content():
@@ -267,6 +279,7 @@ async def select_object_content():
         )
         for data in await alist(result.stream()):
             data.decode()
+        print("Pass")
     except:
         traceback.print_exc()
         error_func_list.append("select_object_content")
@@ -338,6 +351,8 @@ async def main():
     await list_objects()
     print("Testing get object...")
     await get_object()
+    print("Testing fget object...")
+    await fget_object()
     print("Testing select object content...")
     await select_object_content()
     print("Testing remove object...")
