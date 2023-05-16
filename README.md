@@ -5,6 +5,7 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)](https://pypi.org/project/miniopy-async/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)](https://pypi.org/project/miniopy-async/)  
 [![GitHub repo size](https://img.shields.io/github/repo-size/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/hlf20010508/miniopy-async/python-publish.yml)](https://github.com/hlf20010508/miniopy-async/actions)
 [![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/pulls?q=is%3Apr+is%3Aclosed)
 
