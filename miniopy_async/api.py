@@ -470,7 +470,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 session=session,
             )
 
-        element = ET.fromstring(await response.text())
+            element = ET.fromstring(await response.text())
 
         if not element.text:
             region = "us-east-1"
