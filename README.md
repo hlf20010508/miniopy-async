@@ -1,5 +1,5 @@
 # miniopy-async
-> Asynchronous MinIO Python Client API
+> Asynchronous MinIO Client SDK for Python
 
 [![PyPI](https://img.shields.io/pypi/v/miniopy-async)](https://pypi.org/project/miniopy-async/)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)](https://pypi.org/project/miniopy-async/)

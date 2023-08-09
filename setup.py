@@ -1,4 +1,4 @@
-# Asynchronous MinIO Python Client API
+# Asynchronous MinIO Client SDK for Python
 # (C) 2015 MinIO, Inc.
 # (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
 # (C) 2022 L-ING <hlf01@icloud.com>
@@ -36,7 +36,7 @@ with codecs.open("README.md", encoding="utf-8") as file:
 
 setup(
     name="miniopy-async",
-    description="Asynchronous MinIO Python Client API",
+    description="Asynchronous MinIO Client SDK for Python",
     author="L-ING",
     url="https://github.com/hlf20010508/miniopy-async",
     author_email="hlf01@icloud.com",

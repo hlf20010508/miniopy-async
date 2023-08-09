@@ -1,4 +1,4 @@
-# Asynchronous MinIO Python Client API Reference
+# Asynchronous MinIO Client SDK for Python Reference
 
 ## 1. Constructor
 

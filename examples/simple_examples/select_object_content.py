@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Python Client API
+# Asynchronous MinIO Client SDK for Python
 # (C) 2019 MinIO, Inc.
 # (C) 2022 L-ING <hlf01@icloud.com>
 #
