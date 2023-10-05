@@ -409,17 +409,16 @@ class Minio:  # pylint: disable=too-many-public-methods
                     )
                 return response
             else:
-                async with aiohttp.ClientSession() as session:
-                    response = await self._url_open(
-                        method,
-                        region,
-                        bucket_name=bucket_name,
-                        object_name=object_name,
-                        body=body,
-                        headers=headers,
-                        query_params=query_params,
-                        session=session,
-                    )
+                response = await self._url_open(
+                    method,
+                    region,
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    body=body,
+                    headers=headers,
+                    query_params=query_params,
+                    session=session,
+                )
                 return response
         except S3Error as exc:
             if exc.code != "RetryHead":
