@@ -538,7 +538,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             from miniopy_async import Minio
             from miniopy_async.select import (CSVInputSerialization,
             CSVOutputSerialization, SelectRequest)
-            from aiostream.stream import list as alist
             import asyncio
 
             client = Minio(
@@ -560,7 +559,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ),
                 )
                 print('data:')
-                for data in await alist(result.stream()):
+                async for data in result.stream():
                     print(data.decode())
                 print('status:',result.stats())
 

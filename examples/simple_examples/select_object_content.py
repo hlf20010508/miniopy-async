@@ -25,7 +25,6 @@ from miniopy_async.select import (
     CSVOutputSerialization,
     SelectRequest,
 )
-from aiostream.stream import list as alist
 import asyncio
 
 client = Minio(
@@ -49,7 +48,7 @@ async def main():
     )
     print(type(result.stream()))
     print("data:")
-    for data in await alist(result.stream()):
+    async for data in result.stream():
         print(data.decode())
     print("status:", result.stats())
 

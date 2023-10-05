@@ -16,7 +16,6 @@ from miniopy_async.select import (
     CSVOutputSerialization,
     SelectRequest,
 )
-from aiostream.stream import list as alist
 import asyncio
 import os
 import json
@@ -277,7 +276,7 @@ async def select_object_content():
                 request_progress=True,
             ),
         )
-        for data in await alist(result.stream()):
+        async for data in result.stream():
             data.decode()
         print("Pass")
     except:

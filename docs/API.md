@@ -1395,7 +1395,6 @@ __Example__
 ```py
 from miniopy_async import Minio
 from miniopy_async.select import (CSVInputSerialization, CSVOutputSerialization, SelectRequest)
-from aiostream.stream import list as alist
 import asyncio
 
 client = Minio(
@@ -1417,7 +1416,7 @@ async def main():
         ),
     )
     print('data:')
-    for data in await alist(result.stream()):
+    async for data in result.stream():
         print(data.decode())
     print('status:',result.stats())
 
