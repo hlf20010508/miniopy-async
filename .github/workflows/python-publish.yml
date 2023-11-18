@@ -6,22 +6,37 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Upload Python Package
+name: Publish Python Package
 
 on:
   release:
     types: [published]
 
-permissions:
-  contents: read
+env:
+  FILE_PATH: miniopy_async/__init__.py
+  NAME: L-ING
+  EMAIL: hlf01@icloud.com
+  GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+  RELEASE_VERSION: ${{ github.event.release.name }}
 
 jobs:
-  deploy:
-
+  publish:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'hlf20010508'
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        token: ${{ env.GITHUB_TOKEN }}
+    - name: Update Version in Your Python Package
+      run: sed -i 's/__version__ = .*/__version__ = '\"$RELEASE_VERSION\"'/g' $FILE_PATH
+    - name: Commit and Push
+      run: |
+        git config --global user.name $NAME
+        git config --global user.email $EMAIL
+        git add -A
+        git commit -m "chore: update version to $RELEASE_VERSION"
+        git push origin HEAD:master
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
