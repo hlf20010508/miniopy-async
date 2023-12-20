@@ -33,6 +33,9 @@ import asyncio
 import itertools
 import os
 import platform
+from random import random
+from io import BytesIO
+import tarfile
 
 # import weakref
 from concurrent.futures import ThreadPoolExecutor
@@ -44,7 +47,7 @@ import aiofile
 import aiohttp
 
 from . import __title__, __version__, time
-from .commonconfig import COPY, ComposeSource, CopySource, REPLACE, Tags
+from .commonconfig import COPY, ComposeSource, CopySource, REPLACE, Tags, SnowballObject
 from .credentials import StaticProvider
 from .datatypes import (
     AsyncEventIterable,
@@ -3977,8 +3980,11 @@ class Minio:  # pylint: disable=too-many-public-methods
             days=10))
 
             async def main():
-                await client.set_object_retention("my-bucket", "my-object",
-                config)
+                await client.set_object_retention(
+                    "my-bucket",
+                    "my-object",
+                    config
+                )
 
             loop = asyncio.get_event_loop()
             loop.run_until_complete(main())
@@ -3998,6 +4004,127 @@ class Minio:  # pylint: disable=too-many-public-methods
             body=body,
             headers={"Content-MD5": md5sum_hash(body)},
             query_params=query_params,
+        )
+
+    async def upload_snowball_objects(
+        self,
+        bucket_name,
+        object_list,
+        metadata=None,
+        sse=None,
+        tags=None,
+        retention=None,
+        legal_hold=False,
+        staging_filename=None,
+        compression=False,
+    ):
+        """
+        Uploads multiple objects in a single put call. It is done by creating
+        intermediate TAR file optionally compressed which is uploaded to S3
+        service.
+
+        :param bucket_name: Name of the bucket.
+        :param object_list: An iterable containing
+            :class:`SnowballObject <SnowballObject>` object.
+        :param metadata: Any additional metadata to be uploaded along
+            with your PUT request.
+        :param sse: Server-side encryption.
+        :param tags: :class:`Tags` for the object.
+        :param retention: :class:`Retention` configuration object.
+        :param legal_hold: Flag to set legal hold for the object.
+        :param staging_filename: A staging filename to create intermediate tarball.
+        :param compression: Flag to compress TAR ball.
+        :return: :class:`ObjectWriteResult` object.
+
+        Example::
+            from miniopy_async import Minio
+            from miniopy_async.commonconfig import SnowballObject
+            import io
+            from datetime import datetime
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True,  # http for False, https for True
+            )
+
+            async def main():
+                result = await client.upload_snowball_objects(
+                    "my-bucket",
+                    [
+                        SnowballObject("my-object1", filename="filename"),
+                        SnowballObject(
+                            "my-object2", data=io.BytesIO(b"hello"), length=5,
+                        ),
+                        SnowballObject(
+                            "my-object3", data=io.BytesIO(b"world"), length=5,
+                            mod_time=datetime.now(),
+                        ),
+                    ],
+                )
+
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(main())
+            loop.close()
+        """
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+
+        object_name = f"snowball.{random()}.tar"
+
+        # turn list like objects into an iterator.
+        object_list = itertools.chain(object_list)
+
+        metadata = metadata or {}
+        metadata["X-Amz-Meta-Snowball-Auto-Extract"] = "true"
+
+        name = staging_filename
+        mode = "w:gz" if compression else "w"
+        fileobj = None if name else BytesIO()
+        with tarfile.open(name=name, mode=mode, fileobj=fileobj) as tar:
+            for obj in object_list:
+                if obj.filename:
+                    tar.add(obj.filename, obj.object_name)
+                else:
+                    info = tarfile.TarInfo(obj.object_name)
+                    info.size = obj.length
+                    info.mtime = int(
+                        time.to_float(obj.mod_time or time.utcnow()),
+                    )
+                    tar.addfile(info, obj.data)
+
+        if not name:
+            length = fileobj.tell()
+            fileobj.seek(0)
+        else:
+            length = os.stat(name).st_size
+
+        part_size = 0 if length < MIN_PART_SIZE else length
+
+        if name:
+            return await self.fput_object(
+                bucket_name,
+                object_name,
+                staging_filename,
+                metadata=metadata,
+                sse=sse,
+                tags=tags,
+                retention=retention,
+                legal_hold=legal_hold,
+                part_size=part_size,
+            )
+        return await self.put_object(
+            bucket_name,
+            object_name,
+            fileobj,
+            length,
+            metadata=metadata,
+            sse=sse,
+            tags=tags,
+            retention=retention,
+            legal_hold=legal_hold,
+            part_size=part_size,
         )
 
     async def _list_objects(

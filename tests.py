@@ -5,6 +5,7 @@ from miniopy_async.commonconfig import (
     ENABLED,
     Filter,
     Tags,
+    SnowballObject
 )
 from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig, Rule as lcRule
 from miniopy_async.versioningconfig import VersioningConfig
@@ -22,6 +23,7 @@ import json
 from datetime import datetime, timedelta
 import traceback
 import aiohttp
+from io import BytesIO
 
 client = Minio(
     "play.min.io",
@@ -30,8 +32,8 @@ client = Minio(
     secure=True,  # http for False, https for True
 )
 
-bucket_name = "my-bucket"
-test_file_name = ["testfile-1", "testfile-2"]
+bucket_name = "miniopy-async"
+test_file_name = ["testfile-1", "testfile-2", "testfile-3"]
 
 error_func_list = []
 
@@ -46,19 +48,38 @@ async def create_bucket():
         error_func_list.append("create_bucket")
 
 
-async def put_object():
+async def upload_snowball_objects():
     try:
-        test_content = b"1" * 1024 * 1024 * 5  # 5MB
-        for file_name in test_file_name:
-            with open(file_name, "wb") as file:
-                file.write(test_content)
-            await client.fput_object(bucket_name, file_name, file_name)
-            os.remove(file_name)
+        test_content0 = BytesIO(b"minio" * 1024 * 1024) # 5MB
+        test_content1 = BytesIO(b"hello" * 1024 * 1024) # 5MB
+        test_content2 = BytesIO(b"world" * 1024 * 1024) # 5MB
+        await client.upload_snowball_objects(
+            bucket_name,
+            [
+                SnowballObject(
+                    test_file_name[0],
+                    data=test_content0,
+                    length=test_content1.getbuffer().nbytes
+                ),
+                SnowballObject(
+                    test_file_name[1],
+                    data=test_content1,
+                    length=test_content1.getbuffer().nbytes
+                ),
+                SnowballObject(
+                    test_file_name[2],
+                    data=test_content2,
+                    length=test_content2.getbuffer().nbytes,
+                    mod_time=datetime.now()
+                ),
+            ],
+            staging_filename="testfiles.tar"
+        )
+        os.remove("testfiles.tar")
         print("Pass")
     except:
         traceback.print_exc()
-        error_func_list.append("put_object")
-
+        error_func_list.append("upload_snowball_objects")
 
 async def compose_object():
     try:
@@ -70,7 +91,6 @@ async def compose_object():
     except:
         traceback.print_exc()
         error_func_list.append("compose_object")
-
 
 async def copy_object():
     try:
@@ -205,7 +225,7 @@ async def presigned_put_object():
 async def presigned_post_policy():
     try:
         bucket_post_policy = PostPolicy(
-            "my-bucket",
+            bucket_name,
             datetime.utcnow() + timedelta(days=10),
         )
         bucket_post_policy.add_starts_with_condition("key", "my/object/prefix/")
@@ -318,8 +338,8 @@ async def remove_bucket():
 async def main():
     print("Testing create bucket...")
     await create_bucket()
-    print("Testing put object...")
-    await put_object()
+    print("Testing upload snowball objects...")
+    await upload_snowball_objects()
     print("Testing compose object..")
     await compose_object()
     print("Testing copy object...")

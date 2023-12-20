@@ -2402,7 +2402,6 @@ __Return Value__
 |:-------------------|
 | _Retention_ object |
 
-
 __Example__
 
 ```py
@@ -2460,6 +2459,68 @@ config = Retention(GOVERNANCE, datetime.utcnow() + timedelta(days=10))
 
 async def main():
     await client.set_object_retention("my-bucket", "my-object", config)
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(main())
+loop.close()
+```
+
+<a id="upload_snowball_objects"></a>
+
+### upload_snowball_objectsupload_snowball_objects(self, bucket_name, object_list, metadata=None, sse=None, tags=None, retention=None, legal_hold=False, staging_filename=None, compression=False)
+
+Uploads multiple objects in a single put call. It is done by creating intermediate TAR file optionally compressed which is uploaded to S3 service.
+
+__Parameters__
+
+| Param              | Type        | Description                                                             |
+|:-------------------|:------------|:------------------------------------------------------------------------|
+| `bucket_name`      | _str_       | Name of the bucket.                                                     |
+| `object_list`      | _iterable_  | An iterable containing :class:`SnowballObject <SnowballObject>` object. |
+| `metadata`         | _dict_      | Any additional metadata to be uploaded along with your PUT request.     |
+| `sse`              | _Sse_       | Server-side encryption.                                                 |
+| `tags`             | _Tags_      | :class:`Tags` for the object.                                           |
+| `retention`        | _Retention_ | :class:`Retention` configuration object.                                |
+| `legal_hold`       | _bool_      | Flag to set legal hold for the object.                                  |
+| `staging_filename` | _str_       | A staging filename to create intermediate tarball.                      |
+| `compression`      | _bool_      | Flag to compress TAR ball.                                              |
+
+__Return Value__
+
+| Return                            |
+|:----------------------------------|
+| :class:`ObjectWriteResult` object |
+
+__Example__
+
+```py
+from miniopy_async import Minio
+from miniopy_async.commonconfig import SnowballObject
+import io
+from datetime import datetime
+import asyncio
+
+client = Minio(
+    "play.min.io",
+    access_key="Q3AM3UQ867SPQQA43P2F",
+    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+    secure=True,  # http for False, https for True
+)
+
+async def main():
+    await client.upload_snowball_objects(
+        "my-bucket",
+        [
+            SnowballObject("my-object1", filename="LICENSE"),
+            SnowballObject(
+                "my-object2", data=io.BytesIO(b"hello"), length=5,
+            ),
+            SnowballObject(
+                "my-object3", data=io.BytesIO(b"world"), length=5,
+                mod_time=datetime.now(),
+            ),
+        ],
+    )
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

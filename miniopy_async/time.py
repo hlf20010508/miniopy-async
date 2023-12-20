@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 import locale
 from contextlib import contextmanager
+import time as ctime
 from datetime import datetime, timezone
 
 from . import __LOCALE_LOCK__
@@ -96,3 +97,7 @@ def utcnow():
 def to_signer_date(value):
     """Format datetime into SignatureV4 date formatted string."""
     return _to_utc(value).strftime("%Y%m%d")
+
+def to_float(value: datetime) -> float:
+    """Convert datetime into float value."""
+    return ctime.mktime(value.timetuple()) + value.microsecond * 1e-6

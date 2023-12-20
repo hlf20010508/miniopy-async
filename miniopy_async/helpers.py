@@ -43,19 +43,16 @@ MAX_MULTIPART_OBJECT_SIZE = 5 * 1024 * 1024 * 1024 * 1024  # 5TiB
 MAX_PART_SIZE = 5 * 1024 * 1024 * 1024  # 5GiB
 MIN_PART_SIZE = 5 * 1024 * 1024  # 5MiB
 
-_VALID_BUCKETNAME_REGEX = re.compile(
-    "^[A-Za-z0-9][A-Za-z0-9\\.\\-\\_\\:]{1,61}[A-Za-z0-9]$"
-)
-_VALID_BUCKETNAME_STRICT_REGEX = re.compile("^[a-z0-9][a-z0-9\\.\\-]{1,61}[a-z0-9]$")
-_VALID_IP_ADDRESS = re.compile(r"^(\d+\.){3}\d+$")
-_ALLOWED_HOSTNAME_REGEX = re.compile(
-    "^((?!-)(?!_)[A-Z_\\d-]{1,63}(?<!-)(?<!_)\\.)*((?!_)(?!-)"
-    + "[A-Z_\\d-]{1,63}(?<!-)(?<!_))$",
-    re.IGNORECASE,
+_BUCKET_NAME_REGEX = re.compile(r'^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$')
+_OLD_BUCKET_NAME_REGEX = re.compile(
+    r'^[a-z0-9][a-z0-9_\.\-\:]{1,61}[a-z0-9]$',
+    re.IGNORECASE
 )
 
-_EXTRACT_REGION_REGEX = re.compile("s3[.-]?(.+?).amazonaws.com")
-
+_IPV4_REGEX = re.compile(
+    r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}'
+    r'(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$'
+)
 
 def quote(resource, safe="/", encoding=None, errors=None):
     """
@@ -191,44 +188,38 @@ def makedirs(path):
             ) from exc
 
 
-def check_bucket_name(bucket_name, strict=False):
+def check_bucket_name(
+        bucket_name: str,
+        strict: bool = False,
+        s3_check: bool = False,
+):
     """Check whether bucket name is valid optional with strict check or not."""
 
-    # Verify bucket name is not empty
-    bucket_name = str(bucket_name).strip()
-    if not bucket_name:
-        raise ValueError("Bucket name cannot be empty.")
-
-    # Verify bucket name length.
-    if len(bucket_name) < 3:
-        raise ValueError("Bucket name cannot be less than" " 3 characters.")
-    if len(bucket_name) > 63:
-        raise ValueError("Bucket name cannot be greater than" " 63 characters.")
-
-    match = _VALID_IP_ADDRESS.match(bucket_name)
-    if match:
-        raise ValueError("Bucket name cannot be an ip address")
-
-    unallowed_successive_chars = ["..", ".-", "-."]
-    if any(x in bucket_name for x in unallowed_successive_chars):
-        raise ValueError(
-            "Bucket name contains invalid "
-            "successive chars " + str(unallowed_successive_chars) + "."
-        )
-
     if strict:
-        match = _VALID_BUCKETNAME_STRICT_REGEX.match(bucket_name)
-        if (not match) or match.end() != len(bucket_name):
-            raise ValueError(
-                "Bucket name contains invalid " "characters (strictly enforced)."
-            )
+        if not _BUCKET_NAME_REGEX.match(bucket_name):
+            raise ValueError(f'invalid bucket name {bucket_name}')
+    else:
+        if not _OLD_BUCKET_NAME_REGEX.match(bucket_name):
+            raise ValueError(f'invalid bucket name {bucket_name}')
 
-    match = _VALID_BUCKETNAME_REGEX.match(bucket_name)
-    if (not match) or match.end() != len(bucket_name):
-        raise ValueError(
-            "Bucket name does not follow S3 standards."
-            " Bucket: {0}".format(bucket_name)
-        )
+    if _IPV4_REGEX.match(bucket_name):
+        raise ValueError(f'bucket name {bucket_name} must not be formatted '
+                         'as an IP address')
+
+    unallowed_successive_chars = ['..', '.-', '-.']
+    if any(x in bucket_name for x in unallowed_successive_chars):
+        raise ValueError(f'bucket name {bucket_name} contains invalid '
+                         'successive characters')
+
+    if (
+            s3_check and
+            bucket_name.startswith("xn--") or
+            bucket_name.endswith("-s3alias") or
+            bucket_name.endswith("--ol-s3")
+    ):
+        raise ValueError(f"bucket name {bucket_name} must not start with "
+                         "'xn--' and must not end with '--s3alias' or "
+                         "'--ol-s3'")
 
 
 def check_non_empty_string(string):
