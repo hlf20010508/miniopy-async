@@ -69,7 +69,7 @@ client = Minio(
 | [`delete_bucket_notification`](#delete_bucket_notification) | [`presigned_put_object`](#presigned_put_object)                 |
 | [`get_bucket_notification`](#get_bucket_notification)       | [`presigned_post_policy`](#presigned_post_policy)               |
 | [`set_bucket_notification`](#set_bucket_notification)       | [`get_presigned_url`](#get_presigned_url)                       |
-| [`listen_bucket_notification`](#listen_bucket_notification) |                                                                 |
+| [`listen_bucket_notification`](#listen_bucket_notification) | [`upload_snowball_objects`](#upload_snowball_objects)           |
 | [`delete_bucket_encryption`](#delete_bucket_encryption)     |                                                                 |
 | [`get_bucket_encryption`](#get_bucket_encryption)           |                                                                 |
 | [`set_bucket_encryption`](#set_bucket_encryption)           |                                                                 |
@@ -2467,7 +2467,7 @@ loop.close()
 
 <a id="upload_snowball_objects"></a>
 
-### upload_snowball_objectsupload_snowball_objects(self, bucket_name, object_list, metadata=None, sse=None, tags=None, retention=None, legal_hold=False, staging_filename=None, compression=False)
+### upload_snowball_objects(self, bucket_name, object_list, metadata=None, sse=None, tags=None, retention=None, legal_hold=False, staging_filename=None, compression=False)
 
 Uploads multiple objects in a single put call. It is done by creating intermediate TAR file optionally compressed which is uploaded to S3 service.
 
