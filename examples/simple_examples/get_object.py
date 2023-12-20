@@ -22,6 +22,7 @@
 from miniopy_async import Minio
 from miniopy_async.sse import SseCustomerKey
 import asyncio
+import aiohttp
 
 client = Minio(
     "play.min.io",
@@ -32,42 +33,45 @@ client = Minio(
 
 
 async def main():
-    try:
-        # Get data of an object.
-        print("example one")
-        response = await client.get_object("my-bucket", "my-object")
+    # Get data of an object.
+    print("example one")
+    async with aiohttp.ClientSession() as session:
+        response = await client.get_object("my-bucket", "my-object", session)
         # Read data from response.
 
-        # Get data of an object from offset and length.
-        print("example two")
+    # Get data of an object from offset and length.
+    print("example two")
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
             "my-bucket",
             "my-object",
+            session,
             offset=512,
             length=1024,
         )
         # Read data from response.
 
-        # Get data of an object of version-ID.
-        print("example three")
+    # Get data of an object of version-ID.
+    print("example three")
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
             "my-bucket",
             "my-object",
+            session,
             version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
         )
         # Read data from response.
 
-        # Get data of an SSE-C encrypted object.
-        print("example four")
+    # Get data of an SSE-C encrypted object.
+    print("example four")
+    async with aiohttp.ClientSession() as session:
         response = await client.get_object(
             "my-bucket",
             "my-object",
+            session,
             ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
         )
         # Read data from response.
-    finally:
-        response.close()
-        await response.release()
 
 
 loop = asyncio.get_event_loop()
