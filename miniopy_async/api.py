@@ -379,7 +379,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                         query_params=query_params,
                         session=session,
                     )
-                return response
+                    return response
             else:
                 response = await self._url_open(
                     method,
@@ -410,7 +410,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                         query_params=query_params,
                         session=session,
                     )
-                return response
+                    return response
             else:
                 response = await self._url_open(
                     method,
