@@ -60,7 +60,7 @@ pipenv install miniopy-async
 
 Github Repository
 ```sh
-pipenv install git+https://github.com/hlf20010508/miniopy-async.git#egg=miniopy-async
+pipenv install "miniopy-async@ git+https://github.com/hlf20010508/miniopy-async.git"
 ```
 
 <span id="example"></span>
