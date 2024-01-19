@@ -35,10 +35,14 @@ jobs:
         git config --global user.name $NAME
         git config --global user.email $EMAIL
         git add -A
-        git commit -m "chore: update version to $RELEASE_VERSION"
-        git tag -f $RELEASE_VERSION
-        git push origin HEAD:master
-        git push origin HEAD:master --tags -f
+        if git diff-index --quiet HEAD --; then
+            echo "Bypass commit."
+        else
+            git commit -m "chore: update version to $RELEASE_VERSION"
+            git tag -f $RELEASE_VERSION
+            git push origin HEAD:master
+            git push origin HEAD:master --tags -f
+        fi
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
