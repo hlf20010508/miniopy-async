@@ -119,6 +119,7 @@ class Minio:  # pylint: disable=too-many-public-methods
     :param region: Region name of buckets in S3 service.
     :param http_client: Customized HTTP client.
     :param credentials: Credentials provider of your account in S3 service.
+    :param cert_check: Flag to indicate to verify SSL certificate or not.
     :return: :class:`Minio <Minio>` object
 
     Example::
@@ -154,6 +155,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         secure=True,
         region=None,
         credentials=None,
+        cert_check=True,
     ):
         self._region_map = dict()
         self._base_url = BaseURL(
@@ -164,6 +166,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if access_key:
             credentials = StaticProvider(access_key, secret_key, session_token)
         self._provider = credentials
+        self._ssl = None if cert_check else False
 
     def _handle_redirect_response(self, method, bucket_name, response, retry=False):
         """
@@ -261,7 +264,11 @@ class Minio:  # pylint: disable=too-many-public-methods
             session = aiohttp.ClientSession()
 
         response = await session.request(
-            method, urlunsplit(url), data=body, headers=headers
+            method,
+            urlunsplit(url),
+            data=body,
+            headers=headers,
+            ssl=self._ssl
         )
 
         if response.status in [200, 204, 206]:

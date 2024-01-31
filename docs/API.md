@@ -7,15 +7,16 @@ Initializes a new client object.
 
 __Parameters__
 
-| Param           | Type                               | Description
-|:----------------|:-----------------------------------|:-------------------------------------------------------------------------------|
-| `endpoint`      | _str_                              | Hostname of a S3 service.
-| `access_key`    | _str_                              | (Optional) Access key (aka user ID) of your account in S3 service.
-| `secret_key`    | _str_                              | (Optional) Secret Key (aka password) of your account in S3 service.
-| `session_token` | _str_                              | (Optional) Session token of your account in S3 service. 
-| `secure`        | _bool_                             | (Optional) Flag to indicate to use secure (TLS) connection to S3 service or not.
-| `region`        | _str_                              | (Optional) Region name of buckets in S3 service.                   
+| Param           | Type                                 | Description
+|:----------------|:-------------------------------------|:-------------------------------------------------------------------------------|
+| `endpoint`      | _str_                                | Hostname of a S3 service.
+| `access_key`    | _str_                                | (Optional) Access key (aka user ID) of your account in S3 service.
+| `secret_key`    | _str_                                | (Optional) Secret Key (aka password) of your account in S3 service.
+| `session_token` | _str_                                | (Optional) Session token of your account in S3 service. 
+| `secure`        | _bool_                               | (Optional) Flag to indicate to use secure (TLS) connection to S3 service or not.
+| `region`        | _str_                                | (Optional) Region name of buckets in S3 service.                   
 | `credentials`   | _miniopy_async.credentials.Provider_ | (Optional) Credentials provider of your account in S3 service.
+| `cert_check`    | _bool_                               | (Optional) Flag to indicate to verify SSL certificate or not.
 
 __Example__
 
