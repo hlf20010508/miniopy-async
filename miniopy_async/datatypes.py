@@ -276,9 +276,11 @@ async def parse_list_objects(response, bucket_name=None):
     objects += [
         Object(
             bucket_name,
-            unquote_plus(findtext(tag, "Prefix", True))
-            if encoding_type == "url"
-            else findtext(tag, "Prefix", True),
+            (
+                unquote_plus(findtext(tag, "Prefix", True))
+                if encoding_type == "url"
+                else findtext(tag, "Prefix", True)
+            ),
         )
         for tag in elements
     ]
@@ -849,3 +851,68 @@ class AsyncEventIterable:
 
     async def __aexit__(self, exc_type, value, traceback):
         self._response.close()
+
+
+class ListObjects:
+    def __init__(
+        self,
+        client,
+        bucket_name,
+        prefix=None,
+        recursive=False,
+        start_after=None,
+        include_user_meta=False,
+        include_version=False,
+        use_api_v1=False,
+        use_url_encoding_type=True,
+    ):
+        self.client = client
+        self.bucket_name = bucket_name
+        self.prefix = prefix
+        self.recursive = recursive
+        self.start_after = start_after
+        self.include_user_meta = include_user_meta
+        self.include_version = include_version
+        self.use_api_v1 = use_api_v1
+        self.use_url_encoding_type = use_url_encoding_type
+        self.objects = []
+        self.iterator = None
+        self.is_awaited = False
+
+    def gen_iterator(self):
+        return self.client._list_objects(
+            self.bucket_name,
+            delimiter=None if self.recursive else "/",
+            include_user_meta=self.include_user_meta,
+            prefix=self.prefix,
+            start_after=self.start_after,
+            use_api_v1=self.use_api_v1,
+            include_version=self.include_version,
+            encoding_type="url" if self.use_url_encoding_type else None,
+        )
+
+    def __aiter__(self):
+        self.iterator = self.gen_iterator()
+        return self
+
+    async def __anext__(self):
+        if self.iterator is None:
+            self.gen_iterator()
+
+        try:
+            partial_objects = await self.iterator.__anext__()
+            self.objects.extend(partial_objects)
+            return partial_objects
+        except StopAsyncIteration:
+            raise StopAsyncIteration
+
+    def __await__(self):
+        return self._collect_objects().__await__()
+
+    async def _collect_objects(self):
+        if self.iterator is None:
+            self.gen_iterator()
+
+        async for partial_objects in self:
+            pass
+        return self.objects
