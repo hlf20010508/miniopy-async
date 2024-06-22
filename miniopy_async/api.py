@@ -4173,6 +4173,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             include_version = True
 
         is_truncated = True
+        objects = []
         while is_truncated:
             query = {}
             if include_version:
@@ -4208,18 +4209,19 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
 
                 (
-                    objects,
+                    partial_objects,
                     is_truncated,
                     start_after,
                     version_id_marker,
                 ) = await parse_list_objects(response)
+                objects += partial_objects
 
             if not include_version:
                 version_id_marker = None
                 if not use_api_v1:
                     continuation_token = start_after
 
-            return objects
+        return objects
 
     async def _list_multipart_uploads(
         self,
