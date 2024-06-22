@@ -60,6 +60,7 @@ from .datatypes import (
     PostPolicy,
     parse_copy_object,
     parse_list_objects,
+    ListObjects,
 )
 from .deleteobjects import DeleteError, DeleteRequest, DeleteResult
 from .error import InvalidResponseError, S3Error, ServerError
@@ -264,11 +265,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             session = aiohttp.ClientSession()
 
         response = await session.request(
-            method,
-            urlunsplit(url),
-            data=body,
-            headers=headers,
-            ssl=self._ssl
+            method, urlunsplit(url), data=body, headers=headers, ssl=self._ssl
         )
 
         if response.status in [200, 204, 206]:
@@ -317,18 +314,22 @@ class Minio:  # pylint: disable=too-many-public-methods
             404: lambda: (
                 ("NoSuchKey", "Object does not exist")
                 if object_name
-                else ("NoSuchBucket", "Bucket does not exist")
-                if bucket_name
-                else ("ResourceNotFound", "Request resource not found")
+                else (
+                    ("NoSuchBucket", "Bucket does not exist")
+                    if bucket_name
+                    else ("ResourceNotFound", "Request resource not found")
+                )
             ),
             405: lambda: (
                 "MethodNotAllowed",
                 "The specified method is not allowed against this resource",
             ),
             409: lambda: (
-                ("NoSuchBucket", "Bucket does not exist")
-                if bucket_name
-                else ("ResourceConflict", "Request resource conflicts"),
+                (
+                    ("NoSuchBucket", "Bucket does not exist")
+                    if bucket_name
+                    else ("ResourceConflict", "Request resource conflicts")
+                ),
             ),
             501: lambda: (
                 "MethodNotAllowed",
@@ -2414,7 +2415,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
             raise exc
 
-    async def list_objects(
+    def list_objects(
         self,
         bucket_name,
         prefix=None,
@@ -2459,6 +2460,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                 for obj in objects:
                     print('obj:',obj)
 
+                async for obj in client.list_objects("my-bucket"):
+                    print('obj:',obj)
+
                 # List objects information whose names starts with "my/prefix/".
                 print('example two')
                 objects = await client.list_objects("my-bucket",
@@ -2495,15 +2499,16 @@ class Minio:  # pylint: disable=too-many-public-methods
             loop.run_until_complete(main())
             loop.close()
         """
-        return await self._list_objects(
-            bucket_name,
-            delimiter=None if recursive else "/",
-            include_user_meta=include_user_meta,
+        return ListObjects(
+            client=self,
+            bucket_name=bucket_name,
             prefix=prefix,
+            recursive=recursive,
             start_after=start_after,
-            use_api_v1=use_api_v1,
+            include_user_meta=include_user_meta,
             include_version=include_version,
-            encoding_type="url" if use_url_encoding_type else None,
+            use_api_v1=use_api_v1,
+            use_url_encoding_type=use_url_encoding_type,
         )
 
     async def stat_object(
@@ -4173,6 +4178,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             include_version = True
 
         is_truncated = True
+
         while is_truncated:
             query = {}
             if include_version:
@@ -4214,12 +4220,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                     version_id_marker,
                 ) = await parse_list_objects(response)
 
+                yield objects
+
             if not include_version:
                 version_id_marker = None
                 if not use_api_v1:
                     continuation_token = start_after
-
-            return objects
 
     async def _list_multipart_uploads(
         self,
