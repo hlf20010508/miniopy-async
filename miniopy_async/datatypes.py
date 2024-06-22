@@ -876,6 +876,7 @@ class ListObjects:
         self.use_api_v1 = use_api_v1
         self.use_url_encoding_type = use_url_encoding_type
         self.objects = []
+        self.buffer = []
         self.iterator = None
         self.is_awaited = False
 
@@ -899,12 +900,14 @@ class ListObjects:
         if self.iterator is None:
             self.gen_iterator()
 
-        try:
-            partial_objects = await self.iterator.__anext__()
-            self.objects.extend(partial_objects)
-            return partial_objects
-        except StopAsyncIteration:
-            raise StopAsyncIteration
+        if not self.buffer:
+            try:
+                self.buffer = await self.iterator.__anext__()
+                self.objects.extend(self.buffer)
+            except StopAsyncIteration:
+                raise StopAsyncIteration
+
+        return self.buffer.pop(0)
 
     def __await__(self):
         return self._collect_objects().__await__()

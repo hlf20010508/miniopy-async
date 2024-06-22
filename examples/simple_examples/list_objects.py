@@ -43,6 +43,9 @@ async def main():
     for obj in objects:
         print("obj:", obj)
 
+    async for obj in client.list_objects("my-bucket"):
+        print("obj:", obj)
+
     # List objects information recursively.
     print("example three")
     objects = await client.list_objects("my-bucket", recursive=True)

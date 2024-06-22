@@ -2460,6 +2460,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                 for obj in objects:
                     print('obj:',obj)
 
+                async for obj in client.list_objects("my-bucket"):
+                    print('obj:',obj)
+
                 # List objects information whose names starts with "my/prefix/".
                 print('example two')
                 objects = await client.list_objects("my-bucket",
