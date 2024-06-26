@@ -907,7 +907,8 @@ class ListObjects:
             except StopAsyncIteration:
                 raise StopAsyncIteration
 
-        return self.buffer.pop(0)
+        if len(self.buffer) > 0:
+            return self.buffer.pop(0)
 
     def __await__(self):
         return self._collect_objects().__await__()
