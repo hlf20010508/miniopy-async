@@ -1405,7 +1405,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         version_id=None,
         extra_query_params=None,
         tmp_file_path=None,
-        session=None
+        session=None,
     ):
         """
         Downloads data of an object to file.
@@ -1485,27 +1485,31 @@ class Minio:  # pylint: disable=too-many-public-methods
             os.remove(tmp_file_path)
             offset = 0
 
-        response = None
-        _session = session or aiohttp.ClientSession()
         try:
-            async with _session as aio_session:
+            if session is None:
+                session = aiohttp.ClientSession()
+
+            async with session:
                 response = await self.get_object(
                     bucket_name,
                     object_name,
-                    aio_session,
+                    session,
                     offset=offset,
                     request_headers=request_headers,
                     ssec=ssec,
                     version_id=version_id,
                     extra_query_params=extra_query_params,
                 )
+
                 async with aiofile.async_open(tmp_file_path, "wb") as tmp_file:
                     async for data in response.content.iter_chunked(n=1024 * 1024):
                         await tmp_file.write(data)
-                if os.path.exists(file_path):
-                    os.remove(file_path)  # For windows compatibility.
-                os.rename(tmp_file_path, file_path)
-                return stat
+            
+            if os.path.exists(file_path):
+                os.remove(file_path)  # For windows compatibility.
+            os.rename(tmp_file_path, file_path)
+            
+            return stat
         finally:
             pass
 
