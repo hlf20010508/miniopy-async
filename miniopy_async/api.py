@@ -1405,6 +1405,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         version_id=None,
         extra_query_params=None,
         tmp_file_path=None,
+        session=None
     ):
         """
         Downloads data of an object to file.
@@ -1418,6 +1419,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param version_id: Version-ID of the object.
         :param extra_query_params: Extra query parameters for advanced usage.
         :param tmp_file_path: Path to a temporary file.
+        :param session: :class:`aiohttp.ClientSession()` object.
         :return: Object information.
 
         Example::
@@ -1484,12 +1486,13 @@ class Minio:  # pylint: disable=too-many-public-methods
             offset = 0
 
         response = None
+        _session = session or aiohttp.ClientSession()
         try:
-            async with aiohttp.ClientSession() as session:
+            async with _session as aio_session:
                 response = await self.get_object(
                     bucket_name,
                     object_name,
-                    session,
+                    aio_session,
                     offset=offset,
                     request_headers=request_headers,
                     ssec=ssec,
