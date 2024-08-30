@@ -1748,7 +1748,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             return await self.compose_object(
                 bucket_name,
                 object_name,
-                ComposeSource.of(source),
+                [ComposeSource.of(source)],
                 sse=sse,
                 metadata=metadata,
                 tags=tags,
