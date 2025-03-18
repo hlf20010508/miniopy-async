@@ -18,9 +18,10 @@ from miniopy_async.select import (
     SelectRequest,
 )
 import asyncio
+from asyncio import sleep
 import os
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import traceback
 import aiohttp
 from io import BytesIO
@@ -226,7 +227,7 @@ async def presigned_post_policy():
     try:
         bucket_post_policy = PostPolicy(
             bucket_name,
-            datetime.utcnow() + timedelta(days=10),
+            datetime.now(UTC) + timedelta(days=10),
         )
         bucket_post_policy.add_starts_with_condition("key", "my/object/prefix/")
         bucket_post_policy.add_content_length_range_condition(
@@ -316,10 +317,14 @@ async def remove_object():
 async def remove_objects():
     try:
         objs = await client.list_objects(bucket_name, include_version=True)
-        await client.remove_objects(
+        errors = await client.remove_objects(
             bucket_name,
             [DeleteObject(obj.object_name, obj.version_id) for obj in objs],
         )
+
+        async for _ in errors:
+            pass
+
         print("Pass")
     except:
         traceback.print_exc()
@@ -336,55 +341,97 @@ async def remove_bucket():
 
 
 async def main():
+    interval = 5
+    
     print("Testing create bucket...")
     await create_bucket()
+    await sleep(interval)
+
     print("Testing upload snowball objects...")
     await upload_snowball_objects()
+    await sleep(interval)
+
     print("Testing compose object..")
     await compose_object()
+    await sleep(interval)
+
     print("Testing copy object...")
     await copy_object()
+    await sleep(interval)
+
     print("Testing set bucket versioning...")
     await set_bucket_versioning()
+    await sleep(interval)
+
     print("Testing set bucket encryption...")
     await set_bucket_encryption()
+    await sleep(interval)
+
     print("Testing set bucket lifecycle...")
     await set_bucket_lifecycle()
+    await sleep(interval)
+
     print("Testing set bucket policy...")
     await set_bucket_policy()
+    await sleep(interval)
+
     print("Testing set bucket tags...")
     await set_bucket_tags()
+    await sleep(interval)
+
     print("Testing set object tags...")
     await set_object_tags()
+    await sleep(interval)
+
     print("Testing stat object...")
     await stat_object()
+    await sleep(interval)
+
     print("Testing presigned get object...")
     await presigned_get_object()
+    await sleep(interval)
+
     print("Testing presigned put object...")
     await presigned_put_object()
+    await sleep(interval)
+
     print("Testing presigned post policy...")
     await presigned_post_policy()
+    await sleep(interval)
+
     print("Testing list bucket...")
     await list_buckets()
+    await sleep(interval)
+
     print("Testing list objects...")
     await list_objects()
+    await sleep(interval)
+
     print("Testing get object...")
     await get_object()
+    await sleep(interval)
+
     print("Testing fget object...")
     await fget_object()
+    await sleep(interval)
+
     print("Testing select object content...")
     await select_object_content()
+    await sleep(interval)
+
     print("Testing remove object...")
     await remove_object()
+    await sleep(interval)
+
     print("Testing remove objects...")
     await remove_objects()
+    await sleep(interval)
+
     print("Testing remove bucket...")
     await remove_bucket()
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())
 
 if len(error_func_list) == 0:
     print("\nAll Pass")

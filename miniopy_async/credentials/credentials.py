@@ -17,6 +17,7 @@
 # limitations under the License.
 
 """Credential definitions to access S3 service."""
+from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
@@ -26,12 +27,17 @@ class Credentials:
     Represents credentials access key, secret key and session token.
     """
 
+    _access_key: str
+    _secret_key: str
+    _session_token: str | None
+    _expiration: datetime | None
+
     def __init__(
         self,
-        access_key,
-        secret_key,
-        session_token=None,
-        expiration=None,
+        access_key: str,
+        secret_key: str,
+        session_token: str | None = None,
+        expiration: datetime | None = None,
     ):
         if not access_key:
             raise ValueError("Access key must not be empty")
@@ -47,21 +53,21 @@ class Credentials:
         self._expiration = expiration
 
     @property
-    def access_key(self):
+    def access_key(self) -> str:
         """Get access key."""
         return self._access_key
 
     @property
-    def secret_key(self):
+    def secret_key(self) -> str:
         """Get secret key."""
         return self._secret_key
 
     @property
-    def session_token(self):
+    def session_token(self) -> str | None:
         """Get session token."""
         return self._session_token
 
-    def is_expired(self):
+    def is_expired(self) -> bool:
         """Check whether this credentials expired or not."""
         return (
             self._expiration < (datetime.utcnow() + timedelta(seconds=10))

@@ -185,23 +185,6 @@ async def main():
         ),
     )
 
-    # Upload data with showing progress status.
-    print("example nine")
-    result = await client.put_object(
-        "transfer",
-        "my-object",
-        io.BytesIO(b"helloworld" * 2000000),
-        20000000,
-        progress=True,
-    )
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name,
-            result.etag,
-            result.version_id,
-        ),
-    )
-
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())

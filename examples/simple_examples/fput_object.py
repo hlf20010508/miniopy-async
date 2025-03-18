@@ -156,19 +156,6 @@ async def main():
         ),
     )
 
-    # Upload data with showing progress status.
-    print("example eight")
-    result = await client.fput_object(
-        "my-bucket", "my-object8", "my-filename", progress=True
-    )
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name,
-            result.etag,
-            result.version_id,
-        ),
-    )
-
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
