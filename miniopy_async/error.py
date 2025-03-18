@@ -37,7 +37,12 @@ and API specific errors.
 
 """
 
+from __future__ import absolute_import, annotations
+
+from typing import Type, TypeVar
 from xml.etree import ElementTree as ET
+
+import aiohttp
 
 from .xml import findtext
 
@@ -49,7 +54,7 @@ class MinioException(Exception):
 class InvalidResponseError(MinioException):
     """Raised to indicate that non-xml response from server."""
 
-    def __init__(self, code, content_type, body):
+    def __init__(self, code: int, content_type: str | None, body: str | None):
         self._code = code
         self._content_type = content_type
         self._body = body
@@ -65,14 +70,17 @@ class InvalidResponseError(MinioException):
 class ServerError(MinioException):
     """Raised to indicate that S3 service returning HTTP server error."""
 
-    def __init__(self, message, status_code):
+    def __init__(self, message: str, status_code: int):
         self._status_code = status_code
         super().__init__(message)
 
     @property
-    def status_code(self):
+    def status_code(self) -> int:
         """Get HTTP status code."""
         return self._status_code
+
+
+A = TypeVar("A", bound="S3Error")
 
 
 class S3Error(MinioException):
@@ -83,14 +91,14 @@ class S3Error(MinioException):
 
     def __init__(
         self,
-        code,
-        message,
-        resource,
-        request_id,
-        host_id,
-        response,
-        bucket_name=None,
-        object_name=None,
+        code: str | None,
+        message: str | None,
+        resource: str | None,
+        request_id: str | None,
+        host_id: str | None,
+        response: aiohttp.ClientResponse,
+        bucket_name: str | None = None,
+        object_name: str | None = None,
     ):
         self._code = code
         self._message = message
@@ -126,22 +134,24 @@ class S3Error(MinioException):
         )
 
     @property
-    def code(self):
+    def code(self) -> str | None:
         """Get S3 error code."""
         return self._code
 
     @property
-    def message(self):
+    def message(self) -> str | None:
         """Get S3 error message."""
         return self._message
 
     @property
-    def response(self):
+    def response(self) -> aiohttp.ClientResponse:
         """Get HTTP response."""
         return self._response
 
     @classmethod
-    def fromxml(cls, response, response_data):
+    def fromxml(
+        cls: Type[A], response: aiohttp.ClientResponse, response_data: str
+    ) -> A:
         """Create new object with values from XML element."""
         element = ET.fromstring(response_data)
         return cls(
@@ -155,7 +165,7 @@ class S3Error(MinioException):
             response=response,
         )
 
-    def copy(self, code, message):
+    def copy(self, code: str, message: str) -> "S3Error":
         """Make a copy with replace code and message."""
         return S3Error(
             code,

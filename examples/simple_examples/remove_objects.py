@@ -42,7 +42,7 @@ async def main():
             DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
         ],
     )
-    for error in errors:
+    async for error in errors:
         print("error occured when deleting object", error)
 
     # Remove a prefix recursively.
@@ -52,7 +52,7 @@ async def main():
         for obj in await client.list_objects("my-bucket", "my/prefix/", recursive=True)
     ]
     errors = await client.remove_objects("my-bucket", delete_object_list)
-    for error in errors:
+    async for error in errors:
         print("error occured when deleting object", error)
 
 

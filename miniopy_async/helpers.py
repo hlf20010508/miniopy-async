@@ -22,7 +22,7 @@
 
 """Helper functions."""
 
-from __future__ import absolute_import, division, unicode_literals
+from __future__ import absolute_import, annotations, division, unicode_literals
 
 import asyncio
 import base64
@@ -33,6 +33,11 @@ import math
 import os
 import re
 import urllib.parse
+from datetime import datetime
+from typing import BinaryIO, Dict, List, Mapping, Tuple, Union, AsyncGenerator
+
+from typing_extensions import Protocol
+from urllib3._collections import HTTPHeaderDict
 
 from .sse import Sse, SseCustomerKey
 from .time import to_iso8601utc
@@ -43,18 +48,25 @@ MAX_MULTIPART_OBJECT_SIZE = 5 * 1024 * 1024 * 1024 * 1024  # 5TiB
 MAX_PART_SIZE = 5 * 1024 * 1024 * 1024  # 5GiB
 MIN_PART_SIZE = 5 * 1024 * 1024  # 5MiB
 
-_BUCKET_NAME_REGEX = re.compile(r'^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$')
+_BUCKET_NAME_REGEX = re.compile(r"^[a-z0-9][a-z0-9\.\-]{1,61}[a-z0-9]$")
 _OLD_BUCKET_NAME_REGEX = re.compile(
-    r'^[a-z0-9][a-z0-9_\.\-\:]{1,61}[a-z0-9]$',
-    re.IGNORECASE
+    r"^[a-z0-9][a-z0-9_\.\-\:]{1,61}[a-z0-9]$", re.IGNORECASE
 )
 
 _IPV4_REGEX = re.compile(
-    r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}'
-    r'(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$'
+    r"^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}"
+    r"(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$"
 )
 
-def quote(resource, safe="/", encoding=None, errors=None):
+DictType = Dict[str, Union[str, List[str], Tuple[str]]]
+
+
+def quote(
+    resource: str,
+    safe: str = "/",
+    encoding: str | None = None,
+    errors: str | None = None,
+) -> str:
     """
     Wrapper to urllib.parse.quote() replacing back to '~' for older python
     versions.
@@ -67,35 +79,45 @@ def quote(resource, safe="/", encoding=None, errors=None):
     ).replace("%7E", "~")
 
 
-def queryencode(query, safe="", encoding=None, errors=None):
+def queryencode(
+    query: str,
+    safe: str = "",
+    encoding: str | None = None,
+    errors: str | None = None,
+) -> str:
     """Encode query parameter value."""
     return quote(query, safe, encoding, errors)
 
 
-def headers_to_strings(headers, titled_key=False):
+def headers_to_strings(
+    headers: Mapping[str, str | list[str] | tuple[str]],
+    titled_key: bool = False,
+) -> str:
     """Convert HTTP headers to multi-line string."""
     return "\n".join(
         [
             "{0}: {1}".format(
                 key.title() if titled_key else key,
-                re.sub(
-                    r"Credential=([^/]+)",
-                    "Credential=*REDACTED*",
+                (
                     re.sub(
-                        r"Signature=([0-9a-f]+)",
-                        "Signature=*REDACTED*",
-                        value if isinstance(value, str) else str(value),
-                    ),
-                )
-                if titled_key
-                else value,
+                        r"Credential=([^/]+)",
+                        "Credential=*REDACTED*",
+                        re.sub(
+                            r"Signature=([0-9a-f]+)",
+                            "Signature=*REDACTED*",
+                            value if isinstance(value, str) else str(value),
+                        ),
+                    )
+                    if titled_key
+                    else value
+                ),
             )
             for key, value in headers.items()
         ]
     )
 
 
-def _validate_sizes(object_size, part_size):
+def _validate_sizes(object_size: int, part_size: int):
     """Validate object and part size."""
     if part_size > 0:
         if part_size < MIN_PART_SIZE:
@@ -124,7 +146,7 @@ def _validate_sizes(object_size, part_size):
         )
 
 
-def _get_part_info(object_size, part_size):
+def _get_part_info(object_size: int, part_size: int):
     """Compute part information for object and part size."""
     _validate_sizes(object_size, part_size)
 
@@ -144,7 +166,7 @@ def _get_part_info(object_size, part_size):
     return part_size, math.ceil(object_size / part_size) if part_size else 1
 
 
-def get_part_info(object_size, part_size):
+def get_part_info(object_size: int, part_size: int) -> tuple[int, int]:
     """Compute part information for object and part size."""
     part_size, part_count = _get_part_info(object_size, part_size)
     if part_count > MAX_MULTIPART_COUNT:
@@ -157,7 +179,22 @@ def get_part_info(object_size, part_size):
     return part_size, part_count
 
 
-async def read_part_data(stream, size, part_data=b""):
+class ProgressType(Protocol):
+    """typing stub for Put/Get object progress."""
+
+    def set_meta(self, object_name: str, total_length: int):
+        """Set process meta information."""
+
+    def update(self, length: int):
+        """Set current progress length."""
+
+
+async def read_part_data(
+    stream: BinaryIO,
+    size: int,
+    part_data: bytes = b"",
+    progress: ProgressType | None = None,
+) -> bytes:
     """Read part data of given size from stream."""
     is_co_function = asyncio.iscoroutinefunction(stream.read)
     buffer = io.BytesIO()
@@ -170,10 +207,12 @@ async def read_part_data(stream, size, part_data=b""):
         if not data:
             break  # EOF reached
         buffer.write(data)
+        if progress:
+            progress.update(len(data))
     return buffer.getvalue()
 
 
-def makedirs(path):
+def makedirs(path: str):
     """Wrapper of os.makedirs() ignores errno.EEXIST."""
     try:
         if path:
@@ -189,40 +228,44 @@ def makedirs(path):
 
 
 def check_bucket_name(
-        bucket_name: str,
-        strict: bool = False,
-        s3_check: bool = False,
+    bucket_name: str,
+    strict: bool = False,
+    s3_check: bool = False,
 ):
     """Check whether bucket name is valid optional with strict check or not."""
 
     if strict:
         if not _BUCKET_NAME_REGEX.match(bucket_name):
-            raise ValueError(f'invalid bucket name {bucket_name}')
+            raise ValueError(f"invalid bucket name {bucket_name}")
     else:
         if not _OLD_BUCKET_NAME_REGEX.match(bucket_name):
-            raise ValueError(f'invalid bucket name {bucket_name}')
+            raise ValueError(f"invalid bucket name {bucket_name}")
 
     if _IPV4_REGEX.match(bucket_name):
-        raise ValueError(f'bucket name {bucket_name} must not be formatted '
-                         'as an IP address')
+        raise ValueError(
+            f"bucket name {bucket_name} must not be formatted " "as an IP address"
+        )
 
-    unallowed_successive_chars = ['..', '.-', '-.']
+    unallowed_successive_chars = ["..", ".-", "-."]
     if any(x in bucket_name for x in unallowed_successive_chars):
-        raise ValueError(f'bucket name {bucket_name} contains invalid '
-                         'successive characters')
+        raise ValueError(
+            f"bucket name {bucket_name} contains invalid " "successive characters"
+        )
 
     if (
-            s3_check and
-            bucket_name.startswith("xn--") or
-            bucket_name.endswith("-s3alias") or
-            bucket_name.endswith("--ol-s3")
+        s3_check
+        and bucket_name.startswith("xn--")
+        or bucket_name.endswith("-s3alias")
+        or bucket_name.endswith("--ol-s3")
     ):
-        raise ValueError(f"bucket name {bucket_name} must not start with "
-                         "'xn--' and must not end with '--s3alias' or "
-                         "'--ol-s3'")
+        raise ValueError(
+            f"bucket name {bucket_name} must not start with "
+            "'xn--' and must not end with '--s3alias' or "
+            "'--ol-s3'"
+        )
 
 
-def check_non_empty_string(string):
+def check_non_empty_string(string: str | bytes):
     """Check whether given string is not empty."""
     try:
         if not string.strip():
@@ -231,7 +274,7 @@ def check_non_empty_string(string):
         raise TypeError() from exc
 
 
-def is_valid_policy_type(policy):
+def is_valid_policy_type(policy: str | bytes):
     """
     Validate if policy is type str
 
@@ -247,19 +290,19 @@ def is_valid_policy_type(policy):
     return True
 
 
-def check_ssec(sse):
+def check_ssec(sse: SseCustomerKey | None):
     """Check sse is SseCustomerKey type or not."""
     if sse and not isinstance(sse, SseCustomerKey):
         raise ValueError("SseCustomerKey type is required")
 
 
-def check_sse(sse):
+def check_sse(sse: Sse | None):
     """Check sse is Sse type or not."""
     if sse and not isinstance(sse, Sse):
         raise ValueError("Sse type is required")
 
 
-def md5sum_hash(data):
+def md5sum_hash(data: str | bytes | None) -> str | None:
     """Compute MD5 of data and return hash as Base64 encoded value."""
     if data is None:
         return None
@@ -270,7 +313,7 @@ def md5sum_hash(data):
     return md5sum.decode() if isinstance(md5sum, bytes) else md5sum
 
 
-def sha256_hash(data):
+def sha256_hash(data: str | bytes | None) -> str:
     """Compute SHA-256 of data and return hash as hex encoded value."""
     if data is None:
         return "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -280,7 +323,14 @@ def sha256_hash(data):
     return sha256sum.decode() if isinstance(sha256sum, bytes) else sha256sum
 
 
-def url_replace(url, scheme=None, netloc=None, path=None, query=None, fragment=None):
+def url_replace(
+    url: urllib.parse.SplitResult,
+    scheme: str | None = None,
+    netloc: str | None = None,
+    path: str | None = None,
+    query: str | None = None,
+    fragment: str | None = None,
+) -> urllib.parse.SplitResult:
     """Return new URL with replaced properties in given URL."""
     return urllib.parse.SplitResult(
         scheme if scheme is not None else url.scheme,
@@ -291,7 +341,7 @@ def url_replace(url, scheme=None, netloc=None, path=None, query=None, fragment=N
     )
 
 
-def _metadata_to_headers(metadata):
+def _metadata_to_headers(metadata: DictType) -> dict[str, list[str]]:
     """Convert user metadata to headers."""
 
     def normalize_key(key):
@@ -324,7 +374,7 @@ def _metadata_to_headers(metadata):
     }
 
 
-def normalize_headers(headers):
+def normalize_headers(headers: DictType | None) -> DictType:
     """Normalize headers by prefixing 'X-Amz-Meta-' for user metadata."""
     headers = {str(key): value for key, value in (headers or {}).items()}
 
@@ -353,7 +403,13 @@ def normalize_headers(headers):
     return headers
 
 
-def genheaders(headers, sse, tags, retention, legal_hold):
+def genheaders(
+    headers: DictType | None,
+    sse: Sse | None,
+    tags: dict[str, str] | None,
+    retention,
+    legal_hold: bool,
+) -> DictType:
     """Generate headers for given parameters."""
     headers = normalize_headers(headers)
     headers.update(sse.headers() if sse else {})
@@ -375,7 +431,7 @@ def genheaders(headers, sse, tags, retention, legal_hold):
     return headers
 
 
-def _extract_region(host):
+def _extract_region(host: str) -> None | str:
     """Extract region from Amazon S3 host."""
 
     tokens = host.split(".")
@@ -396,7 +452,12 @@ def _extract_region(host):
 class BaseURL:
     """Base URL of S3 endpoint."""
 
-    def __init__(self, endpoint, region):
+    _virtual_style_flag: bool
+    _url: urllib.parse.SplitResult
+    _region: str | None
+    _accelerate_host_flag: bool
+
+    def __init__(self, endpoint: str, region: str | None):
         url = urllib.parse.urlsplit(endpoint)
         host = url.hostname
 
@@ -461,65 +522,65 @@ class BaseURL:
         self._region = region or region_in_host
 
     @property
-    def region(self):
+    def region(self) -> str | None:
         """Get region."""
         return self._region
 
     @property
-    def is_https(self):
+    def is_https(self) -> bool:
         """Check if scheme is HTTPS."""
         return self._url.scheme == "https"
 
     @property
-    def host(self):
+    def host(self) -> str:
         """Get hostname."""
         return self._url.netloc
 
     @property
-    def is_aws_host(self):
+    def is_aws_host(self) -> bool:
         """Check if URL points to AWS host."""
         return self._is_aws_host
 
     @property
-    def accelerate_host_flag(self):
+    def accelerate_host_flag(self) -> bool:
         """Check if URL points to AWS accelerate host."""
         return self._accelerate_host_flag
 
     @accelerate_host_flag.setter
-    def accelerate_host_flag(self, flag):
+    def accelerate_host_flag(self, flag: bool):
         """Check if URL points to AWS accelerate host."""
         if self._is_aws_host:
             self._accelerate_host_flag = flag
 
     @property
-    def dualstack_host_flag(self):
+    def dualstack_host_flag(self) -> bool:
         """Check if URL points to AWS dualstack host."""
         return self._dualstack_host_flag
 
     @dualstack_host_flag.setter
-    def dualstack_host_flag(self, flag):
+    def dualstack_host_flag(self, flag: bool):
         """Check to use virtual style or not."""
         if self._is_aws_host:
             self._dualstack_host_flag = flag
 
     @property
-    def virtual_style_flag(self):
+    def virtual_style_flag(self) -> bool:
         """Check to use virtual style or not."""
         return self._virtual_style_flag
 
     @virtual_style_flag.setter
-    def virtual_style_flag(self, flag):
+    def virtual_style_flag(self, flag: bool):
         """Check to use virtual style or not."""
         self._virtual_style_flag = flag
 
     def build(
         self,
-        method,
-        region,
-        bucket_name=None,
-        object_name=None,
-        query_params=None,
-    ):
+        method: str,
+        region: str,
+        bucket_name: str | None = None,
+        object_name: str | None = None,
+        query_params: DictType | None = None,
+    ) -> urllib.parse.SplitResult:
         """Build URL for given information."""
 
         if not bucket_name and object_name:
@@ -600,13 +661,13 @@ class ObjectWriteResult:
 
     def __init__(
         self,
-        bucket_name,
-        object_name,
-        version_id,
-        etag,
-        http_headers,
-        last_modified=None,
-        location=None,
+        bucket_name: str,
+        object_name: str,
+        version_id: str | None,
+        etag: str | None,
+        http_headers: HTTPHeaderDict,
+        last_modified: datetime | None = None,
+        location: str | None = None,
     ):
         self._bucket_name = bucket_name
         self._object_name = object_name
@@ -617,36 +678,41 @@ class ObjectWriteResult:
         self._location = location
 
     @property
-    def bucket_name(self):
+    def bucket_name(self) -> str:
         """Get bucket name."""
         return self._bucket_name
 
     @property
-    def object_name(self):
+    def object_name(self) -> str:
         """Get object name."""
         return self._object_name
 
     @property
-    def version_id(self):
+    def version_id(self) -> str | None:
         """Get version ID."""
         return self._version_id
 
     @property
-    def etag(self):
+    def etag(self) -> str | None:
         """Get etag."""
         return self._etag
 
     @property
-    def http_headers(self):
+    def http_headers(self) -> HTTPHeaderDict:
         """Get HTTP headers."""
         return self._http_headers
 
     @property
-    def last_modified(self):
+    def last_modified(self) -> datetime | None:
         """Get last-modified time."""
         return self._last_modified
 
     @property
-    def location(self):
+    def location(self) -> str | None:
         """Get location."""
         return self._location
+
+
+async def async_generator(lst: list) -> AsyncGenerator:
+    for item in lst:
+        yield item

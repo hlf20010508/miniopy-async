@@ -20,7 +20,7 @@
 
 """MinIO Admin wrapper using MinIO Client (mc) tool."""
 
-from __future__ import absolute_import
+from __future__ import absolute_import, annotations
 
 import json
 import subprocess
@@ -31,12 +31,12 @@ class MinioAdmin:
 
     def __init__(
         self,
-        target,
-        binary_path=None,
-        config_dir=None,
-        ignore_cert_check=False,
-        timeout=None,
-        env=None,
+        target: str,
+        binary_path: str | None = None,
+        config_dir: str | None = None,
+        ignore_cert_check: bool = False,
+        timeout: float | None = None,
+        env: subprocess._ENV | None = None,
     ):
         self._target = target
         self._timeout = timeout
@@ -48,7 +48,7 @@ class MinioAdmin:
             self._base_args.append("--insecure")
         self._base_args.append("admin")
 
-    def _run(self, args, multiline=False):
+    def _run(self, args: list[str], multiline: bool = False) -> list | dict:
         """Execute mc command and return JSON output."""
         proc = subprocess.run(
             self._base_args + args,
@@ -64,91 +64,93 @@ class MinioAdmin:
             return [json.loads(line) for line in proc.stdout.splitlines()]
         return json.loads(proc.stdout)
 
-    def service_restart(self):
+    def service_restart(self) -> list | dict:
         """Restart MinIO service."""
         return self._run(["service", "restart", self._target])
 
-    def service_stop(self):
+    def service_stop(self) -> list | dict:
         """Stop MinIO service."""
         return self._run(["service", "stop", self._target])
 
-    def update(self):
+    def update(self) -> list | dict:
         """Update MinIO."""
         return self._run(["update", self._target])
 
-    def info(self):
+    def info(self) -> list | dict:
         """Get MinIO server information."""
         return self._run(["info", self._target])
 
-    def user_add(self, access_key, secret_key):
+    def user_add(self, access_key: str, secret_key: str) -> list | dict:
         """Add a new user."""
         return self._run(["user", "add", self._target, access_key, secret_key])
 
-    def user_disable(self, access_key):
+    def user_disable(self, access_key: str) -> list | dict:
         """Disable user."""
         return self._run(["user", "disable", self._target, access_key])
 
-    def user_enable(self, access_key):
+    def user_enable(self, access_key: str) -> list | dict:
         """Enable user."""
         return self._run(["user", "enable", self._target, access_key])
 
-    def user_remove(self, access_key):
+    def user_remove(self, access_key: str) -> list | dict:
         """Remove user."""
         return self._run(["user", "remove", self._target, access_key])
 
-    def user_info(self, access_key):
+    def user_info(self, access_key: str) -> list | dict:
         """Get user information."""
         return self._run(["user", "info", self._target, access_key])
 
-    def user_list(self):
+    def user_list(self) -> list | dict:
         """List users."""
         return self._run(["user", "list", self._target], multiline=True)
 
-    def group_add(self, group_name, members):
+    def group_add(self, group_name: str, members: list[str]) -> list | dict:
         """Add users a new or existing group."""
         return self._run(["group", "add", self._target, group_name] + members)
 
-    def group_disable(self, group_name):
+    def group_disable(self, group_name: str) -> list | dict:
         """Disable group."""
         return self._run(["group", "disable", self._target, group_name])
 
-    def group_enable(self, group_name):
+    def group_enable(self, group_name: str) -> list | dict:
         """Enable group."""
         return self._run(["group", "enable", self._target, group_name])
 
-    def group_remove(self, group_name, members=None):
+    def group_remove(self, group_name: str, members: list[str] = []) -> list | dict:
         """Remove group or members from a group."""
         return self._run(
-            ["group", "remove", self._target, group_name] + (members or []),
+            ["group", "remove", self._target, group_name] + members,
         )
 
-    def group_info(self, group_name):
+    def group_info(self, group_name: str) -> list | dict:
         """Get group information."""
         return self._run(["group", "info", self._target, group_name])
 
-    def group_list(self):
+    def group_list(self) -> list | dict:
         """List groups."""
         return self._run(["group", "list", self._target], multiline=True)
 
-    def policy_add(self, policy_name, policy_file):
+    def policy_add(self, policy_name: str, policy_file: str) -> list | dict:
         """Add new policy."""
         return self._run(
             ["policy", "add", self._target, policy_name, policy_file],
         )
 
-    def policy_remove(self, policy_name):
+    def policy_remove(self, policy_name: str) -> list | dict:
         """Remove policy."""
         return self._run(["policy", "remove", self._target, policy_name])
 
-    def policy_info(self, policy_name):
+    def policy_info(self, policy_name: str) -> list | dict:
         """Get policy information."""
         return self._run(["policy", "info", self._target, policy_name])
 
-    def policy_list(self):
+    def policy_list(self) -> list | dict:
         """List policies."""
         return self._run(["policy", "list", self._target], multiline=True)
 
-    def policy_set(self, policy_name, user=None, group=None):
+    def policy_set(
+        self, policy_name: str, user: str | None = None, group: str | None = None
+    ) -> list | dict:
         """Set IAM policy on a user or group."""
         if (user is not None) ^ (group is not None):
             return self._run(
@@ -162,37 +164,37 @@ class MinioAdmin:
             )
         raise ValueError("either user or group must be set")
 
-    def config_get(self, key=None):
+    def config_get(self, key: str | None = None) -> list | dict:
         """Get configuration parameters."""
         return self._run(
             ["config", "get", self._target] + [key] if key else [],
             key,
         )
 
-    def config_set(self, key, config):
+    def config_set(self, key: str, config: dict[str, str]) -> list | dict:
         """Set configuration parameters."""
         args = [name + "=" + value for name, value in config.items()]
         return self._run(["config", "set", self._target, key] + args)
 
-    def config_reset(self, key, name=None):
+    def config_reset(self, key: str, name: str | None = None) -> list | dict:
         """Reset configuration parameters."""
         if name:
             key += ":" + name
         return self._run(["config", "reset", self._target, key])
 
-    def config_remove(self, access_key):
+    def config_remove(self, access_key: str) -> list | dict:
         """Remove config."""
         return self._run(["config", "remove", self._target, access_key])
 
-    def config_history(self):
+    def config_history(self) -> list | dict:
         """Get historic configuration changes."""
         return self._run(["config", "history", self._target], multiline=True)
 
-    def config_restore(self, restore_id):
+    def config_restore(self, restore_id: str) -> list | dict:
         """Restore to a specific configuration history."""
         return self._run(["config", "restore", self._target, restore_id])
 
-    def profile_start(self, profilers=()):
+    def profile_start(self, profilers: tuple[str] = ()) -> list | dict:
         """Start recording profile data."""
         args = ["profile", "start"]
         if profilers:
@@ -200,25 +202,25 @@ class MinioAdmin:
         args.append(self._target)
         return self._run(args)
 
-    def profile_stop(self):
+    def profile_stop(self) -> list | dict:
         """Stop and download profile data."""
         return self._run(["profile", "stop", self._target])
 
-    def top_locks(self):
+    def top_locks(self) -> list | dict:
         """Get a list of the 10 oldest locks on a MinIO cluster."""
         return self._run(["top", "locks", self._target], multiline=True)
 
-    def prometheus_generate(self):
+    def prometheus_generate(self) -> list | dict:
         """Generate prometheus configuration."""
         return self._run(["prometheus", "generate", self._target])
 
-    def kms_key_create(self, key=None):
+    def kms_key_create(self, key: str | None = None) -> list | dict:
         """Create a new KMS master key."""
         return self._run(
             ["kms", "key", "create", self._target, key] + ([key] if key else []),
         )
 
-    def kms_key_status(self, key=None):
+    def kms_key_status(self, key: str | None = None) -> list | dict:
         """Get status information of a KMS master key."""
         return self._run(
             ["kms", "key", "status", self._target, key] + ([key] if key else []),
@@ -226,13 +228,13 @@ class MinioAdmin:
 
     def bucket_remote_add(
         self,
-        src_bucket,
-        dest_url,
-        path=None,
-        region=None,
-        bandwidth=None,
-        service=None,
-    ):
+        src_bucket: str,
+        dest_url: str,
+        path: str | None = None,
+        region: str | None = None,
+        bandwidth: str | None = None,
+        service: str | None = None,
+    ) -> list | dict:
         """Add a new remote target."""
         args = [
             "bucket",
@@ -251,7 +253,9 @@ class MinioAdmin:
             args += ["--bandwidth", bandwidth]
         return self._run(args)
 
-    def bucket_remote_edit(self, src_bucket, dest_url, arn):
+    def bucket_remote_edit(
+        self, src_bucket: str, dest_url: str, arn: str
+    ) -> list | dict:
         """Edit credentials of remote target."""
         return self._run(
             [
@@ -265,7 +269,9 @@ class MinioAdmin:
             ],
         )
 
-    def bucket_remote_list(self, src_bucket=None, service=None):
+    def bucket_remote_list(
+        self, src_bucket: str | None = None, service: str | None = None
+    ) -> list | dict:
         """List remote targets."""
         return self._run(
             [
@@ -278,7 +284,7 @@ class MinioAdmin:
             ],
         )
 
-    def bucket_remote_remove(self, src_bucket, arn):
+    def bucket_remote_remove(self, src_bucket: str, arn: str) -> list | dict:
         """Remove configured remote target."""
         return self._run(
             [
@@ -291,7 +297,9 @@ class MinioAdmin:
             ],
         )
 
-    def bucket_quota_set(self, bucket, fifo=None, hard=None):
+    def bucket_quota_set(
+        self, bucket: str, fifo: str | None = None, hard: str | None = None
+    ) -> list | dict:
         """Set bucket quota configuration."""
         if fifo is None and hard is None:
             raise ValueError("fifo or hard must be set")
@@ -302,12 +310,12 @@ class MinioAdmin:
             args += ["--hard", hard]
         return self._run(args)
 
-    def bucket_quota_clear(self, bucket):
+    def bucket_quota_clear(self, bucket: str) -> list | dict:
         """Clear bucket quota configuration."""
         return self._run(
             ["bucket", "quota", self._target + "/" + bucket, "--clear"],
         )
 
-    def bucket_quota_get(self, bucket):
+    def bucket_quota_get(self, bucket: str) -> list | dict:
         """Get bucket quota configuration."""
         return self._run(["bucket", "quota", self._target + "/" + bucket])

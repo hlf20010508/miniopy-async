@@ -22,14 +22,17 @@
 
 """Request/response of SelectObjectContent API."""
 
-from __future__ import absolute_import
+from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
 from binascii import crc32
-from io import BytesIO
+from io import BytesIO, RawIOBase
+from typing import AsyncGenerator, Iterable, SupportsBytes, SupportsIndex, Type
+from _typeshed import ReadableBuffer
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
+from aiohttp import ClientResponse, ClientSession
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
@@ -51,7 +54,7 @@ class InputSerialization:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, compression_type):
+    def __init__(self, compression_type: str | None):
         if compression_type is not None and compression_type not in [
             COMPRESSION_TYPE_NONE,
             COMPRESSION_TYPE_GZIP,
@@ -66,7 +69,7 @@ class InputSerialization:
             )
         self._compression_type = compression_type
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         if self._compression_type is not None:
             SubElement(element, "CompressionType", self._compression_type)
@@ -78,14 +81,14 @@ class CSVInputSerialization(InputSerialization):
 
     def __init__(
         self,
-        compression_type=None,
-        allow_quoted_record_delimiter=None,
-        comments=None,
-        field_delimiter=None,
-        file_header_info=None,
-        quote_character=None,
-        quote_escape_character=None,
-        record_delimiter=None,
+        compression_type: str | None = None,
+        allow_quoted_record_delimiter: str | None = None,
+        comments: str | None = None,
+        field_delimiter: str | None = None,
+        file_header_info: str | None = None,
+        quote_character: str | None = None,
+        quote_escape_character: str | None = None,
+        record_delimiter: str | None = None,
     ):
         super().__init__(compression_type)
         self._allow_quoted_record_delimiter = allow_quoted_record_delimiter
@@ -108,7 +111,7 @@ class CSVInputSerialization(InputSerialization):
         self._quote_escape_character = quote_escape_character
         self._record_delimiter = record_delimiter
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         super().toxml(element)
         element = SubElement(element, "CSV")
@@ -139,7 +142,9 @@ class CSVInputSerialization(InputSerialization):
 class JSONInputSerialization(InputSerialization):
     """JSON input serialization."""
 
-    def __init__(self, compression_type=None, json_type=None):
+    def __init__(
+        self, compression_type: str | None = None, json_type: str | None = None
+    ):
         super().__init__(compression_type)
         if json_type is not None and json_type not in [
             JSON_TYPE_DOCUMENT,
@@ -153,7 +158,7 @@ class JSONInputSerialization(InputSerialization):
             )
         self._json_type = json_type
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         super().toxml(element)
         element = SubElement(element, "JSON")
@@ -167,7 +172,7 @@ class ParquetInputSerialization(InputSerialization):
     def __init__(self):
         super().__init__(None)
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         super().toxml(element)
         return SubElement(element, "Parquet")
@@ -178,11 +183,11 @@ class CSVOutputSerialization:
 
     def __init__(
         self,
-        field_delimiter=None,
-        quote_character=None,
-        quote_escape_character=None,
-        quote_fields=None,
-        record_delimiter=None,
+        field_delimiter: str | None = None,
+        quote_character: str | None = None,
+        quote_escape_character: str | None = None,
+        quote_fields: str | None = None,
+        record_delimiter: str | None = None,
     ):
         self._field_delimiter = field_delimiter
         self._quote_character = quote_character
@@ -200,7 +205,7 @@ class CSVOutputSerialization:
         self._quote_fields = quote_fields
         self._record_delimiter = record_delimiter
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         element = SubElement(element, "CSV")
         if self._field_delimiter is not None:
@@ -222,10 +227,10 @@ class CSVOutputSerialization:
 class JSONOutputSerialization:
     """JSON output serialization."""
 
-    def __init__(self, record_delimiter=None):
+    def __init__(self, record_delimiter: str | None = None):
         self._record_delimiter = record_delimiter
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         element = SubElement(element, "JSON")
         if self._record_delimiter is not None:
@@ -237,12 +242,14 @@ class SelectRequest:
 
     def __init__(
         self,
-        expression,
-        input_serialization,
-        output_serialization,
-        request_progress=False,
-        scan_start_range=None,
-        scan_end_range=None,
+        expression: str,
+        input_serialization: (
+            CSVInputSerialization | JSONInputSerialization | ParquetInputSerialization
+        ),
+        output_serialization: CSVOutputSerialization | JSONOutputSerialization,
+        request_progress: bool = False,
+        scan_start_range: str | None = None,
+        scan_end_range: str | None = None,
     ):
         self._expession = expression
         if not isinstance(
@@ -271,7 +278,7 @@ class SelectRequest:
         self._scan_start_range = scan_start_range
         self._scan_end_range = scan_end_range
 
-    def toxml(self, element):
+    def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         element = Element("SelectObjectContentRequest")
         SubElement(element, "Expression", self._expession)
@@ -297,7 +304,7 @@ class SelectRequest:
         return element
 
 
-async def _read(reader, size):
+async def _read(reader: Type[RawIOBase], size: int) -> bytes:
     """Wrapper to RawIOBase.read() to error out on short reads."""
     data = await reader.read(size)
     if len(data) != size:
@@ -305,17 +312,17 @@ async def _read(reader, size):
     return data
 
 
-def _int(data):
+def _int(data: Iterable[SupportsIndex] | SupportsBytes | ReadableBuffer) -> int:
     """Convert byte data to big-endian int."""
     return int.from_bytes(data, byteorder="big")
 
 
-def _crc32(data):
+def _crc32(data: ReadableBuffer) -> int:
     """Wrapper to binascii.crc32()."""
     return crc32(data) & 0xFFFFFFFF
 
 
-def _decode_header(data):
+def _decode_header(data: ReadableBuffer) -> dict[str, str]:
     """Decode header data."""
     reader = BytesIO(data)
     headers = {}
@@ -334,24 +341,24 @@ def _decode_header(data):
 class Stats:
     """Progress/Stats information."""
 
-    def __init__(self, data):
+    def __init__(self, data: bytes):
         element = ET.fromstring(data.decode())
         self._bytes_scanned = findtext(element, "BytesScanned")
         self._bytes_processed = findtext(element, "BytesProcessed")
         self._bytes_returned = findtext(element, "BytesReturned")
 
     @property
-    def bytes_scanned(self):
+    def bytes_scanned(self) -> str | None:
         """Get bytes scanned."""
         return self._bytes_scanned
 
     @property
-    def bytes_processed(self):
+    def bytes_processed(self) -> str | None:
         """Get bytes processed."""
         return self._bytes_processed
 
     @property
-    def bytes_returned(self):
+    def bytes_returned(self) -> str | None:
         """Get bytes returned."""
         return self._bytes_returned
 
@@ -362,11 +369,11 @@ class SelectObjectReader:
     Minio.select_object_content() API.
     """
 
-    def __init__(self, response, session):
+    def __init__(self, response: ClientResponse, session: ClientSession):
         self._response = response
         self._session = session
-        self._stats = None
-        self._payload = None
+        self._stats: Stats | None = None
+        self._payload: bytes | None = None
 
     def __enter__(self):
         return self
@@ -374,11 +381,11 @@ class SelectObjectReader:
     async def __aexit__(self, exc_type, exc_value, exc_traceback):
         return await self.close()
 
-    def readable(self):  # pylint: disable=no-self-use
+    def readable(self) -> bool:  # pylint: disable=no-self-use
         """Return this is readable."""
         return True
 
-    def writeable(self):  # pylint: disable=no-self-use
+    def writeable(self) -> bool:  # pylint: disable=no-self-use
         """Return this is not writeable."""
         return False
 
@@ -388,11 +395,11 @@ class SelectObjectReader:
         await self._response.release()
         await self._session.close()
 
-    def stats(self):
+    def stats(self) -> Stats | None:
         """Get stats information."""
         return self._stats
 
-    async def _read(self):
+    async def _read(self) -> int:
         """Read and decode response."""
         if self._response.closed:
             return 0
@@ -448,7 +455,7 @@ class SelectObjectReader:
             "unknown event-type {0}".format(headers.get(":event-type")),
         )
 
-    async def stream(self, num_bytes=32 * 1024):
+    async def stream(self, num_bytes: int = 32 * 1024) -> AsyncGenerator[bytes]:
         """
         Stream extracted payload from response data. Upon completion, caller
         should call self.close() to release network resources.
