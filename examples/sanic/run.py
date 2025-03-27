@@ -18,7 +18,7 @@ from sanic import Sanic
 from sanic.response import redirect
 from sanic_jinja2 import SanicJinja2
 from miniopy_async import Minio
-import aiofiles
+import aiofile
 import os
 from urllib import parse
 
@@ -45,7 +45,7 @@ async def index(request):
         ):  # if f is not None then the post request is from upload, else is from download
             print("uploading ...")
             save_path = os.path.join("cache", f.name)  # save stream to cache
-            async with aiofiles.open(save_path, "wb") as temp:
+            async with aiofile.open(save_path, "wb") as temp:
                 await temp.write(f.body)
             temp.close()
 
