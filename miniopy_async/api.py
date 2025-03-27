@@ -40,7 +40,6 @@ from typing import BinaryIO, AsyncGenerator
 from io import BytesIO
 import tarfile
 
-# import weakref
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from urllib.parse import urlunsplit
@@ -216,7 +215,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         host: str,
         headers: DictType | None,
-        body: bytes | None,
+        body: bytes | BytesIO | None,
         credentials: Credentials | None,
     ) -> tuple[DictType, datetime]:
         """Build headers with given parameters."""
@@ -226,6 +225,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         headers["User-Agent"] = self._user_agent
         sha256 = None
         md5sum = None
+
+        if isinstance(body, BytesIO):
+            body = body.getvalue()
 
         if body:
             headers["Content-Length"] = str(len(body))
@@ -257,7 +259,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         region: str,
         bucket_name: str | None = None,
         object_name: str | None = None,
-        body: bytes | None = None,
+        body: bytes | BytesIO | None = None,
         headers: DictType | None = None,
         query_params: DictType | None = None,
         session: aiohttp.ClientSession | None = None,
@@ -390,7 +392,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         method: str,
         bucket_name: str | None = None,
         object_name: str | None = None,
-        body: bytes | None = None,
+        body: bytes | BytesIO | None = None,
         headers: DictType | None = None,
         query_params: DictType | None = None,
         session: aiohttp.ClientSession | None = None,
@@ -2191,7 +2193,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 "PUT",
                 bucket_name,
                 object_name,
-                body=data,
+                body=BytesIO(data),
                 headers=headers,
                 query_params=query_params,
                 session=session,
@@ -4224,7 +4226,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         else:
             length = os.stat(name).st_size
 
-        part_size = 0 if length < MIN_PART_SIZE else length
+        part_size = 0
 
         if name:
             return await self.fput_object(
