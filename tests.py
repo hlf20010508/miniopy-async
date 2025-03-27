@@ -124,6 +124,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
             ],
             staging_filename="testfiles.tar",
         )
+        self.addCleanup(os.remove, "testfiles.tar")
 
     async def test_compose_object(self):
         test_file_names = ["testfile-1", "testfile-2"]
