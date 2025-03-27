@@ -23,8 +23,9 @@ from __future__ import absolute_import, annotations
 import locale
 from contextlib import contextmanager
 import time as ctime
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Generator
+import sys
 
 from . import __LOCALE_LOCK__
 
@@ -92,7 +93,10 @@ def to_amz_date(value: datetime) -> str:
 
 def utcnow() -> datetime:
     """Timezone-aware wrapper to datetime.utcnow()."""
-    return datetime.utcnow().replace(tzinfo=timezone.utc)
+    if sys.version_info > (3, 10):
+        return datetime.now(UTC)
+    else:
+        return datetime.utcnow().replace(tzinfo=timezone.utc)
 
 
 def to_signer_date(value: datetime) -> str:
