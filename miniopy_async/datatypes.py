@@ -28,7 +28,17 @@ from __future__ import absolute_import, annotations
 
 import base64
 from datetime import datetime, UTC
-from typing import Any, AsyncGenerator, List, Self, Tuple, Type, TypeVar, cast
+from typing import (
+    Any,
+    AsyncGenerator,
+    List,
+    Self,
+    Tuple,
+    Type,
+    TypeVar,
+    cast,
+    TYPE_CHECKING,
+)
 import json
 from collections import OrderedDict
 from urllib.parse import unquote_plus
@@ -46,7 +56,8 @@ from .signer import get_credential_string, post_presign_v4
 from .time import from_iso8601utc, to_amz_date, to_iso8601utc
 from .xml import find, findall, findtext
 
-from miniopy_async.api import Minio
+if TYPE_CHECKING:
+    from miniopy_async.api import Minio
 
 
 class Bucket:
