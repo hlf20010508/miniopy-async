@@ -27,12 +27,21 @@ from __future__ import absolute_import, annotations
 from abc import ABCMeta
 from binascii import crc32
 from io import BytesIO, RawIOBase
-from typing import AsyncGenerator, Iterable, SupportsBytes, SupportsIndex, Type
-from _typeshed import ReadableBuffer
+from typing import (
+    AsyncGenerator,
+    Iterable,
+    SupportsBytes,
+    SupportsIndex,
+    Type,
+    TypeAlias,
+)
+from typing_extensions import Buffer
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
 from aiohttp import ClientResponse, ClientSession
+
+ReadableBuffer: TypeAlias = Buffer
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"
