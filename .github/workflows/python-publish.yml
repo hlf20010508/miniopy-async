@@ -46,4 +46,3 @@ jobs:
         python_version: "3.12"
         poetry_version: "==1.8.4"
         pypi_token: ${{ env.PYPI_TOKEN }}
-        poetry_install_options: "--no-root"
