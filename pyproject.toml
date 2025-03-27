@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "miniopy-async"
+version = "1.21.1"
+description = "Asynchronous MinIO Client SDK for Python"
+authors = [
+    "L-ING <hlf01@icloud.com>",
+    "Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>",
+    "MinIO, Inc.",
+]
+license = "Apache License 2.0"
+readme = "README.md"
+homepage = "https://github.com/hlf20010508/miniopy-async"
+repository = "https://github.com/hlf20010508/miniopy-async"
+documentation = "https://github.com/hlf20010508/miniopy-async/blob/master/docs/API.md"
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+package-mode = true
+
+[tool.poetry.dependencies]
+python = "^3.9"
+aiohttp = "^3.11.14"
+typing-extensions = "^4.13.0"
+urllib3 = "^2.3.0"
+aiofile = "^3.9.0"
+certifi = "^2025.1.31"
+
+[tool.poetry.group.dev.dependencies]
+sanic = "^24.12.0"
+sanic-jinja2 = "^2022.11.11"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

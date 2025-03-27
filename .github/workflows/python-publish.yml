@@ -1,22 +1,17 @@
-# This workflow will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
-
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
 name: Publish Python Package
 
 on:
   release:
     types: [published]
 
+run-name: Publish ${{ github.event.release.name }}
+
 env:
   FILE_PATH: miniopy_async/__init__.py
   NAME: L-ING
   EMAIL: hlf01@icloud.com
   GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+  PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
   RELEASE_VERSION: ${{ github.event.release.name }}
 
 jobs:
@@ -28,8 +23,10 @@ jobs:
       uses: actions/checkout@v4
       with:
         token: ${{ env.GITHUB_TOKEN }}
-    - name: Update Version in Your Python Package
-      run: sed -i 's/__version__ = .*/__version__ = '\"$RELEASE_VERSION\"'/g' $FILE_PATH
+    - name: Update Version
+      run: |
+        sed -i 's/__version__ = .*/__version__ = '\"$RELEASE_VERSION\"'/g' $FILE_PATH
+        sed -i 's/version = .*/version = '\"$RELEASE_VERSION\"'/g' pyproject.toml
     - name: Commit and Push
       run: |
         git config --global user.name $NAME
@@ -43,18 +40,10 @@ jobs:
             git push origin HEAD:master
             git push origin HEAD:master --tags -f
         fi
-    - name: Set up Python
-      uses: actions/setup-python@v3
+    - name: Build and Publish to PyPI
+      uses: JRubics/poetry-publish@v2.1
       with:
-        python-version: '3.x'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build
-    - name: Build package
-      run: python -m build
-    - name: Publish package
-      uses: pypa/gh-action-pypi-publish@release/v1.5
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+        python_version: "3.12"
+        poetry_version: "==1.8.4"
+        pypi_token: ${{ env.PYPI_TOKEN }}
+        poetry_install_options: "--no-root"
