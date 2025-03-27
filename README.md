@@ -27,21 +27,20 @@
 <span id="requirements"></span>
 
 ## Minimum Requirements
-- Python>3.6
+- Python >= 3.9
 
 <span id="build"></span>
 
-## Build from source
+## Build from Source
 ```sh
 git clone https://github.com/hlf20010508/miniopy-async.git
 cd miniopy-async
-python setup.py install
+poetry install
 ```
 
 <span id="installation"></span>
 
 ## Installation
-### Install with pip
 PyPI
 ```sh
 pip install miniopy-async
@@ -50,17 +49,6 @@ pip install miniopy-async
 Github Repository
 ```sh
 pip install git+https://github.com/hlf20010508/miniopy-async.git
-```
-
-### Install with pipenv
-PyPI
-```sh
-pipenv install miniopy-async
-```
-
-Github Repository
-```sh
-pipenv install "miniopy-async@ git+https://github.com/hlf20010508/miniopy-async.git"
 ```
 
 <span id="example"></span>
