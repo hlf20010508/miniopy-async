@@ -48,7 +48,14 @@ import threading
 
 __LOCALE_LOCK__ = threading.Lock()
 
-# pylint: disable=unused-import
 from .api import Minio
 from .error import InvalidResponseError, S3Error, ServerError
 from .minioadmin import MinioAdmin
+
+__all__ = [
+    "Minio",
+    "MinioAdmin",
+    "InvalidResponseError",
+    "S3Error",
+    "ServerError",
+]

@@ -20,7 +20,7 @@
 
 from __future__ import absolute_import, annotations
 
-from typing import Type, TypeVar, cast
+from typing import Type, TypeVar
 from xml.etree import ElementTree as ET
 
 from .xml import Element, SubElement, findall, findtext

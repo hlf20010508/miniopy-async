@@ -26,7 +26,7 @@ from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
 from datetime import datetime
-from typing import Type, TypeVar, cast
+from typing import Type, TypeVar
 from xml.etree import ElementTree as ET
 
 from .commonconfig import BaseRule, Filter, check_status

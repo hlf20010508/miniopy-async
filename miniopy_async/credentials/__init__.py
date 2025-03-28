@@ -39,3 +39,20 @@ from .providers import (
     WebIdentityProvider,
     CertificateIdentityProvider,
 )
+
+__all__ = [
+    "Credentials",
+    "Provider",
+    "ChainedProvider",
+    "StaticProvider",
+    "EnvMinioProvider",
+    "EnvAWSProvider",
+    "MinioClientConfigProvider",
+    "AWSConfigProvider",
+    "AssumeRoleProvider",
+    "WebIdentityProvider",
+    "ClientGrantsProvider",
+    "IamAwsProvider",
+    "LdapIdentityProvider",
+    "CertificateIdentityProvider",
+]
