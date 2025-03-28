@@ -466,7 +466,7 @@ class SelectObjectReader:
     async def stream(self, num_bytes: int = 32 * 1024) -> AsyncGenerator[bytes]:
         """
         Stream extracted payload from response data. Upon completion, caller
-        should call self.close() to release network resources.
+        should `call self.close()` to release network resources.
         """
         while True:
             if self._payload:

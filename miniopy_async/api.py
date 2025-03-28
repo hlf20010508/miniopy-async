@@ -123,7 +123,7 @@ class Minio:  # pylint: disable=too-many-public-methods
     :param str | None region: Region name of buckets in S3 service.
     :param Provider | None credentials: Credentials provider of your account in S3 service.
     :param bool cert_check: Flag to indicate to verify SSL certificate or not.
-    :return: :class:`Minio <Minio>` object
+    :return: :class:`Minio` object
     :rtype: Minio
 
     .. code-block:: python
@@ -565,7 +565,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
-        :param SelectRequest request: :class:`SelectRequest` <SelectRequest> object.
+        :param SelectRequest request: :class:`SelectRequest` object.
         :return: A reader contains requested records and progress information.
         :rtype: SelectObjectReader
         :raise ValueError: If request is not of type :class:`SelectRequest`.
@@ -693,7 +693,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         List information of all accessible buckets.
 
-        :return: List of :class:`Bucket <Bucket>` object.
+        :return: List of :class:`Bucket` object.
         :rtype: list[Bucket]
 
         .. code-block:: python
@@ -935,7 +935,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get notification configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`NotificationConfig <NotificationConfig>` object.
+        :return: :class:`NotificationConfig` object.
         :rtype: NotificationConfig
 
         .. code-block:: python
@@ -970,7 +970,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set notification configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param NotificationConfig config: class:`NotificationConfig <NotificationConfig>` object.
+        :param NotificationConfig config: class:`NotificationConfig` object.
         :raise ValueError: If config is not of type :class:`NotificationConfig`.
 
         .. code-block:: python
@@ -1046,7 +1046,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set encryption configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param SSEConfig config: :class:`SSEConfig <SSEConfig>` object.
+        :param SSEConfig config: :class:`SSEConfig` object.
         :raise ValueError: If config is not of type :class:`SSEConfig`.
 
         .. code-block:: python
@@ -1086,7 +1086,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get encryption configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`SSEConfig <SSEConfig>` object.
+        :return: :class:`SSEConfig` object.
         :rtype: SSEConfig | None
         :raise S3Error: If server side encryption configuration is not found.
 
@@ -1174,7 +1174,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str prefix: Listen events of object starts with prefix.
         :param str suffix: Listen events of object ends with suffix.
         :param tuple[str, ...] events: Events to listen.
-        :return: Iterator of event records as :dict:.
+        :return: Iterator of event records as dict.
         :rtype: AsyncEventIterable[aiohttp.ClientResponse]
         :raise ValueError: If ListenBucketNotification API is not supported in Amazon S3.
 
@@ -1228,7 +1228,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set versioning configuration to a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param VersioningConfig config: :class:`VersioningConfig <VersioningConfig>`.
+        :param VersioningConfig config: :class:`VersioningConfig`.
         :raise ValueError: If config is not of type :class:`VersioningConfig`.
 
         .. code-block:: python
@@ -1268,7 +1268,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get versioning configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`VersioningConfig <VersioningConfig>`.
+        :return: :class:`VersioningConfig`.
         :rtype: VersioningConfig
 
         .. code-block:: python
@@ -1685,7 +1685,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                                    destination object.
         :param str | None tagging_directive: Directive used to handle tags for destination
                                    object.
-        :return: :class:`ObjectWriteResult <ObjectWriteResult>` object.
+        :return: :class:`ObjectWriteResult` object.
         :rtype: ObjectWriteResult
         :raise ValueError: If source is not of type :class:`CopySource`.
         :raise ValueError: If tags is not of type :class:`Tags`.
@@ -1947,7 +1947,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param Tags | None tags: Tags for destination object.
         :param Retention | None retention: :class:`Retention` configuration object.
         :param bool legal_hold: Flag to set legal hold for destination object.
-        :return: :class:`ObjectWriteResult <ObjectWriteResult>` object.
+        :return: :class:`ObjectWriteResult` object.
         :rtype: ObjectWriteResult
         :raise ValueError: If sources is not of non-empty type `list` or `tuple`.
         :raise ValueError: If sources is not of type :class:`ComposeSource`.
@@ -2519,7 +2519,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bool use_api_v1: Flag to control to use ListObjectV1 S3 API or not.
         :param bool use_url_encoding_type: Flag to control whether URL encoding type
                                       to be used or not.
-        :return: Iterator of :class:`Object <Object>`.
+        :return: Iterator of :class:`Object`.
         :rtype: ListObjects
 
         .. code-block:: python
@@ -2608,7 +2608,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str | None version_id: Version ID of the object.
         :param DictType | None request_headers: Any additional headers to be added with GET request.
         :param DictType | None extra_query_params: Extra query parameters for advanced usage.
-        :return: :class:`Object <Object>`.
+        :return: :class:`Object`.
         :rtype: Object
 
         .. code-block:: python
@@ -2766,10 +2766,10 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param list[DeleteObject] delete_object_list: List of maximum 1000
-            :class:`DeleteObject <DeleteObject>` object.
+            :class:`DeleteObject` object.
         :param bool quiet: quiet flag.
         :param bool bypass_governance_mode: Bypass Governance retention mode.
-        :return: :class:`DeleteResult <DeleteResult>` object.
+        :return: :class:`DeleteResult` object.
         :rtype: DeleteResult
         """
         body = marshal(DeleteRequest(delete_object_list, quiet=quiet))
@@ -2804,9 +2804,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param Iterable[DeleteObject] delete_object_list: An iterable containing
-            :class:`DeleteObject <DeleteObject>` object.
+            :class:`DeleteObject` object.
         :param bool bypass_governance_mode: Bypass Governance retention mode.
-        :return: An async generator containing :class:`DeleteError <DeleteError>`
+        :return: An async generator containing :class:`DeleteError`
             object.
         :rtype: AsyncGenerator[DeleteError]
 
@@ -3215,8 +3215,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get form-data of PostPolicy of an object to upload its data using POST
         method.
 
-        :param PostPolicy policy: :class:`PostPolicy <PostPolicy>`.
-        :return: :dict: contains form-data.
+        :param PostPolicy policy: :class:`PostPolicy`.
+        :return: dict contains form-data.
         :rtype: dict[str, str]
         :raise ValueError: If policy is not of type :class:`PostPolicy`.
         :raise ValueError: If the access is anonymous.
@@ -3299,7 +3299,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get bucket replication configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`ReplicationConfig <ReplicationConfig>` object.
+        :return: :class:`ReplicationConfig` object.
         :rtype: ReplicationConfig | None
         :raise S3Error: If the replication configuration is not found.
 
@@ -3345,7 +3345,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set bucket replication configuration to a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param ReplicationConfig config: :class:`ReplicationConfig <ReplicationConfig>` object.
+        :param ReplicationConfig config: :class:`ReplicationConfig` object.
         :raise ValueError: If config is not of type :class:`ReplicationConfig`.
 
         .. code-block:: python
@@ -3437,7 +3437,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get bucket lifecycle configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`LifecycleConfig <LifecycleConfig>` object.
+        :return: :class:`LifecycleConfig` object.
         :rtype: LifecycleConfig | None
         :raise S3Error: If the lifecycle configuration is not found.
 
@@ -3480,7 +3480,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set bucket lifecycle configuration to a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param LifecycleConfig config: :class:`LifecycleConfig <LifecycleConfig>` object.
+        :param LifecycleConfig config: :class:`LifecycleConfig` object.
         :raise ValueError: If config is not of type :class:`LifecycleConfig`.
 
         .. code-block:: python
@@ -3563,7 +3563,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get tags configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`Tags <Tags>` object.
+        :return: :class:`Tags` object.
         :rtype: Tags | None
         :raise S3Error: If the tags configuration is not found.
 
@@ -3603,7 +3603,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set tags configuration to a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param Tags tags: :class:`Tags <Tags>` object.
+        :param Tags tags: :class:`Tags` object.
         :raise ValueError: If tags is not of type :class:`Tags`.
 
         .. code-block:: python
@@ -3693,7 +3693,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
         :param str | None version_id: Version ID of the Object.
-        :return: :class:`Tags <Tags>` object.
+        :return: :class:`Tags` object.
         :rtype: Tags | None
         :raise S3Error: If the tags configuration is not found.
 
@@ -3748,7 +3748,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
         :param Tags version_id: Version ID of the Object.
-        :param str | None tags: :class:`Tags <Tags>` object.
+        :param str | None tags: :class:`Tags` object.
         :raise ValueError: If tags is not of type :class:`Tags`.
 
         .. code-block:: python
@@ -3966,7 +3966,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get object-lock configuration of a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :return: :class:`ObjectLockConfig <ObjectLockConfig>` object.
+        :return: :class:`ObjectLockConfig` object.
         :rtype: ObjectLockConfig
 
         .. code-block:: python
@@ -4003,7 +4003,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         Set object-lock configuration to a bucket.
 
         :param str bucket_name: Name of the bucket.
-        :param ObjectLockConfig config: :class:`ObjectLockConfig <ObjectLockConfig>` object.
+        :param ObjectLockConfig config: :class:`ObjectLockConfig` object.
         :raise ValueError: If config is not of type :class:`ObjectLockConfig`.
 
         .. code-block:: python
@@ -4051,7 +4051,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
         :param str | None version_id: Version ID of the object.
-        :return: :class:`Retention <Retention>` object.
+        :return: :class:`Retention` object.
         :rtype: Retention | None
         :raise S3Error: If the object lock configuration is not found.
 
@@ -4105,7 +4105,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
-        :param Retention config: :class:`Retention <Retention>` object.
+        :param Retention config: :class:`Retention` object.
         :param str | None version_id: Version ID of the object.
         :raise ValueError: If config is not of type :class:`Retention`.
 
@@ -4171,7 +4171,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param Iterable[SnowballObject] object_list: An iterable containing
-            :class:`SnowballObject <SnowballObject>` object.
+            :class:`SnowballObject` object.
         :param DictType | None metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param Sse | None sse: Server-side encryption.
@@ -4376,7 +4376,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param extra_query_params: (Optional) Extra query parameters for
             advanced usage.
         :return:
-            :class:`ListMultipartUploadsResult <ListMultipartUploadsResult>`
+            :class:`ListMultipartUploadsResult`
                 object
         """
 
@@ -4428,7 +4428,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param extra_headers: (Optional) Extra headers for advanced usage.
         :param extra_query_params: (Optional) Extra query parameters for
             advanced usage.
-        :return: :class:`ListPartsResult <ListPartsResult>` object
+        :return: :class:`ListPartsResult` object
         """
 
         query_params = extra_query_params or {}
