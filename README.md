@@ -109,5 +109,4 @@ async def download(request):
 <span id="references"></span>
 
 ## More References
-- <a href="https://github.com/hlf20010508/miniopy-async/tree/master/docs">Python Client API Reference</a>  
 - <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">Examples</a>
