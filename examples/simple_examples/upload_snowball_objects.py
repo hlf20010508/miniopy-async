@@ -26,21 +26,25 @@ client = Minio(
     secure=True,  # http for False, https for True
 )
 
+
 async def main():
     await client.upload_snowball_objects(
         "my-bucket",
         [
             SnowballObject("my-object1", filename="LICENSE"),
             SnowballObject(
-                "my-object2", data=io.BytesIO(b"hello"), length=5,
+                "my-object2",
+                data=io.BytesIO(b"hello"),
+                length=5,
             ),
             SnowballObject(
-                "my-object3", data=io.BytesIO(b"world"), length=5,
+                "my-object3",
+                data=io.BytesIO(b"world"),
+                length=5,
                 mod_time=datetime.now(),
             ),
         ],
     )
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+
+asyncio.run(main())

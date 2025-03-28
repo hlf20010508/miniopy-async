@@ -66,6 +66,4 @@ async def main():
     print("url:", url)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

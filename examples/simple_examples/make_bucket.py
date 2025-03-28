@@ -44,6 +44,4 @@ async def main():
     await client.make_bucket("my-bucket3", "us-east-1", object_lock=True)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

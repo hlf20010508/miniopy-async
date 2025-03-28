@@ -19,9 +19,10 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from miniopy_async import Minio
 from miniopy_async.datatypes import PostPolicy
+from miniopy_async.time import utcnow
 import asyncio
 
 client = Minio(
@@ -33,7 +34,7 @@ client = Minio(
 
 policy = PostPolicy(
     "my-bucket",
-    datetime.utcnow() + timedelta(days=10),
+    utcnow() + timedelta(days=10),
 )
 policy.add_starts_with_condition("key", "my/object/prefix/")
 policy.add_content_length_range_condition(1 * 1024 * 1024, 10 * 1024 * 1024)
@@ -49,6 +50,4 @@ async def main():
     print("curl_cmd:", curl_cmd)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

@@ -85,6 +85,4 @@ async def main():
     await client.set_bucket_policy("my-bucket", json.dumps(policy))
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

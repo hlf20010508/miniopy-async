@@ -19,10 +19,11 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from miniopy_async import Minio
 from miniopy_async.commonconfig import GOVERNANCE
 from miniopy_async.retention import Retention
+from miniopy_async.time import utcnow
 import asyncio
 
 client = Minio(
@@ -32,13 +33,11 @@ client = Minio(
     secure=True,  # http for False, https for True
 )
 
-config = Retention(GOVERNANCE, datetime.utcnow() + timedelta(days=10))
+config = Retention(GOVERNANCE, utcnow() + timedelta(days=10))
 
 
 async def main():
     await client.set_object_retention("my-bucket", "my-object", config)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

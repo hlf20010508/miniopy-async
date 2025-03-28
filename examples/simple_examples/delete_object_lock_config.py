@@ -34,6 +34,4 @@ async def main():
     await client.delete_object_lock_config("my-bucket")
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

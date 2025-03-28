@@ -36,13 +36,13 @@ async def main():
     # Get data of an object.
     print("example one")
     async with aiohttp.ClientSession() as session:
-        response = await client.get_object("my-bucket", "my-object", session)
+        _response = await client.get_object("my-bucket", "my-object", session)
         # Read data from response.
 
     # Get data of an object from offset and length.
     print("example two")
     async with aiohttp.ClientSession() as session:
-        response = await client.get_object(
+        _response = await client.get_object(
             "my-bucket",
             "my-object",
             session,
@@ -54,7 +54,7 @@ async def main():
     # Get data of an object of version-ID.
     print("example three")
     async with aiohttp.ClientSession() as session:
-        response = await client.get_object(
+        _response = await client.get_object(
             "my-bucket",
             "my-object",
             session,
@@ -65,7 +65,7 @@ async def main():
     # Get data of an SSE-C encrypted object.
     print("example four")
     async with aiohttp.ClientSession() as session:
-        response = await client.get_object(
+        _response = await client.get_object(
             "my-bucket",
             "my-object",
             session,
@@ -74,6 +74,4 @@ async def main():
         # Read data from response.
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

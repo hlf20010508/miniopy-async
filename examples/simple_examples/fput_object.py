@@ -19,11 +19,12 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from miniopy_async import Minio
 from miniopy_async.commonconfig import GOVERNANCE, Tags
 from miniopy_async.retention import Retention
 from miniopy_async.sse import SseCustomerKey, SseKMS, SseS3
+from miniopy_async.time import utcnow
 import asyncio
 
 client = Minio(
@@ -132,7 +133,7 @@ async def main():
 
     # Upload data with tags, retention and legal-hold.
     print("example seven")
-    date = datetime.utcnow().replace(
+    date = utcnow().replace(
         hour=0,
         minute=0,
         second=0,
@@ -157,6 +158,4 @@ async def main():
     )
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

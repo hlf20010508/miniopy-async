@@ -36,6 +36,4 @@ async def main():
     await client.set_bucket_versioning("my-bucket", VersioningConfig(ENABLED))
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

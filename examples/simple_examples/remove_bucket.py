@@ -34,6 +34,4 @@ async def main():
     await client.remove_bucket("my-bucket")
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

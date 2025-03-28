@@ -37,6 +37,4 @@ async def main():
         print("legal hold is not enabled on my-object")
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

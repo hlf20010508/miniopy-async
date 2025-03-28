@@ -34,6 +34,4 @@ async def main():
     await client.enable_object_legal_hold("my-bucket", "my-object")
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

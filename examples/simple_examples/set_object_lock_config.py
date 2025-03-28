@@ -38,6 +38,4 @@ async def main():
     await client.set_object_lock_config("my-bucket", config)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())

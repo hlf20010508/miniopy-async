@@ -56,6 +56,4 @@ async def main():
         print("error occured when deleting object", error)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())
