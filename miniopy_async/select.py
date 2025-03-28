@@ -33,7 +33,6 @@ from typing import (
     SupportsBytes,
     SupportsIndex,
     Type,
-    TypeAlias,
 )
 from typing_extensions import Buffer
 from xml.etree import ElementTree as ET
@@ -41,7 +40,7 @@ from .error import MinioException
 from .xml import Element, SubElement, findtext
 from aiohttp import ClientResponse, ClientSession
 
-ReadableBuffer: TypeAlias = Buffer
+ReadableBuffer = Buffer
 
 COMPRESSION_TYPE_NONE = "NONE"
 COMPRESSION_TYPE_GZIP = "GZIP"

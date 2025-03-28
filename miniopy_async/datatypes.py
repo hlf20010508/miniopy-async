@@ -27,12 +27,11 @@ Response of ListBuckets, ListObjects, ListObjectsV2 and ListObjectVersions API.
 from __future__ import absolute_import, annotations
 
 import base64
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import (
     Any,
     AsyncGenerator,
     List,
-    Self,
     Tuple,
     Type,
     TypeVar,
@@ -53,7 +52,7 @@ from .commonconfig import Tags
 from .credentials import Credentials
 from .helpers import check_bucket_name
 from .signer import get_credential_string, post_presign_v4
-from .time import from_iso8601utc, to_amz_date, to_iso8601utc
+from .time import from_iso8601utc, to_amz_date, to_iso8601utc, utcnow
 from .xml import find, findall, findtext
 
 if TYPE_CHECKING:
@@ -374,7 +373,7 @@ class CompleteMultipartUploadResult:
         self._http_headers = response.headers
 
     @classmethod
-    async def from_async_response(cls, response: aiohttp.ClientResponse) -> Self:
+    async def from_async_response(cls, response: aiohttp.ClientResponse):
         return cls(response, await response.text())
 
     @property
@@ -824,9 +823,8 @@ class PostPolicy:
             policy["conditions"].append(
                 ["content-length-range", self._lower_limit, self._upper_limit],
             )
-        utcnow = datetime.now(UTC)
-        credential = get_credential_string(creds.access_key, utcnow, region)
-        amz_date = to_amz_date(utcnow)
+        credential = get_credential_string(creds.access_key, utcnow(), region)
+        amz_date = to_amz_date(utcnow())
         policy["conditions"].append([_EQ, "$x-amz-algorithm", _ALGORITHM])
         policy["conditions"].append([_EQ, "$x-amz-credential", credential])
         if creds.session_token:
@@ -839,7 +837,7 @@ class PostPolicy:
         signature = post_presign_v4(
             policy.decode(),
             creds.secret_key,
-            utcnow,
+            utcnow(),
             region,
         )
         form_data = {
