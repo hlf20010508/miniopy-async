@@ -9,6 +9,8 @@
 [![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/issues?q=is%3Aissue+is%3Aclosed)
 [![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/pulls?q=is%3Apr+is%3Aclosed)
 
+Document: https://hlf20010508.github.io/miniopy-async/
+
 ## Catalogue
 - [Declaration](#declaration)
 - [Minimum Requirements](#requirements)
@@ -27,7 +29,7 @@
 <span id="requirements"></span>
 
 ## Minimum Requirements
-- Python >= 3.9
+- Python >= 3.10
 
 <span id="build"></span>
 

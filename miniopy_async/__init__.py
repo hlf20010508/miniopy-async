@@ -31,16 +31,11 @@ miniopy-async - Asynchronous MinIO Client SDK for Python
 ...     secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
 ...     secure=True  # http for False, https for True
 ... )
->>> loop = asyncio.get_event_loop()
->>> buckets = loop.run_until_complete(
+>>> buckets = asyncio.run(
 ...     client.list_buckets()
 ... )
 >>> for bucket in buckets:
 ...     print(bucket.name, bucket.creation_date)
->>> loop.close()
-
-:Copyright © 2022 L-ING.
-:license: Apache 2.0, see LICENSE for more details.
 """
 
 __title__ = "miniopy-async"

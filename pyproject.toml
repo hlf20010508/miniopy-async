@@ -11,20 +11,19 @@ license = "Apache License 2.0"
 readme = "README.md"
 homepage = "https://github.com/hlf20010508/miniopy-async"
 repository = "https://github.com/hlf20010508/miniopy-async"
-documentation = "https://github.com/hlf20010508/miniopy-async/blob/master/docs/API.md"
+documentation = "https://hlf20010508.github.io/miniopy-async/"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Natural Language :: English",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 package-mode = true
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 aiohttp = "^3.11.14"
 typing-extensions = "^4.13.0"
 urllib3 = "^2.3.0"
@@ -34,6 +33,8 @@ certifi = "^2025.1.31"
 [tool.poetry.group.dev.dependencies]
 sanic = "^24.12.0"
 sanic-jinja2 = "^2022.11.11"
+sphinx = "8.1.3"
+sphinx-rtd-theme = "^3.0.2"
 
 [build-system]
 requires = ["poetry-core"]

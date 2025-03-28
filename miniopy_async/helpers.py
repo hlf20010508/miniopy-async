@@ -274,13 +274,14 @@ def check_non_empty_string(string: str | bytes):
         raise TypeError() from exc
 
 
-def is_valid_policy_type(policy: str | bytes):
+def is_valid_policy_type(policy: str | bytes) -> bool:
     """
     Validate if policy is type str
 
-    :param policy: S3 style Bucket policy.
-    :return: True if policy parameter is of a valid type, 'string'.
-    Raise :exc:`TypeError` otherwise.
+    :param str | bytes policy: S3 style Bucket policy.
+    :return: True if policy parameter is of a valid type `str`.
+    :rtype: bool
+    :Raise: :exc:`TypeError` otherwise.
     """
     if not isinstance(policy, (str, bytes)):
         raise TypeError("policy must be str or bytes type")

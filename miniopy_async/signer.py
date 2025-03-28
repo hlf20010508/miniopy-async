@@ -20,19 +20,7 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-"""
-miniopy_async.signer
-~~~~~~~~~~~~~~~~~~~~
-
-This module implements all helpers for AWS Signature version '4' support.
-
-:copyright:
-(C) 2015 by MinIO, Inc.
-(C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
-(C) 2022 L-ING <hlf01@icloud.com>
-:license: Apache 2.0, see LICENSE for more details.
-
-"""
+"""This module implements all helpers for AWS Signature version '4' support."""
 
 from __future__ import absolute_import, annotations
 

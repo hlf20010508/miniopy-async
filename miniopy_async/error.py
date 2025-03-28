@@ -22,20 +22,7 @@
 
 # pylint: disable=too-many-lines
 
-"""
-miniopy_async.error
-~~~~~~~~~~~~~~~~~~~
-
-This module provides custom exception classes for MinIO library
-and API specific errors.
-
-:copyright:
-(C) 2015, 2016, 2017 by MinIO, Inc.
-(C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
-(C) 2022 L-ING <hlf01@icloud.com>
-:license: Apache 2.0, see LICENSE for more details.
-
-"""
+"""This module provides custom exception classes for MinIO library and API specific errors."""
 
 from __future__ import absolute_import, annotations
 

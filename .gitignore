@@ -3,6 +3,10 @@ __pycache__/
 *.py[cod]
 .DS_Store
 testfile*
+dev.*
+docs/source/*
+!docs/source/conf.py
+!docs/source/index.rst
 
 # C extensions
 *.so
@@ -36,4 +40,3 @@ venv
 prof/
 htmlcov/
 .pytest_cache
-

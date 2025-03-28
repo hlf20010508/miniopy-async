@@ -23,9 +23,7 @@
 # pylint: disable=too-many-lines,disable=too-many-branches,too-many-statements
 # pylint: disable=too-many-arguments
 
-"""
-Simple Storage Service (aka S3) client to perform bucket and object operations.
-"""
+"""Simple Storage Service (aka S3) client to perform bucket and object operations."""
 
 from __future__ import absolute_import, annotations
 
@@ -117,19 +115,19 @@ class Minio:  # pylint: disable=too-many-public-methods
     Simple Storage Service (aka S3) client to perform bucket and object
     operations.
 
-    :param endpoint: Hostname of a S3 service.
-    :param access_key: Access key (aka user ID) of your account in S3 service.
-    :param secret_key: Secret Key (aka password) of your account in S3 service.
-    :param session_token: Session token of your account in S3 service.
-    :param secure: Flag to indicate to use secure (TLS) connection to S3
-        service or not.
-    :param region: Region name of buckets in S3 service.
-    :param http_client: Customized HTTP client.
-    :param credentials: Credentials provider of your account in S3 service.
-    :param cert_check: Flag to indicate to verify SSL certificate or not.
+    :param str endpoint: Hostname of a S3 service.
+    :param str | None access_key: Access key (aka user ID) of your account in S3 service.
+    :param str | None secret_key: Secret Key (aka password) of your account in S3 service.
+    :param str | None session_token: Session token of your account in S3 service.
+    :param bool secure: Flag to indicate to use secure (TLS) connection to S3service or not.
+    :param str | None region: Region name of buckets in S3 service.
+    :param Provider | None credentials: Credentials provider of your account in S3 service.
+    :param bool cert_check: Flag to indicate to verify SSL certificate or not.
     :return: :class:`Minio <Minio>` object
+    :rtype: Minio
 
-    Example::
+    .. code-block:: python
+
         # Create client with anonymous access.
         client = Minio("play.min.io")
 
@@ -143,13 +141,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
             region="my-region",
         )
-
-    **NOTE on concurrent usage:** `Minio` object is thread safe when using
-    the Python `threading` library. Specifically, it is **NOT** safe to share
-    it between multiple processes, for example when using
-    `multiprocessing.Pool`. The solution is simply to create a new `Minio`
-    object in each process, and not share it between processes.
-
     """
 
     _region_map: dict[str, str]
@@ -522,10 +513,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set your application name and version to user agent header.
 
-        :param app_name: Application name.
-        :param app_version: Application version.
+        :param str app_name: Application name.
+        :param str app_version: Application version.
+        :raise ValueError: If application name or version is empty.
 
-        Example::
+        .. code-block:: python
+
             client.set_app_info('my_app', '1.0.2')
         """
         if not (app_name and app_version):
@@ -570,12 +563,15 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Select content of an object by SQL expression.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param request: :class:`SelectRequest <SelectRequest>` object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param SelectRequest request: :class:`SelectRequest` <SelectRequest> object.
         :return: A reader contains requested records and progress information.
+        :rtype: SelectObjectReader
+        :raise ValueError: If request is not of type :class:`SelectRequest`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.select import (CSVInputSerialization,
             CSVOutputSerialization, SelectRequest)
@@ -604,9 +600,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     print(data.decode())
                 print('status:',result.stats())
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -634,11 +628,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Create a bucket with region and object lock.
 
-        :param bucket_name: Name of the bucket.
-        :param location: Region in which the bucket will be created.
-        :param object_lock: Flag to set object-lock feature.
+        :param str bucket_name: Name of the bucket.
+        :param str location: Region in which the bucket will be created.
+        :param bool object_lock: Flag to set object-lock feature.
+        :raise ValueError: If location is not same as region passed via base url
 
-        Examples::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -663,9 +659,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 await client.make_bucket("my-bucket3", "us-east-1",
                 object_lock=True)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name, True)
         if self._base_url.region:
@@ -700,8 +694,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         List information of all accessible buckets.
 
         :return: List of :class:`Bucket <Bucket>` object.
+        :rtype: list[Bucket]
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -717,9 +713,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 for bucket in buckets:
                     print(bucket.name, bucket.creation_date)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         async with aiohttp.ClientSession() as session:
             response = await self._execute("GET", session=session)
@@ -730,10 +724,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Check if a bucket exists.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: True if the bucket exists.
+        :rtype: bool
+        :raise ValueError: If bucket not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -751,9 +748,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 else:
                     print("my-bucket does not exist")
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -768,9 +763,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Remove an empty bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -784,9 +780,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.remove_bucket("my-bucket")
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name)
@@ -796,10 +790,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get bucket policy configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: Bucket policy configuration as JSON string.
+        :rtype: str
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -814,9 +810,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 policy = await client.get_bucket_policy("my-bucket")
                 print(policy)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         async with aiohttp.ClientSession() as session:
@@ -829,9 +823,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete bucket policy configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -845,9 +840,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_policy("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"policy": ""})
@@ -856,10 +849,11 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set bucket policy configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param policy: Bucket policy configuration as JSON string.
+        :param str bucket_name: Name of the bucket.
+        :param str | bytes policy: Bucket policy configuration as JSON string.
 
-        Example::
+        .. code-block:: python
+
             import json
             from miniopy_async import Minio
             import asyncio
@@ -924,9 +918,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 }
                 await client.set_bucket_policy("my-bucket", json.dumps(policy))
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         is_valid_policy_type(policy)
@@ -942,10 +934,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get notification configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`NotificationConfig <NotificationConfig>` object.
+        :rtype: NotificationConfig
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -960,9 +954,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_bucket_notification("my-bucket")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         async with aiohttp.ClientSession() as session:
@@ -977,10 +969,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set notification configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: class:`NotificationConfig <NotificationConfig>` object.
+        :param str bucket_name: Name of the bucket.
+        :param NotificationConfig config: class:`NotificationConfig <NotificationConfig>` object.
+        :raise ValueError: If config is not of type :class:`NotificationConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.notificationconfig import (NotificationConfig,
             PrefixFilterRule, QueueConfig)
@@ -1007,9 +1001,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_bucket_notification("my-bucket", config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, NotificationConfig):
@@ -1028,9 +1020,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         Delete notification configuration of a bucket. On success, S3 service
         stops notification of events previously set of the bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -1044,9 +1037,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_notification("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         await self.set_bucket_notification(bucket_name, NotificationConfig())
 
@@ -1054,10 +1045,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set encryption configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: :class:`SSEConfig <SSEConfig>` object.
+        :param str bucket_name: Name of the bucket.
+        :param SSEConfig config: :class:`SSEConfig <SSEConfig>` object.
+        :raise ValueError: If config is not of type :class:`SSEConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.sseconfig import Rule, SSEConfig
             import asyncio
@@ -1074,9 +1067,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-bucket", SSEConfig(Rule.new_sse_s3_rule()),
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, SSEConfig):
@@ -1094,10 +1085,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get encryption configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`SSEConfig <SSEConfig>` object.
+        :rtype: SSEConfig | None
+        :raise S3Error: If server side encryption configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -1112,9 +1106,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_bucket_encryption("my-bucket")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -1132,9 +1124,11 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete encryption configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
+        :raise S3Error: If server side encryption configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -1148,9 +1142,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_encryption("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -1178,13 +1170,16 @@ class Minio:  # pylint: disable=too-many-public-methods
         Listen events of object prefix and suffix of a bucket. Caller should
         iterate returned iterator to read new events.
 
-        :param bucket_name: Name of the bucket.
-        :param prefix: Listen events of object starts with prefix.
-        :param suffix: Listen events of object ends with suffix.
-        :param events: Events to listen.
+        :param str bucket_name: Name of the bucket.
+        :param str prefix: Listen events of object starts with prefix.
+        :param str suffix: Listen events of object ends with suffix.
+        :param tuple[str, ...] events: Events to listen.
         :return: Iterator of event records as :dict:.
+        :rtype: AsyncEventIterable[aiohttp.ClientResponse]
+        :raise ValueError: If ListenBucketNotification API is not supported in Amazon S3.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -1204,9 +1199,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 async for event in events:
                     print('event:',event)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if self._base_url.is_aws_host:
@@ -1234,10 +1227,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set versioning configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: :class:`VersioningConfig <VersioningConfig>`.
+        :param str bucket_name: Name of the bucket.
+        :param VersioningConfig config: :class:`VersioningConfig <VersioningConfig>`.
+        :raise ValueError: If config is not of type :class:`VersioningConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import ENABLED
             from miniopy_async.versioningconfig import VersioningConfig
@@ -1254,9 +1249,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 await client.set_bucket_versioning("my-bucket",
                 VersioningConfig(ENABLED))
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, VersioningConfig):
@@ -1274,10 +1267,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get versioning configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`VersioningConfig <VersioningConfig>`.
+        :rtype: VersioningConfig
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -1292,9 +1287,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_bucket_versioning("my-bucket")
                 print(config.status)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         async with aiohttp.ClientSession() as session:
@@ -1321,22 +1314,24 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Uploads data from a file to an object in a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param file_path: Name of file to upload.
-        :param content_type: Content type of the object.
-        :param metadata: Any additional metadata to be uploaded along
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str file_path: Name of file to upload.
+        :param str content_type: Content type of the object.
+        :param DictType | None metadata: Any additional metadata to be uploaded along
             with your PUT request.
-        :param sse: Server-side encryption.
-        :param progress: A progress object.
-        :param part_size: Multipart part size
-        :param num_parallel_uploads: Number of parallel uploads.
-        :param tags: :class:`Tags` for the object.
-        :param retention: :class:`Retention` configuration object.
-        :param legal_hold: Flag to set legal hold for the object.
+        :param Sse | None sse: Server-side encryption.
+        :param ProgressType | None progress: A progress object.
+        :param int part_size: Multipart part size
+        :param int num_parallel_uploads: Number of parallel uploads.
+        :param Tags | None tags: :class:`Tags` for the object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for the object.
         :return: :class:`ObjectWriteResult` object.
+        :rtype: ObjectWriteResult
 
-        Example::
+        .. code-block:: python
+
             from datetime import datetime, timedelta
             from miniopy_async import Minio
             from miniopy_async.commonconfig import GOVERNANCE, Tags
@@ -1408,9 +1403,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     legal_hold=True,
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
 
         file_size = os.stat(file_path).st_size
@@ -1447,20 +1440,22 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Downloads data of an object to file.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param file_path: Name of file to download.
-        :param request_headers: Any additional headers to be added with GET
-                                request.
-        :param ssec: Server-side encryption customer key.
-        :param version_id: Version-ID of the object.
-        :param extra_query_params: Extra query parameters for advanced usage.
-        :param tmp_file_path: Path to a temporary file.
-        :param progress: A progress object.
-        :param session: :class:`aiohttp.ClientSession()` object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str file_path: Name of file to download.
+        :param DictType | None request_headers: Any additional headers to be added with GET request.
+        :param SseCustomerKey | None ssec: Server-side encryption customer key.
+        :param str | None version_id: Version-ID of the object.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
+        :param str | None tmp_file_path: Path to a temporary file.
+        :param ProgressType | None progress: A progress object.
+        :param aiohttp.ClientSession | None session: :class:`aiohttp.ClientSession()` object.
         :return: Object information.
+        :rtype: Object
+        :raise ValueError: If file_path is a directory.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.sse import SseCustomerKey
             import asyncio
@@ -1492,9 +1487,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -1575,19 +1568,21 @@ class Minio:  # pylint: disable=too-many-public-methods
         release network resources. To reuse the connection, it's required to
         call `response.release()` explicitly.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param session: :class:`aiohttp.ClientSession()` object.
-        :param offset: Start byte position of object data.
-        :param length: Number of bytes of object data from offset.
-        :param request_headers: Any additional headers to be added with GET
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param aiohttp.ClientSession session: :class:`aiohttp.ClientSession()` object.
+        :param int offset: Start byte position of object data.
+        :param int length: Number of bytes of object data from offset.
+        :param DictType | None request_headers: Any additional headers to be added with GET
                                 request.
-        :param ssec: Server-side encryption customer key.
-        :param version_id: Version-ID of the object.
-        :param extra_query_params: Extra query parameters for advanced usage.
+        :param SseCustomerKey | None ssec: Server-side encryption customer key.
+        :param str | None version_id: Version-ID of the object.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
         :return: :class:`aiohttp.client_reqrep.ClientResponse` object.
+        :rtype: aiohttp.ClientResponse
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.sse import SseCustomerKey
             import asyncio
@@ -1633,9 +1628,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     )
                     # Read data from response.
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -1679,22 +1672,32 @@ class Minio:  # pylint: disable=too-many-public-methods
         Create an object by server-side copying data from another object.
         In this API maximum supported source object size is 5GiB.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param source: :class:`CopySource` object.
-        :param sse: Server-side encryption of destination object.
-        :param metadata: Any user-defined metadata to be copied along with
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param CopySource source: :class:`CopySource` object.
+        :param Sse | None sse: Server-side encryption of destination object.
+        :param DictType | None metadata: Any user-defined metadata to be copied along with
                          destination object.
-        :param tags: Tags for destination object.
-        :param retention: :class:`Retention` configuration object.
-        :param legal_hold: Flag to set legal hold for destination object.
-        :param metadata_directive: Directive used to handle user metadata for
+        :param Tags | None tags: Tags for destination object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for destination object.
+        :param str | None metadata_directive: Directive used to handle user metadata for
                                    destination object.
-        :param tagging_directive: Directive used to handle tags for destination
+        :param str | None tagging_directive: Directive used to handle tags for destination
                                    object.
         :return: :class:`ObjectWriteResult <ObjectWriteResult>` object.
+        :rtype: ObjectWriteResult
+        :raise ValueError: If source is not of type :class:`CopySource`.
+        :raise ValueError: If tags is not of type :class:`Tags`.
+        :raise ValueError: If retention is not of type :class:`Retention`.
+        :raise ValueError: If metadata_directive is not of type :class:`COPY` or
+                          :class:`REPLACE`.
+        :raise ValueError: If tagging_directive is not of type :class:`COPY` or
+                            :class:`REPLACE`.
+        :raise ValueError: If source object size is greater than 5GiB.
 
-        Example::
+        .. code-block:: python
+
             from datetime import datetime, timezone
             from miniopy_async import Minio
             from miniopy_async.commonconfig import REPLACE, CopySource
@@ -1743,9 +1746,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print(result.object_name, result.version_id)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -1937,18 +1938,24 @@ class Minio:  # pylint: disable=too-many-public-methods
         Create an object by combining data from different source objects using
         server-side copy.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param sources: List of :class:`ComposeSource` object.
-        :param sse: Server-side encryption of destination object.
-        :param metadata: Any user-defined metadata to be copied along with
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param list[ComposeSource] sources: List of :class:`ComposeSource` object.
+        :param Sse | None sse: Server-side encryption of destination object.
+        :param DictType | None metadata: Any user-defined metadata to be copied along with
                          destination object.
-        :param tags: Tags for destination object.
-        :param retention: :class:`Retention` configuration object.
-        :param legal_hold: Flag to set legal hold for destination object.
+        :param Tags | None tags: Tags for destination object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for destination object.
         :return: :class:`ObjectWriteResult <ObjectWriteResult>` object.
+        :rtype: ObjectWriteResult
+        :raise ValueError: If sources is not of non-empty type `list` or `tuple`.
+        :raise ValueError: If sources is not of type :class:`ComposeSource`.
+        :raise ValueError: If tags is not of type :class:`Tags`.
+        :raise ValueError: If retention is not of type :class:`Retention`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import ComposeSource
             from miniopy_async.sse import SseS3
@@ -1998,9 +2005,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print(result.object_name, result.version_id)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2252,23 +2257,29 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Uploads data from a stream to an object in a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param data: An object having callable read() returning bytes object.
-        :param length: Data size; -1 for unknown size and set valid part_size.
-        :param content_type: Content type of the object.
-        :param metadata: Any additional metadata to be uploaded along
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param BinaryIO data: An object having callable read() returning bytes object.
+        :param int length: Data size; -1 for unknown size and set valid part_size.
+        :param str content_type: Content type of the object.
+        :param DictType | None metadata: Any additional metadata to be uploaded along
             with your PUT request.
-        :param sse: Server-side encryption.
-        :param progress: A progress object.
-        :param part_size: Multipart part size.
-        :param num_parallel_uploads: Number of parallel uploads.
-        :param tags: :class:`Tags` for the object.
-        :param retention: :class:`Retention` configuration object.
-        :param legal_hold: Flag to set legal hold for the object.
+        :param Sse | None sse: Server-side encryption.
+        :param ProgressType | None progress: A progress object.
+        :param int part_size: Multipart part size.
+        :param int num_parallel_uploads: Number of parallel uploads.
+        :param Tags | None tags: :class:`Tags` for the object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for the object.
         :return: :class:`ObjectWriteResult` object.
+        :rtype: ObjectWriteResult
+        :raise ValueError: If tags is not of type :class:`Tags`.
+        :raise ValueError: If retention is not of type :class:`Retention`.
+        :raise ValueError: If input data doesn't have callable `read()`.
+        :raise IOError: If input data doesn't have enough data to read.
 
-        Example::
+        .. code-block:: python
+
             import io
             from datetime import datetime, timedelta
             from urllib.request import urlopen
@@ -2353,9 +2364,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     legal_hold=True,
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2499,20 +2508,22 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Lists object information of a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param prefix: Object name starts with prefix.
-        :param recursive: List recursively than directory structure emulation.
-        :param start_after: List objects after this key name.
-        :param include_user_meta: MinIO specific flag to control to include
+        :param str bucket_name: Name of the bucket.
+        :param str | None prefix: Object name starts with prefix.
+        :param bool recursive: List recursively than directory structure emulation.
+        :param str | None start_after: List objects after this key name.
+        :param bool include_user_meta: MinIO specific flag to control to include
                                  user metadata.
-        :param include_version: Flag to control whether include object
+        :param bool include_version: Flag to control whether include object
                                 versions.
-        :param use_api_v1: Flag to control to use ListObjectV1 S3 API or not.
-        :param use_url_encoding_type: Flag to control whether URL encoding type
+        :param bool use_api_v1: Flag to control to use ListObjectV1 S3 API or not.
+        :param bool use_url_encoding_type: Flag to control whether URL encoding type
                                       to be used or not.
         :return: Iterator of :class:`Object <Object>`.
+        :rtype: ListObjects
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -2565,9 +2576,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 for obj in objects:
                     print('obj:',obj)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         return ListObjects(
             client=self,
@@ -2593,15 +2602,17 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get object information and metadata of an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param ssec: Server-side encryption customer key.
-        :param version_id: Version ID of the object.
-        :param request_headers: Any additional headers to be added with GET request.
-        :param extra_query_params: Extra query parameters for advanced usage.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param SseCustomerKey | None ssec: Server-side encryption customer key.
+        :param str | None version_id: Version ID of the object.
+        :param DictType | None request_headers: Any additional headers to be added with GET request.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
         :return: :class:`Object <Object>`.
+        :rtype: Object
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.sse import SseCustomerKey
             import asyncio
@@ -2647,9 +2658,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ),
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
 
         check_bucket_name(bucket_name)
@@ -2687,6 +2696,13 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
     async def list_object_versions(self, bucket_name: str) -> str:
+        """
+        List all object versions in a bucket.
+
+        :param str bucket_name: Name of the bucket.
+        :return: List of object versions.
+        :rtype: str
+        """
         async with aiohttp.ClientSession() as session:
             response = await self._execute(
                 "GET", bucket_name, query_params={"versions": ""}, session=session
@@ -2699,11 +2715,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Remove an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the object.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -2726,9 +2743,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -2749,12 +2764,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete multiple objects.
 
-        :param bucket_name: Name of the bucket.
-        :param delete_object_list: List of maximum 1000
+        :param str bucket_name: Name of the bucket.
+        :param list[DeleteObject] delete_object_list: List of maximum 1000
             :class:`DeleteObject <DeleteObject>` object.
-        :param quiet: quiet flag.
-        :param bypass_governance_mode: Bypass Governance retention mode.
+        :param bool quiet: quiet flag.
+        :param bool bypass_governance_mode: Bypass Governance retention mode.
         :return: :class:`DeleteResult <DeleteResult>` object.
+        :rtype: DeleteResult
         """
         body = marshal(DeleteRequest(delete_object_list, quiet=quiet))
         headers = {"Content-MD5": md5sum_hash(body)}
@@ -2786,14 +2802,16 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Remove multiple objects.
 
-        :param bucket_name: Name of the bucket.
-        :param delete_object_list: An iterable containing
+        :param str bucket_name: Name of the bucket.
+        :param Iterable[DeleteObject] delete_object_list: An iterable containing
             :class:`DeleteObject <DeleteObject>` object.
-        :param bypass_governance_mode: Bypass Governance retention mode.
+        :param bool bypass_governance_mode: Bypass Governance retention mode.
         :return: An async generator containing :class:`DeleteError <DeleteError>`
             object.
+        :rtype: AsyncGenerator[DeleteError]
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.deleteobjects import DeleteObject
             import asyncio
@@ -2834,9 +2852,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 async for error in errors:
                     print("error occured when deleting object", error)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
 
@@ -2889,26 +2905,29 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get presigned URL of an object for HTTP method, expiry time and custom
         request parameters.
 
-        :param method: HTTP method.
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param expires: Expiry in seconds; defaults to 7 days.
-        :param response_headers: Optional response_headers argument to
+        :param str method: HTTP method.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param datetime.timedelta expires: Expiry in seconds; defaults to 7 days.
+        :param DictType | None response_headers: Optional response_headers argument to
                                  specify response fields like date, size,
                                  type of file, data about server, etc.
-        :param request_date: Optional request_date argument to
+        :param datetime.timedelta request_date: Optional request_date argument to
                              specify a different request date. Default is
                              current date.
-        :param version_id: Version ID of the object.
-        :param extra_query_params: Extra query parameters for advanced usage.
-        :param change_host: Change the host for this presign temporaryly.
+        :param str | None version_id: Version ID of the object.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
+        :param str | None change_host: Change the host for this presign temporaryly.
                             This parameter is for the circumstance in which
                             your base url is set with private IP address
                             such as 127.0.0.1 or 0.0.0.0 and you want to
                             create a url with public IP address.
         :return: URL string.
+        :rtype: str
+        :raise ValueError: If expires is not between 1 second to 7 days.
 
-        Example::
+        .. code-block:: python
+
             from datetime import timedelta
             from miniopy_async import Minio
             import asyncio
@@ -2976,9 +2995,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 print('url:', url)
 
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3040,26 +3057,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get presigned URL of an object to download its data with expiry time
         and custom request parameters.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param expires: Expiry in seconds; defaults to 7 days.
-        :param response_headers: Optional response_headers argument to
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param datetime.timedelta expires: Expiry in seconds; defaults to 7 days.
+        :param DictType | None response_headers: Optional response_headers argument to
                                   specify response fields like date, size,
                                   type of file, data about server, etc.
-        :param request_date: Optional request_date argument to
+        :param datetime.timedelta request_date: Optional request_date argument to
                               specify a different request date. Default is
                               current date.
-        :param version_id: Version ID of the object.
-        :param extra_query_params: Extra query parameters for advanced usage.
-        :param change_host: Change the host for this presign temporaryly.
-        This parameter
+        :param str | None version_id: Version ID of the object.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
+        :param str | None change_host: Change the host for this presign temporaryly. This parameter
                             is for the circumstance in which your base url is
                             set with private IP address
                             such as 127.0.0.1 or 0.0.0.0 and you want to
                             create a url with public IP address.
         :return: URL string.
+        :rtype: str
 
-        Example::
+        .. code-block:: python
+
             from datetime import timedelta
             from miniopy_async import Minio
             import asyncio
@@ -3105,9 +3123,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         return await self.get_presigned_url(
             "GET",
@@ -3132,18 +3148,19 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get presigned URL of an object to upload data with expiry time and
         custom request parameters.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param expires: Expiry in seconds; defaults to 7 days.
-        :param change_host: Change the host for this presign temporaryly.
-        This parameter
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param datetime.timedelta expires: Expiry in seconds; defaults to 7 days.
+        :param str | None change_host: Change the host for this presign temporaryly. This parameter
                             is for the circumstance in which your base url is
                             set with private IP address
                             such as 127.0.0.1 or 0.0.0.0 and you want to
                             create a url with public IP address.
         :return: URL string.
+        :rtype: str
 
-        Example::
+        .. code-block:: python
+
             from datetime import timedelta
             from miniopy_async import Minio
             import asyncio
@@ -3187,9 +3204,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         return await self.get_presigned_url(
             "PUT", bucket_name, object_name, expires, change_host=change_host
@@ -3200,10 +3215,14 @@ class Minio:  # pylint: disable=too-many-public-methods
         Get form-data of PostPolicy of an object to upload its data using POST
         method.
 
-        :param policy: :class:`PostPolicy <PostPolicy>`.
+        :param PostPolicy policy: :class:`PostPolicy <PostPolicy>`.
         :return: :dict: contains form-data.
+        :rtype: dict[str, str]
+        :raise ValueError: If policy is not of type :class:`PostPolicy`.
+        :raise ValueError: If the access is anonymous.
 
-        Example::
+        .. code-block:: python
+
             from datetime import datetime, timedelta
             from miniopy_async import Minio
             from miniopy_async.datatypes import PostPolicy
@@ -3234,9 +3253,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('curl_cmd:',curl_cmd)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         if not isinstance(policy, PostPolicy):
             raise ValueError("policy must be PostPolicy type")
@@ -3253,9 +3270,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete replication configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3269,9 +3287,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_replication("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"replication": ""})
@@ -3282,10 +3298,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get bucket replication configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`ReplicationConfig <ReplicationConfig>` object.
+        :rtype: ReplicationConfig | None
+        :raise S3Error: If the replication configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3300,9 +3319,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_bucket_replication("my-bucket")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -3327,10 +3344,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set bucket replication configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: :class:`ReplicationConfig <ReplicationConfig>` object.
+        :param str bucket_name: Name of the bucket.
+        :param ReplicationConfig config: :class:`ReplicationConfig <ReplicationConfig>` object.
+        :raise ValueError: If config is not of type :class:`ReplicationConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter, Tags
             from miniopy_async.replicationconfig import (DeleteMarkerReplication, Destination, ReplicationConfig, Rule)
@@ -3373,9 +3392,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_bucket_replication("my-bucket", config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, ReplicationConfig):
@@ -3393,9 +3410,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete notification configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3409,9 +3427,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_lifecycle("my-bucket")
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"lifecycle": ""})
@@ -3420,10 +3436,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get bucket lifecycle configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`LifecycleConfig <LifecycleConfig>` object.
+        :rtype: LifecycleConfig | None
+        :raise S3Error: If the lifecycle configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3438,9 +3457,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_bucket_lifecycle("my-bucket")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -3462,10 +3479,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set bucket lifecycle configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: :class:`LifecycleConfig <LifecycleConfig>` object.
+        :param str bucket_name: Name of the bucket.
+        :param LifecycleConfig config: :class:`LifecycleConfig <LifecycleConfig>` object.
+        :raise ValueError: If config is not of type :class:`LifecycleConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import ENABLED, Filter
             from miniopy_async.lifecycleconfig import Expiration,
@@ -3499,9 +3518,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_bucket_lifecycle("my-bucket", config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, LifecycleConfig):
@@ -3519,9 +3536,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete tags configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3535,9 +3553,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_bucket_tags("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         await self._execute("DELETE", bucket_name, query_params={"tagging": ""})
@@ -3546,10 +3562,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get tags configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`Tags <Tags>` object.
+        :rtype: Tags | None
+        :raise S3Error: If the tags configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3564,9 +3583,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 tags = await client.get_bucket_tags("my-bucket")
                 print(tags)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         try:
@@ -3585,10 +3602,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set tags configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param tags: :class:`Tags <Tags>` object.
+        :param str bucket_name: Name of the bucket.
+        :param Tags tags: :class:`Tags <Tags>` object.
+        :raise ValueError: If tags is not of type :class:`Tags`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import Tags
             import asyncio
@@ -3607,9 +3626,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_bucket_tags("my-bucket", tags)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(tags, Tags):
@@ -3632,11 +3649,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete tags configuration of an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the Object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the Object.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3650,9 +3668,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_object_tags("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3674,12 +3690,15 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get tags configuration of a object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the Object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the Object.
         :return: :class:`Tags <Tags>` object.
+        :rtype: Tags | None
+        :raise S3Error: If the tags configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3694,9 +3713,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 tags = await client.get_object_tags("my-bucket", "my-object")
                 print(tags)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3728,12 +3745,14 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set tags configuration to an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the Object.
-        :param tags: :class:`Tags <Tags>` object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param Tags version_id: Version ID of the Object.
+        :param str | None tags: :class:`Tags <Tags>` object.
+        :raise ValueError: If tags is not of type :class:`Tags`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import Tags
             import asyncio
@@ -3752,9 +3771,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_object_tags("my-bucket", "my-object", tags)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3781,11 +3798,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Enable legal hold on an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the object.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3799,9 +3817,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.enable_object_legal_hold("my-bucket", "my-object")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3826,11 +3842,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Disable legal hold on an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the object.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3844,9 +3861,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.disable_object_legal_hold("my-bucket", "my-object")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3871,11 +3886,15 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Returns true if legal hold is enabled on an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the object.
+        :return: Whether the legal hold is enabled or not.
+        :rtype: bool
+        :raise S3Error: If the object lock configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3893,9 +3912,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 else:
                     print("legal hold is not enabled on my-object")
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -3921,9 +3938,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Delete object-lock configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3937,9 +3955,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.delete_object_lock_config("my-bucket")
 
-            loop=asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         await self.set_object_lock_config(
             bucket_name, ObjectLockConfig(None, None, None)
@@ -3949,10 +3965,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get object-lock configuration of a bucket.
 
-        :param bucket_name: Name of the bucket.
+        :param str bucket_name: Name of the bucket.
         :return: :class:`ObjectLockConfig <ObjectLockConfig>` object.
+        :rtype: ObjectLockConfig
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -3967,9 +3985,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 config = await client.get_object_lock_config("my-bucket")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         async with aiohttp.ClientSession() as session:
@@ -3986,10 +4002,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set object-lock configuration to a bucket.
 
-        :param bucket_name: Name of the bucket.
-        :param config: :class:`ObjectLockConfig <ObjectLockConfig>` object.
+        :param str bucket_name: Name of the bucket.
+        :param ObjectLockConfig config: :class:`ObjectLockConfig <ObjectLockConfig>` object.
+        :raise ValueError: If config is not of type :class:`ObjectLockConfig`.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import GOVERNANCE
             from miniopy_async.objectlockconfig import DAYS, ObjectLockConfig
@@ -4007,9 +4025,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             async def main():
                 await client.set_object_lock_config("my-bucket", config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         if not isinstance(config, ObjectLockConfig):
@@ -4032,12 +4048,15 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Get retention configuration of an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str | None version_id: Version ID of the object.
         :return: :class:`Retention <Retention>` object.
+        :rtype: Retention | None
+        :raise S3Error: If the object lock configuration is not found.
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             import asyncio
 
@@ -4053,9 +4072,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 "my-object")
                 print(config)
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -4086,12 +4103,14 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         Set retention configuration on an object.
 
-        :param bucket_name: Name of the bucket.
-        :param object_name: Object name in the bucket.
-        :param version_id: Version ID of the object.
-        :param config: :class:`Retention <Retention>` object.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param Retention config: :class:`Retention <Retention>` object.
+        :param str | None version_id: Version ID of the object.
+        :raise ValueError: If config is not of type :class:`Retention`.
 
-        Example::
+        .. code-block:: python
+
             from datetime import datetime, timedelta
             from miniopy_async import Minio
             from miniopy_async.commonconfig import GOVERNANCE
@@ -4115,9 +4134,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     config
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name)
         check_non_empty_string(object_name)
@@ -4152,20 +4169,22 @@ class Minio:  # pylint: disable=too-many-public-methods
         intermediate TAR file optionally compressed which is uploaded to S3
         service.
 
-        :param bucket_name: Name of the bucket.
-        :param object_list: An iterable containing
+        :param str bucket_name: Name of the bucket.
+        :param Iterable[SnowballObject] object_list: An iterable containing
             :class:`SnowballObject <SnowballObject>` object.
-        :param metadata: Any additional metadata to be uploaded along
+        :param DictType | None metadata: Any additional metadata to be uploaded along
             with your PUT request.
-        :param sse: Server-side encryption.
-        :param tags: :class:`Tags` for the object.
-        :param retention: :class:`Retention` configuration object.
-        :param legal_hold: Flag to set legal hold for the object.
-        :param staging_filename: A staging filename to create intermediate tarball.
-        :param compression: Flag to compress TAR ball.
+        :param Sse | None sse: Server-side encryption.
+        :param Tags | None tags: :class:`Tags` for the object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for the object.
+        :param str | None staging_filename: A staging filename to create intermediate tarball.
+        :param bool compression: Flag to compress TAR ball.
         :return: :class:`ObjectWriteResult` object.
+        :rtype: ObjectWriteResult
 
-        Example::
+        .. code-block:: python
+
             from miniopy_async import Minio
             from miniopy_async.commonconfig import SnowballObject
             import io
@@ -4194,9 +4213,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     ],
                 )
 
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(main())
-            loop.close()
+            asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
 

@@ -20,19 +20,7 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-"""
-miniopy_async.sse
-~~~~~~~~~~~~~~~~~
-
-This module contains core API parsers.
-
-:copyright:
-(C) 2018 by MinIO, Inc.
-(C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
-(C) 2022 L-ING <hlf01@icloud.com>
-:license: Apache 2.0, see LICENSE for more details.
-
-"""
+"""This module contains core API parsers."""
 from __future__ import absolute_import, annotations
 
 import base64
