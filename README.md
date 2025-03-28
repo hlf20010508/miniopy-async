@@ -36,6 +36,7 @@
 git clone https://github.com/hlf20010508/miniopy-async.git
 cd miniopy-async
 poetry install
+poetry build
 ```
 
 <span id="installation"></span>
@@ -71,9 +72,7 @@ async def main():
     print('url:', url)
 
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
-loop.close()
+asyncio.run(main())
 ```
 
 ```py
