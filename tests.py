@@ -277,6 +277,9 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
         await self.client.remove_object(self.bucket_name, self.test_file_name)
 
+    async def test_list_object_versions(self):
+        await self.client.list_object_versions(self.bucket_name)
+
 
 if __name__ == "__main__":
     unittest.main()
