@@ -20,9 +20,10 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+# type: ignore[reportUnusedImport]
+
 """Credential module."""
 
-# pylint: disable=unused-import
 from .credentials import Credentials
 from .providers import (
     AssumeRoleProvider,
@@ -39,20 +40,3 @@ from .providers import (
     WebIdentityProvider,
     CertificateIdentityProvider,
 )
-
-__all__ = [
-    "Credentials",
-    "Provider",
-    "ChainedProvider",
-    "StaticProvider",
-    "EnvMinioProvider",
-    "EnvAWSProvider",
-    "MinioClientConfigProvider",
-    "AWSConfigProvider",
-    "AssumeRoleProvider",
-    "WebIdentityProvider",
-    "ClientGrantsProvider",
-    "IamAwsProvider",
-    "LdapIdentityProvider",
-    "CertificateIdentityProvider",
-]

@@ -20,6 +20,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+# type: ignore[reportUnusedImport]
+
 """
 miniopy-async - Asynchronous MinIO Client SDK for Python
 
@@ -47,11 +49,3 @@ __copyright__ = "(C) 2022 L-ING <hlf01@icloud.com>"
 from .api import Minio
 from .error import InvalidResponseError, S3Error, ServerError
 from .minioadmin import MinioAdmin
-
-__all__ = [
-    "Minio",
-    "MinioAdmin",
-    "InvalidResponseError",
-    "S3Error",
-    "ServerError",
-]
