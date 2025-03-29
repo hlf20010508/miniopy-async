@@ -26,7 +26,7 @@ from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
 from datetime import datetime
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .commonconfig import BaseRule, Filter, check_status
@@ -54,16 +54,16 @@ class DateDays:
         return self._days
 
     @staticmethod
-    def parsexml(element) -> tuple[datetime | None, int | None]:
+    def parsexml(element: ET.Element) -> tuple[datetime | None, int | None]:
         """Parse XML to date and days."""
         date = from_iso8601utc(findtext(element, "Date"))
         days = findtext(element, "Days")
-        if days is not None:
-            days = int(days)
-        return date, days
+        return date, int(days) if days else None
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         if self._date is not None:
             SubElement(
                 element,
@@ -98,13 +98,15 @@ class Transition(DateDays):
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, "Transition")
+        element = cast(ET.Element, find(element, "Transition", True))
         date, days = cls.parsexml(element)
         return cls(date, days, findtext(element, "StorageClass"))
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
-        element = SubElement(element, "NoncurrentVersionTransition")
+        if element is None:
+            raise ValueError("element must be provided")
+        element = SubElement(element, "Transition")
         super().toxml(element)
         if self._storage_class:
             SubElement(element, "StorageClass", self._storage_class)
@@ -121,9 +123,11 @@ class NoncurrentVersionTransition:
         self,
         noncurrent_days: int | None = None,
         storage_class: str | None = None,
+        newer_noncurrent_versions: int | None = None,
     ):
         self._noncurrent_days = noncurrent_days
         self._storage_class = storage_class
+        self._newer_noncurrent_versions = newer_noncurrent_versions
 
     @property
     def noncurrent_days(self) -> int | None:
@@ -135,22 +139,39 @@ class NoncurrentVersionTransition:
         """Get storage class."""
         return self._storage_class
 
+    @property
+    def newer_noncurrent_versions(self) -> int | None:
+        """Get Newer Noncurrent versions."""
+        return self._newer_noncurrent_versions
+
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        element = find(element, "NoncurrentVersionTransition")
+        element = cast(
+            ET.Element,
+            find(element, "NoncurrentVersionTransition", True),
+        )
         noncurrent_days = findtext(element, "NoncurrentDays")
-        if noncurrent_days is not None:
-            noncurrent_days = int(noncurrent_days)
-        return cls(noncurrent_days, findtext(element, "StorageClass"))
+        versions = findtext(element, "NewerNoncurrentVersions")
+        return cls(
+            int(noncurrent_days) if noncurrent_days else None,
+            findtext(element, "StorageClass"),
+            int(versions) if versions else None,
+        )
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "NoncurrentVersionTransition")
         if self._noncurrent_days:
             SubElement(element, "NoncurrentDays", str(self._noncurrent_days))
         if self._storage_class:
             SubElement(element, "StorageClass", self._storage_class)
+        if self._newer_noncurrent_versions:
+            SubElement(
+                element, "NewerNoncurrentVersions", str(self._newer_noncurrent_versions)
+            )
         return element
 
 
@@ -160,28 +181,49 @@ C = TypeVar("C", bound="NoncurrentVersionExpiration")
 class NoncurrentVersionExpiration:
     """Noncurrent version expiration."""
 
-    def __init__(self, noncurrent_days: int | None = None):
+    def __init__(
+        self,
+        noncurrent_days: int | None = None,
+        newer_noncurrent_versions: int | None = None,
+    ):
         self._noncurrent_days = noncurrent_days
+        self._newer_noncurrent_versions = newer_noncurrent_versions
 
     @property
     def noncurrent_days(self) -> int | None:
         """Get Noncurrent days."""
         return self._noncurrent_days
 
+    @property
+    def newer_noncurrent_versions(self) -> int | None:
+        """Get Newer Noncurrent versions."""
+        return self._newer_noncurrent_versions
+
     @classmethod
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
-        element = find(element, "NoncurrentVersionExpiration")
+        element = cast(
+            ET.Element,
+            find(element, "NoncurrentVersionExpiration", True),
+        )
         noncurrent_days = findtext(element, "NoncurrentDays")
-        if noncurrent_days is not None:
-            noncurrent_days = int(noncurrent_days)
-        return cls(noncurrent_days)
+        versions = findtext(element, "NewerNoncurrentVersions")
+        return cls(
+            int(noncurrent_days) if noncurrent_days else None,
+            int(versions) if versions else None,
+        )
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "NoncurrentVersionExpiration")
         if self._noncurrent_days:
             SubElement(element, "NoncurrentDays", str(self._noncurrent_days))
+        if self._newer_noncurrent_versions:
+            SubElement(
+                element, "NewerNoncurrentVersions", str(self._newer_noncurrent_versions)
+            )
         return element
 
 
@@ -208,32 +250,32 @@ class Expiration(DateDays):
     @classmethod
     def fromxml(cls: Type[D], element: ET.Element) -> D:
         """Create new object with values from XML element."""
-        element = find(element, "Expiration")
+        element = cast(ET.Element, find(element, "Expiration", True))
         date, days = cls.parsexml(element)
         expired_object_delete_marker = findtext(
             element,
             "ExpiredObjectDeleteMarker",
         )
-        if expired_object_delete_marker is not None:
-            if expired_object_delete_marker.title() not in ["False", "True"]:
-                raise ValueError(
-                    "value of ExpiredObjectDeleteMarker must be " "'True' or 'False'",
-                )
-            expired_object_delete_marker = (
-                expired_object_delete_marker.title() == "True"
-            )
+        if expired_object_delete_marker is None:
+            return cls(date, days, None)
 
-        return cls(date, days, expired_object_delete_marker)
+        if expired_object_delete_marker.title() not in ["False", "True"]:
+            raise ValueError(
+                "value of ExpiredObjectDeleteMarker must be " "'True' or 'False'",
+            )
+        return cls(date, days, expired_object_delete_marker.title() == "True")
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Expiration")
         super().toxml(element)
         if self._expired_object_delete_marker is not None:
             SubElement(
                 element,
                 "ExpiredObjectDeleteMarker",
-                str(self._expired_object_delete_marker),
+                str(self._expired_object_delete_marker).lower(),
             )
         return element
 
@@ -255,14 +297,19 @@ class AbortIncompleteMultipartUpload:
     @classmethod
     def fromxml(cls: Type[E], element: ET.Element) -> E:
         """Create new object with values from XML element."""
-        element = find(element, "AbortIncompleteMultipartUpload")
+        element = cast(
+            ET.Element,
+            find(element, "AbortIncompleteMultipartUpload", True),
+        )
         days_after_initiation = findtext(element, "DaysAfterInitiation")
-        if days_after_initiation is not None:
-            days_after_initiation = int(days_after_initiation)
-        return cls(days_after_initiation)
+        return cls(
+            int(days_after_initiation) if days_after_initiation else None,
+        )
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "AbortIncompleteMultipartUpload")
         if self._days_after_initiation:
             SubElement(
@@ -291,6 +338,19 @@ class Rule(BaseRule):
         transition: Transition | None = None,
     ):
         check_status(status)
+        if (
+            not abort_incomplete_multipart_upload
+            and not expiration
+            and not noncurrent_version_expiration
+            and not noncurrent_version_transition
+            and not transition
+        ):
+            raise ValueError(
+                "at least one of action (AbortIncompleteMultipartUpload, "
+                "Expiration, NoncurrentVersionExpiration, "
+                "NoncurrentVersionTransition or Transition) must be specified "
+                "in a rule"
+            )
         if not rule_filter:
             raise ValueError("Rule filter must be provided")
 
@@ -304,7 +364,7 @@ class Rule(BaseRule):
         self._transition = transition
 
     @property
-    def status(self) -> str:
+    def status(self) -> str | None:
         """Get status."""
         return self._status
 
@@ -321,12 +381,16 @@ class Rule(BaseRule):
         return self._expiration
 
     @property
-    def noncurrent_version_expiration(self) -> NoncurrentVersionExpiration | None:
+    def noncurrent_version_expiration(
+        self,
+    ) -> NoncurrentVersionExpiration | None:
         """Get noncurrent version expiration."""
         return self._noncurrent_version_expiration
 
     @property
-    def noncurrent_version_transition(self) -> NoncurrentVersionTransition | None:
+    def noncurrent_version_transition(
+        self,
+    ) -> NoncurrentVersionTransition | None:
         """Get noncurrent version transition."""
         return self._noncurrent_version_transition
 
@@ -338,7 +402,7 @@ class Rule(BaseRule):
     @classmethod
     def fromxml(cls: Type[F], element: ET.Element) -> F:
         """Create new object with values from XML element."""
-        status = findtext(element, "Status", True)
+        status = cast(str, findtext(element, "Status", True))
         abort_incomplete_multipart_upload = (
             None
             if find(element, "AbortIncompleteMultipartUpload") is None
@@ -375,6 +439,8 @@ class Rule(BaseRule):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Rule")
         SubElement(element, "Status", self._status)
         if self._abort_incomplete_multipart_upload:

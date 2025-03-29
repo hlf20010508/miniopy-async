@@ -20,7 +20,7 @@
 
 from __future__ import absolute_import, annotations
 
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .xml import Element, SubElement, findall, findtext
@@ -35,6 +35,8 @@ class DeleteObject:
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Object")
         SubElement(element, "Key", self._name)
         if self._version_id is not None:
@@ -100,7 +102,7 @@ class DeletedObject:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        name = findtext(element, "Key", True)
+        name = cast(str, findtext(element, "Key", True))
         version_id = findtext(element, "VersionId")
         delete_marker = findtext(element, "DeleteMarker")
         delete_marker = delete_marker is not None and delete_marker.title() == "True"
@@ -149,7 +151,7 @@ class DeleteError:
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        code = findtext(element, "Code", True)
+        code = cast(str, findtext(element, "Code", True))
         message = findtext(element, "Message")
         name = findtext(element, "Key")
         version_id = findtext(element, "VersionId")

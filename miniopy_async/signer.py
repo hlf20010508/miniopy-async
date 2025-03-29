@@ -29,13 +29,14 @@ import hmac
 import re
 from collections import OrderedDict
 from datetime import datetime
-from typing import Mapping
+from typing import cast
 from urllib.parse import SplitResult
+
+from aiohttp.typedefs import LooseHeaders
 
 from . import time
 from .helpers import queryencode, sha256_hash
 from .credentials import Credentials
-from .helpers import DictType
 
 SIGN_V4_ALGORITHM = "AWS4-HMAC-SHA256"
 _MULTI_SPACE_REGEX = re.compile(r"( +)")
@@ -47,51 +48,43 @@ def _hmac_hash(
     hexdigest: bool = False,
 ) -> bytes | str:
     """Return HMacSHA256 digest of given key and data."""
-
     hasher = hmac.new(key, data, hashlib.sha256)
     return hasher.hexdigest() if hexdigest else hasher.digest()
 
 
 def _get_scope(date: datetime, region: str, service_name: str) -> str:
     """Get scope string."""
-
-    return "{0}/{1}/{2}/aws4_request".format(
-        time.to_signer_date(date),
-        region,
-        service_name,
-    )
+    return f"{time.to_signer_date(date)}/{region}/{service_name}/aws4_request"
 
 
 def _get_canonical_headers(
-    headers: Mapping[str, str | list[str] | tuple[str]],
+    headers: LooseHeaders,
 ) -> tuple[str, str]:
     """Get canonical headers."""
-
-    canonical_headers = {}
+    ordered_headers = {}
+    headers = dict(headers)
     for key, values in headers.items():
+        key = cast(str, key)
         key = key.lower()
         if key not in (
             "authorization",
-            "content-type",
-            "content-length",
             "user-agent",
         ):
             values = values if isinstance(values, (list, tuple)) else [values]
-            canonical_headers[key] = ",".join(
-                [_MULTI_SPACE_REGEX.sub(" ", value) for value in values]
+            ordered_headers[key] = ",".join(
+                [_MULTI_SPACE_REGEX.sub(" ", value).strip() for value in values]
             )
 
-    canonical_headers = OrderedDict(sorted(canonical_headers.items()))
-    signed_headers = ";".join(canonical_headers.keys())
+    ordered_headers = OrderedDict(sorted(ordered_headers.items()))
+    signed_headers = ";".join(ordered_headers.keys())
     canonical_headers = "\n".join(
-        ["{0}:{1}".format(key, value) for key, value in canonical_headers.items()],
+        [f"{key}:{value}" for key, value in ordered_headers.items()],
     )
     return canonical_headers, signed_headers
 
 
 def _get_canonical_query_string(query: str) -> str:
     """Get canonical query string."""
-
     query = query or ""
     return "&".join(
         [
@@ -106,11 +99,10 @@ def _get_canonical_query_string(query: str) -> str:
 def _get_canonical_request_hash(
     method: str,
     url: SplitResult,
-    headers: Mapping[str, str | list[str] | tuple[str]],
+    headers: LooseHeaders,
     content_sha256: str,
 ) -> tuple[str, str]:
     """Get canonical request hash."""
-
     canonical_headers, signed_headers = _get_canonical_headers(headers)
     canonical_query_string = _get_canonical_query_string(url.query)
 
@@ -122,19 +114,12 @@ def _get_canonical_request_hash(
     #   SignedHeaders + '\n' +
     #   HexEncode(Hash(RequestPayload))
     canonical_request = (
-        "{method}\n"
-        "{canonical_uri}\n"
-        "{canonical_query_string}\n"
-        "{canonical_headers}\n\n"
-        "{signed_headers}\n"
-        "{content_sha256}"
-    ).format(
-        method=method,
-        canonical_uri=url.path,
-        canonical_query_string=canonical_query_string,
-        canonical_headers=canonical_headers,
-        signed_headers=signed_headers,
-        content_sha256=content_sha256,
+        f"{method}\n"
+        f"{url.path or '/'}\n"
+        f"{canonical_query_string}\n"
+        f"{canonical_headers}\n\n"
+        f"{signed_headers}\n"
+        f"{content_sha256}"
     )
     return sha256_hash(canonical_request), signed_headers
 
@@ -145,11 +130,9 @@ def _get_string_to_sign(
     canonical_request_hash: str,
 ) -> str:
     """Get string-to-sign."""
-
-    return "AWS4-HMAC-SHA256\n{date}\n{scope}\n{canonical_request_hash}".format(
-        date=time.to_amz_date(date),
-        scope=scope,
-        canonical_request_hash=canonical_request_hash,
+    return (
+        f"AWS4-HMAC-SHA256\n{time.to_amz_date(date)}\n{scope}\n"
+        f"{canonical_request_hash}"
     )
 
 
@@ -160,23 +143,30 @@ def _get_signing_key(
     service_name: str,
 ) -> bytes:
     """Get signing key."""
-
-    date_key = _hmac_hash(
-        ("AWS4" + secret_key).encode(),
-        time.to_signer_date(date).encode(),
+    date_key = cast(
+        bytes,
+        _hmac_hash(
+            ("AWS4" + secret_key).encode(),
+            time.to_signer_date(date).encode(),
+        ),
     )
-    date_region_key = _hmac_hash(date_key, region.encode())
-    date_region_service_key = _hmac_hash(
-        date_region_key,
-        service_name.encode(),
+    date_region_key = cast(bytes, _hmac_hash(date_key, region.encode()))
+    date_region_service_key = cast(
+        bytes,
+        _hmac_hash(date_region_key, service_name.encode()),
     )
-    return _hmac_hash(date_region_service_key, b"aws4_request")
+    return cast(
+        bytes,
+        _hmac_hash(date_region_service_key, b"aws4_request"),
+    )
 
 
 def _get_signature(signing_key: bytes, string_to_sign: str) -> str:
     """Get signature."""
-
-    return _hmac_hash(signing_key, string_to_sign.encode(), hexdigest=True)
+    return cast(
+        str,
+        _hmac_hash(signing_key, string_to_sign.encode(), hexdigest=True),
+    )
 
 
 def _get_authorization(
@@ -186,15 +176,9 @@ def _get_authorization(
     signature: str,
 ) -> str:
     """Get authorization."""
-
     return (
-        "AWS4-HMAC-SHA256 Credential={access_key}/{scope}, "
-        "SignedHeaders={signed_headers}, Signature={signature}"
-    ).format(
-        access_key=access_key,
-        scope=scope,
-        signed_headers=signed_headers,
-        signature=signature,
+        f"AWS4-HMAC-SHA256 Credential={access_key}/{scope}, "
+        f"SignedHeaders={signed_headers}, Signature={signature}"
     )
 
 
@@ -203,13 +187,12 @@ def _sign_v4(
     method: str,
     url: SplitResult,
     region: str,
-    headers: DictType,
+    headers: LooseHeaders,
     credentials: Credentials,
     content_sha256: str,
     date: datetime,
-) -> DictType:
+) -> LooseHeaders:
     """Do signature V4 of given request for given service name."""
-
     scope = _get_scope(date, region, service_name)
     canonical_request_hash, signed_headers = _get_canonical_request_hash(
         method,
@@ -231,6 +214,7 @@ def _sign_v4(
         signed_headers,
         signature,
     )
+    headers = dict(headers)
     headers["Authorization"] = authorization
     return headers
 
@@ -239,11 +223,11 @@ def sign_v4_s3(
     method: str,
     url: SplitResult,
     region: str,
-    headers: DictType,
+    headers: LooseHeaders,
     credentials: Credentials,
     content_sha256: str,
     date: datetime,
-) -> DictType:
+) -> LooseHeaders:
     """Do signature V4 of given request for S3 service."""
     return _sign_v4(
         "s3",
@@ -261,11 +245,11 @@ def sign_v4_sts(
     method: str,
     url: SplitResult,
     region: str,
-    headers: DictType,
+    headers: LooseHeaders,
     credentials: Credentials,
     content_sha256: str,
     date: datetime,
-) -> DictType:
+) -> LooseHeaders:
     """Do signature V4 of given request for STS service."""
     return _sign_v4(
         "sts",
@@ -288,21 +272,16 @@ def _get_presign_canonical_request_hash(  # pylint: disable=invalid-name
     expires: int,
 ) -> tuple[str, SplitResult]:
     """Get canonical request hash for presign request."""
-
+    x_amz_credential = queryencode(access_key + "/" + scope)
     canonical_headers, signed_headers = "host:" + url.netloc, "host"
 
     query = url.query + "&" if url.query else ""
     query += (
-        "X-Amz-Algorithm=AWS4-HMAC-SHA256"
-        "&X-Amz-Credential={0}"
-        "&X-Amz-Date={1}"
-        "&X-Amz-Expires={2}"
-        "&X-Amz-SignedHeaders={3}"
-    ).format(
-        queryencode(access_key + "/" + scope),
-        time.to_amz_date(date),
-        expires,
-        signed_headers,
+        f"X-Amz-Algorithm=AWS4-HMAC-SHA256"
+        f"&X-Amz-Credential={x_amz_credential}"
+        f"&X-Amz-Date={time.to_amz_date(date)}"
+        f"&X-Amz-Expires={expires}"
+        f"&X-Amz-SignedHeaders={signed_headers}"
     )
     parts = list(url)
     parts[3] = query
@@ -318,19 +297,12 @@ def _get_presign_canonical_request_hash(  # pylint: disable=invalid-name
     #   SignedHeaders + '\n' +
     #   HexEncode(Hash(RequestPayload))
     canonical_request = (
-        "{method}\n"
-        "{canonical_uri}\n"
-        "{canonical_query_string}\n"
-        "{canonical_headers}\n\n"
-        "{signed_headers}\n"
-        "{content_sha256}"
-    ).format(
-        method=method,
-        canonical_uri=url.path,
-        canonical_query_string=canonical_query_string,
-        canonical_headers=canonical_headers,
-        signed_headers=signed_headers,
-        content_sha256="UNSIGNED-PAYLOAD",
+        f"{method}\n"
+        f"{url.path or '/'}\n"
+        f"{canonical_query_string}\n"
+        f"{canonical_headers}\n\n"
+        f"{signed_headers}\n"
+        f"UNSIGNED-PAYLOAD"
     )
     return sha256_hash(canonical_request), url
 
@@ -344,7 +316,6 @@ def presign_v4(
     expires: int,
 ) -> SplitResult:
     """Do signature V4 of given presign request."""
-
     scope = _get_scope(date, region, "s3")
     canonical_request_hash, url = _get_presign_canonical_request_hash(
         method,
@@ -366,12 +337,7 @@ def presign_v4(
 
 def get_credential_string(access_key: str, date: datetime, region: str) -> str:
     """Get credential string of given access key, date and region."""
-
-    return "{0}/{1}/{2}/s3/aws4_request".format(
-        access_key,
-        time.to_signer_date(date),
-        region,
-    )
+    return f"{access_key}/{time.to_signer_date(date)}/{region}/s3/aws4_request"
 
 
 def post_presign_v4(

@@ -21,7 +21,7 @@
 from __future__ import absolute_import, annotations
 
 from datetime import datetime
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .commonconfig import COMPLIANCE, GOVERNANCE
@@ -36,12 +36,10 @@ class Retention:
 
     def __init__(self, mode: str, retain_until_date: datetime):
         if mode not in [GOVERNANCE, COMPLIANCE]:
-            raise ValueError(
-                "mode must be {0} or {1}".format(GOVERNANCE, COMPLIANCE),
-            )
+            raise ValueError(f"mode must be {GOVERNANCE} or {COMPLIANCE}")
         if not isinstance(retain_until_date, datetime):
             raise ValueError(
-                "retain until date must be datetime.datetime type",
+                "retain until date must be datetime type",
             )
         self._mode = mode
         self._retain_until_date = retain_until_date
@@ -59,9 +57,12 @@ class Retention:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        mode = findtext(element, "Mode", True)
-        retain_until_date = from_iso8601utc(
-            findtext(element, "RetainUntilDate", True),
+        mode = cast(str, findtext(element, "Mode", True))
+        retain_until_date = cast(
+            datetime,
+            from_iso8601utc(
+                cast(str, findtext(element, "RetainUntilDate", True)),
+            ),
         )
         return cls(mode, retain_until_date)
 

@@ -32,7 +32,7 @@ _S3_NAMESPACE = "http://s3.amazonaws.com/doc/2006-03-01/"
 def Element(
     tag: str,
     namespace: str = _S3_NAMESPACE,
-):  # pylint: disable=invalid-name
+) -> ET.Element:  # pylint: disable=invalid-name
     """Create ElementTree.Element with tag and namespace."""
     return ET.Element(tag, {"xmlns": namespace} if namespace else {})
 
@@ -62,22 +62,25 @@ def _get_namespace(element: ET.Element) -> str:
 def findall(element: ET.Element, name: str) -> list[ET.Element]:
     """Namespace aware ElementTree.Element.findall()."""
     namespace = _get_namespace(element)
-    return element.findall(
-        "ns:" + name if namespace else name,
-        {"ns": namespace} if namespace else {},
-    )
+    if namespace:
+        name = "/".join(["ns:" + token for token in name.split("/")])
+    return element.findall(name, {"ns": namespace} if namespace else {})
 
 
 def find(
     element: ET.Element,
     name: str,
+    strict: bool = False,
 ) -> ET.Element | None:
     """Namespace aware ElementTree.Element.find()."""
     namespace = _get_namespace(element)
-    return element.find(
+    elem = element.find(
         "ns:" + name if namespace else name,
         {"ns": namespace} if namespace else {},
     )
+    if strict and elem is None:
+        raise ValueError(f"XML element <{name}> not found")
+    return elem
 
 
 def findtext(
@@ -89,12 +92,8 @@ def findtext(
     Namespace aware ElementTree.Element.findtext() with strict flag
     raises ValueError if element name not exist.
     """
-    element = find(element, name)
-    if element is None:
-        if strict:
-            raise ValueError("XML element <{0}> not found".format(name))
-        return None
-    return element.text or ""
+    elem = find(element, name, strict=strict)
+    return None if elem is None else (elem.text or "")
 
 
 A = TypeVar("A")
@@ -106,6 +105,7 @@ class FromXmlType(Protocol):
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create python object with values from XML element."""
+        ...
 
 
 B = TypeVar("B", bound=FromXmlType)
@@ -118,13 +118,13 @@ def unmarshal(cls: Type[B], xmlstring: str) -> B:
 
 def getbytes(element: ET.Element) -> bytes:
     """Convert ElementTree.Element to bytes."""
-    data = io.BytesIO()
-    ET.ElementTree(element).write(
-        data,
-        encoding=None,
-        xml_declaration=False,
-    )
-    return data.getvalue()
+    with io.BytesIO() as data:
+        ET.ElementTree(element).write(
+            data,
+            encoding=None,
+            xml_declaration=False,
+        )
+        return data.getvalue()
 
 
 class ToXmlType(Protocol):
@@ -132,6 +132,7 @@ class ToXmlType(Protocol):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert python object to ElementTree.Element."""
+        ...
 
 
 def marshal(obj: ToXmlType) -> bytes:

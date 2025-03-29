@@ -25,9 +25,9 @@
 
 from __future__ import absolute_import, annotations
 
-from datetime import datetime
-from typing import IO, Type, TypeVar
 from abc import ABCMeta
+from datetime import datetime
+from typing import IO, Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .error import MinioException
@@ -84,13 +84,15 @@ class Tags(dict):
         elements = findall(element, "Tag")
         obj = cls()
         for tag in elements:
-            key = findtext(tag, "Key", True)
-            value = findtext(tag, "Value", True)
+            key = cast(str, findtext(tag, "Key", True))
+            value = cast(str, findtext(tag, "Value", True))
             obj[key] = value
         return obj
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         for key, value in self.items():
             tag = SubElement(element, "Tag")
             SubElement(tag, "Key", key)
@@ -125,13 +127,15 @@ class Tag:
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        element = find(element, "Tag")
-        key = findtext(element, "Key", True)
-        value = findtext(element, "Value", True)
+        element = cast(ET.Element, find(element, "Tag", True))
+        key = cast(str, findtext(element, "Key", True))
+        value = cast(str, findtext(element, "Value", True))
         return cls(key, value)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Tag")
         SubElement(element, "Key", self._key)
         SubElement(element, "Value", self._value)
@@ -163,13 +167,15 @@ class AndOperator:
     @classmethod
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
-        element = find(element, "And")
+        element = cast(ET.Element, find(element, "And", True))
         prefix = findtext(element, "Prefix")
         tags = None if find(element, "Tag") is None else Tags.fromxml(element)
         return cls(prefix, tags)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "And")
         if self._prefix is not None:
             SubElement(element, "Prefix", self._prefix)
@@ -215,7 +221,7 @@ class Filter:
     @classmethod
     def fromxml(cls: Type[D], element: ET.Element) -> D:
         """Create new object with values from XML element."""
-        element = find(element, "Filter")
+        element = cast(ET.Element, find(element, "Filter", True))
         and_operator = (
             None if find(element, "And") is None else AndOperator.fromxml(element)
         )
@@ -225,6 +231,8 @@ class Filter:
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Filter")
         if self._and_operator:
             self._and_operator.toxml(element)
@@ -273,6 +281,8 @@ class BaseRule:
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         if self._rule_filter:
             self._rule_filter.toxml(element)
         if self._rule_id is not None:
@@ -302,8 +312,8 @@ class ObjectConditionalReadArgs:
         length: int | None = None,
         match_etag: str | None = None,
         not_match_etag: str | None = None,
-        modified_since: str | None = None,
-        unmodified_since: str | None = None,
+        modified_since: datetime | None = None,
+        unmodified_since: datetime | None = None,
     ):
         if ssec is not None and not isinstance(ssec, SseCustomerKey):
             raise ValueError("ssec must be SseCustomerKey type")
@@ -378,12 +388,12 @@ class ObjectConditionalReadArgs:
         return self._not_match_etag
 
     @property
-    def modified_since(self) -> str | None:
+    def modified_since(self) -> datetime | None:
         """Get modified since condition."""
         return self._modified_since
 
     @property
-    def unmodified_since(self) -> str | None:
+    def unmodified_since(self) -> datetime | None:
         """Get unmodified since condition."""
         return self._unmodified_since
 
@@ -415,7 +425,7 @@ E = TypeVar("E", bound="CopySource")
 
 
 class CopySource(ObjectConditionalReadArgs):
-    """A source object defintion for copy_object method."""
+    """A source object definition for copy_object method."""
 
     @classmethod
     def of(cls: Type[E], src: ObjectConditionalReadArgs) -> E:
@@ -439,7 +449,7 @@ F = TypeVar("F", bound="ComposeSource")
 
 
 class ComposeSource(ObjectConditionalReadArgs):
-    """A source object defintion for compose_object method."""
+    """A source object definition for compose_object method."""
 
     def __init__(
         self,
@@ -452,8 +462,8 @@ class ComposeSource(ObjectConditionalReadArgs):
         length: int | None = None,
         match_etag: str | None = None,
         not_match_etag: str | None = None,
-        modified_since: str | None = None,
-        unmodified_since: str | None = None,
+        modified_since: datetime | None = None,
+        unmodified_since: datetime | None = None,
     ):
         super().__init__(
             bucket_name,
@@ -487,7 +497,7 @@ class ComposeSource(ObjectConditionalReadArgs):
             if self._length > object_size:
                 raise make_error("length", self._length)
             offset = self._offset or 0
-            if offset + self.length > object_size:
+            if offset + self._length > object_size:
                 raise make_error("compose size", offset + self._length)
 
     def build_headers(self, object_size: int, etag: str):
@@ -552,8 +562,10 @@ class SnowballObject:
             self._length = length
         else:
             raise ValueError("only one of filename or data must be provided")
+        if data is not None and length is None:
+            raise ValueError("length must be provided for data")
         if mod_time is not None and not isinstance(mod_time, datetime):
-            raise ValueError("mod_time must be datetime.datetime type")
+            raise ValueError("mod_time must be datetime type")
         self._mod_time = mod_time
 
     @property

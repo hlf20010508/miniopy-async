@@ -19,6 +19,7 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+from typing import cast
 from miniopy_async import Minio
 from miniopy_async.deleteobjects import DeleteObject
 import asyncio
@@ -42,17 +43,29 @@ async def main():
             DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
         ],
     )
-    async for error in errors:
+    for error in errors:
+        print("error occured when deleting object", error)
+
+    # As async generator
+    print("example two")
+    async for error in client.remove_objects(
+        "my-bucket",
+        [
+            DeleteObject("my-object1"),
+            DeleteObject("my-object2"),
+            DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+        ],
+    ):
         print("error occured when deleting object", error)
 
     # Remove a prefix recursively.
-    print("example two")
+    print("example three")
     delete_object_list = [
-        DeleteObject(obj.object_name)
+        DeleteObject(cast(str, obj.object_name))
         for obj in await client.list_objects("my-bucket", "my/prefix/", recursive=True)
     ]
     errors = await client.remove_objects("my-bucket", delete_object_list)
-    async for error in errors:
+    for error in errors:
         print("error occured when deleting object", error)
 
 

@@ -21,7 +21,7 @@
 from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .commonconfig import DISABLED, BaseRule, Filter, check_status
@@ -47,11 +47,14 @@ class Status:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, cls.__name__)
-        return cls(findtext(element, "Status", True))
+        element = cast(ET.Element, find(element, cls.__name__, True))
+        status = cast(str, findtext(element, "Status", True))
+        return cls(status)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, self.__class__.__name__)
         SubElement(element, "Status", self._status)
         return element
@@ -81,7 +84,10 @@ class SourceSelectionCriteria:
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        element = find(element, "SourceSelectionCriteria")
+        element = cast(
+            ET.Element,
+            find(element, "SourceSelectionCriteria", True),
+        )
         return cls(
             None
             if find(element, "SseKmsEncryptedObjects") is None
@@ -90,6 +96,8 @@ class SourceSelectionCriteria:
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "SourceSelectionCriteria")
         if self._sse_kms_encrypted_objects:
             self._sse_kms_encrypted_objects.toxml(element)
@@ -115,7 +123,7 @@ class ReplicationTimeValue:
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, minutes=15):
+    def __init__(self, minutes: None | int = 15):
         self._minutes = minutes
 
     @property
@@ -126,14 +134,14 @@ class ReplicationTimeValue:
     @classmethod
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
-        element = find(element, cls.__name__)
+        element = cast(ET.Element, find(element, cls.__name__, True))
         minutes = findtext(element, "Minutes")
-        if minutes is not None:
-            minutes = int(minutes)
-        return cls(minutes)
+        return cls(int(minutes) if minutes else None)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, self.__class__.__name__)
         if self._minutes is not None:
             SubElement(element, "Minutes", str(self._minutes))
@@ -170,13 +178,15 @@ class ReplicationTime:
     @classmethod
     def fromxml(cls: Type[D], element: ET.Element) -> D:
         """Create new object with values from XML element."""
-        element = find(element, "ReplicationTime")
+        element = cast(ET.Element, find(element, "ReplicationTime", True))
         time = Time.fromxml(element)
-        status = findtext(element, "Status", True)
+        status = cast(str, findtext(element, "Status", True))
         return cls(time, status)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "ReplicationTime")
         self._time.toxml(element)
         SubElement(element, "Status", self._status)
@@ -213,13 +223,15 @@ class Metrics:
     @classmethod
     def fromxml(cls: Type[E], element: ET.Element) -> E:
         """Create new object with values from XML element."""
-        element = find(element, "Metrics")
+        element = cast(ET.Element, find(element, "Metrics", True))
         event_threshold = EventThreshold.fromxml(element)
-        status = findtext(element, "Status", True)
+        status = cast(str, findtext(element, "Status", True))
         return cls(event_threshold, status)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Metrics")
         self._event_threshold.toxml(element)
         SubElement(element, "Status", self._status)
@@ -243,11 +255,16 @@ class EncryptionConfig:
     @classmethod
     def fromxml(cls: Type[F], element: ET.Element) -> F:
         """Create new object with values from XML element."""
-        element = find(element, "EncryptionConfiguration")
+        element = cast(
+            ET.Element,
+            find(element, "EncryptionConfiguration", True),
+        )
         return cls(findtext(element, "ReplicaKmsKeyID"))
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "EncryptionConfiguration")
         SubElement(element, "ReplicaKmsKeyID", self._replica_kms_key_id)
         return element
@@ -272,11 +289,17 @@ class AccessControlTranslation:
     @classmethod
     def fromxml(cls: Type[G], element: ET.Element) -> G:
         """Create new object with values from XML element."""
-        element = find(element, "AccessControlTranslation")
-        return cls(findtext(element, "Owner"))
+        element = cast(
+            ET.Element,
+            find(element, "AccessControlTranslation", True),
+        )
+        owner = cast(str, findtext(element, "Owner", True))
+        return cls(owner)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "AccessControlTranslation")
         SubElement(element, "Owner", self._owner)
         return element
@@ -346,14 +369,14 @@ class Destination:
     @classmethod
     def fromxml(cls: Type[H], element: ET.Element) -> H:
         """Create new object with values from XML element."""
-        element = find(element, "Destination")
+        element = cast(ET.Element, find(element, "Destination", True))
         access_control_translation = (
             None
             if find(element, "AccessControlTranslation") is None
             else AccessControlTranslation.fromxml(element)
         )
         account = findtext(element, "Account")
-        bucket_arn = findtext(element, "Bucket", True)
+        bucket_arn = cast(str, findtext(element, "Bucket", True))
         encryption_config = (
             None
             if find(element, "EncryptionConfiguration") is None
@@ -378,6 +401,8 @@ class Destination:
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Destination")
         if self._access_control_translation:
             self._access_control_translation.toxml(element)
@@ -482,14 +507,12 @@ class Rule(BaseRule):
         rule_filter, rule_id = cls.parsexml(element)
         prefix = findtext(element, "Prefix")
         priority = findtext(element, "Priority")
-        if priority:
-            priority = int(priority)
         source_selection_criteria = (
             None
             if find(element, "SourceSelectionCriteria") is None
             else SourceSelectionCriteria.fromxml(element)
         )
-        status = findtext(element, "Status", True)
+        status = cast(str, findtext(element, "Status", True))
 
         return cls(
             destination,
@@ -499,12 +522,14 @@ class Rule(BaseRule):
             rule_filter,
             rule_id,
             prefix,
-            priority,
+            int(priority) if priority else None,
             source_selection_criteria,
         )
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Rule")
         if self._delete_marker_replication:
             self._delete_marker_replication.toxml(element)
@@ -529,8 +554,6 @@ class ReplicationConfig:
     """Replication configuration."""
 
     def __init__(self, role: str, rules: list[Rule]):
-        if not role:
-            raise ValueError("role must be provided")
         if not rules:
             raise ValueError("rules must be provided")
         if len(rules) > 1000:
@@ -551,7 +574,7 @@ class ReplicationConfig:
     @classmethod
     def fromxml(cls: Type[J], element: ET.Element) -> J:
         """Create new object with values from XML element."""
-        role = findtext(element, "Role", True)
+        role = cast(str, findtext(element, "Role", True))
         elements = findall(element, "Rule")
         rules = []
         for tag in elements:

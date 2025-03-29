@@ -31,7 +31,7 @@ client = Minio(
 
 
 async def main():
-    await client.delete_object_tags("my-bucket")
+    await client.delete_object_tags("my-bucket", "my-object")
 
 
 asyncio.run(main())

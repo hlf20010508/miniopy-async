@@ -20,30 +20,28 @@
 
 from __future__ import absolute_import, annotations
 
-import locale
-from contextlib import contextmanager
 import time as ctime
 from datetime import datetime, timezone
-from typing import Generator
 import sys
 
 if sys.version_info > (3, 11):
     from datetime import UTC
 
-from . import __LOCALE_LOCK__
-
-_HTTP_HEADER_FORMAT = "%a, %d %b %Y %H:%M:%S GMT"
-
-
-@contextmanager
-def _set_locale(name: str) -> Generator[str]:
-    """Thread-safe wrapper to locale.setlocale()."""
-    with __LOCALE_LOCK__:
-        saved = locale.setlocale(locale.LC_ALL)
-        try:
-            yield locale.setlocale(locale.LC_ALL, name)
-        finally:
-            locale.setlocale(locale.LC_ALL, saved)
+_WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+_MONTHS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+]
 
 
 def _to_utc(value: datetime) -> datetime:
@@ -76,17 +74,38 @@ def to_iso8601utc(value: datetime | None) -> str | None:
 
 def from_http_header(value: str) -> datetime:
     """Parse HTTP header date formatted string to datetime."""
-    with _set_locale("C"):
-        return datetime.strptime(
-            value,
-            _HTTP_HEADER_FORMAT,
-        ).replace(tzinfo=timezone.utc)
+    if len(value) != 29:
+        raise ValueError(f"time data {value} does not match HTTP header format")
+
+    if value[0:3] not in _WEEK_DAYS or value[3] != ",":
+        raise ValueError(f"time data {value} does not match HTTP header format")
+    weekday = _WEEK_DAYS.index(value[0:3])
+
+    if value[4] != " " or value[7] != " ":
+        raise ValueError(f"time data {value} does not match HTTP header format")
+    day = int(value[5:7])
+
+    if value[8:11] not in _MONTHS:
+        raise ValueError(f"time data {value} does not match HTTP header format")
+    month = _MONTHS.index(value[8:11])
+
+    time = datetime.strptime(value[11:], " %Y %H:%M:%S GMT")
+    time = time.replace(day=day, month=month + 1, tzinfo=timezone.utc)
+
+    if weekday != time.weekday():
+        raise ValueError(f"time data {value} does not match HTTP header format")
+
+    return time
 
 
 def to_http_header(value: datetime) -> str:
     """Format datatime into HTTP header date formatted string."""
-    with _set_locale("C"):
-        return _to_utc(value).strftime(_HTTP_HEADER_FORMAT)
+    value = _to_utc(value)
+    weekday = _WEEK_DAYS[value.weekday()]
+    day = value.strftime(" %d ")
+    month = _MONTHS[value.month - 1]
+    suffix = value.strftime(" %Y %H:%M:%S GMT")
+    return f"{weekday},{day}{month}{suffix}"
 
 
 def to_amz_date(value: datetime) -> str:

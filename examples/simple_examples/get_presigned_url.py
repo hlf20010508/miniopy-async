@@ -66,23 +66,5 @@ async def main():
     )
     print("url:", url)
 
-    # Get presigned URL string to download 'my-object' in
-    # 'my-bucket' with public IP address when using private IP address.
-    client = Minio(
-        "127.0.0.1:9000",
-        access_key="your access key",
-        secret_key="you secret key",
-        secure=False,  # http for False, https for True
-    )
-
-    print("example four")
-    url = await client.get_presigned_url(
-        "GET",
-        "my-bucket",
-        "my-object",
-        change_host="https://YOURHOST:YOURPORT",
-    )
-    print("url:", url)
-
 
 asyncio.run(main())

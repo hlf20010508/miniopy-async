@@ -34,21 +34,19 @@ import time
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable
-from urllib.parse import urlencode, urlsplit
+from typing import Awaitable, Callable, cast
+from urllib.parse import urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
 
 import certifi
-from urllib3.poolmanager import PoolManager
+from aiohttp import ClientResponse, ClientSession, TCPConnector
+from aiohttp.typedefs import LooseHeaders
+from aiohttp_retry import ExponentialRetry, RetryClient
+from aiofile import async_open
+from yarl import URL
+import ssl
 
-try:
-    from urllib3.response import BaseHTTPResponse  # type: ignore[attr-defined]
-except ImportError:
-    from urllib3.response import HTTPResponse as BaseHTTPResponse
-
-from urllib3.util import Retry, parse_url
-
-from miniopy_async.helpers import sha256_hash
+from miniopy_async.helpers import sha256_hash, url_replace
 from miniopy_async.signer import sign_v4_sts
 from miniopy_async.time import from_iso8601utc, to_amz_date, utcnow
 from miniopy_async.xml import find, findtext
@@ -63,26 +61,26 @@ _DEFAULT_DURATION_SECONDS = int(timedelta(hours=1).total_seconds())
 def _parse_credentials(data: str, name: str) -> Credentials:
     """Parse data containing credentials XML."""
     element = ET.fromstring(data)
-    element = find(element, name)
-    element = find(element, "Credentials")
+    element = cast(ET.Element, find(element, name, True))
+    element = cast(ET.Element, find(element, "Credentials", True))
     expiration = from_iso8601utc(findtext(element, "Expiration", True))
     return Credentials(
-        findtext(element, "AccessKeyId", True),
-        findtext(element, "SecretAccessKey", True),
+        cast(str, findtext(element, "AccessKeyId", True)),
+        cast(str, findtext(element, "SecretAccessKey", True)),
         findtext(element, "SessionToken", True),
         expiration,
     )
 
 
-def _urlopen(
-    http_client: PoolManager,
+async def _urlopen(
+    session: ClientSession | RetryClient,
     method: str,
     url: str,
     body: str | bytes | None = None,
-    headers: dict[str, str | list[str] | tuple[str]] | None = None,
-) -> BaseHTTPResponse:
+    headers: LooseHeaders | None = None,
+) -> ClientResponse:
     """Wrapper of urlopen() handles HTTP status code."""
-    res = http_client.urlopen(method, url, body=body, headers=headers)
+    res = await session.request(method, url, data=body, headers=headers)
     if res.status not in [200, 204, 206]:
         raise ValueError(f"{url} failed with HTTP status code {res.status}")
     return res
@@ -99,7 +97,7 @@ class Provider:  # pylint: disable=too-few-public-methods
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials and its expiry if available."""
 
 
@@ -117,19 +115,13 @@ class AssumeRoleProvider(Provider):
         role_arn: str | None = None,
         role_session_name: str | None = None,
         external_id: str | None = None,
-        http_client: PoolManager | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
     ):
         self._sts_endpoint = sts_endpoint
         self._access_key = access_key
         self._secret_key = secret_key
         self._region = region or ""
-        self._http_client = http_client or PoolManager(
-            retries=Retry(
-                total=5,
-                backoff_factor=0.2,
-                status_forcelist=[500, 502, 503, 504],
-            ),
-        )
+        self._client_session = client_session
 
         query_params = {
             "Action": "AssumeRole",
@@ -158,10 +150,20 @@ class AssumeRoleProvider(Provider):
         if (url.scheme == "http" and url.port == 80) or (
             url.scheme == "https" and url.port == 443
         ):
-            self._host = url.hostname
+            self._host = cast(str, url.hostname)
         self._credentials = None
 
-    def retrieve(self) -> Credentials:
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                retry_options=ExponentialRetry(
+                    attempts=5, factor=0.2, statuses={500, 502, 503, 504}
+                ),
+            )
+
+        return self._client_session()
+
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
@@ -181,18 +183,19 @@ class AssumeRoleProvider(Provider):
             utctime,
         )
 
-        res = _urlopen(
-            self._http_client,
-            "POST",
-            self._sts_endpoint,
-            body=self._body,
-            headers=headers,
-        )
+        async with self._session() as session:
+            res = await _urlopen(
+                session,
+                "POST",
+                self._sts_endpoint,
+                body=self._body,
+                headers=headers,
+            )
 
-        self._credentials = _parse_credentials(
-            res.data.decode(),
-            "AssumeRoleResult",
-        )
+            self._credentials = _parse_credentials(
+                await res.text(),
+                "AssumeRoleResult",
+            )
 
         return self._credentials
 
@@ -205,14 +208,14 @@ class ChainedProvider(Provider):
         self._provider: Provider | None = None
         self._credentials: Credentials | None = None
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials from one of available provider."""
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
         if self._provider:
             try:
-                self._credentials = self._provider.retrieve()
+                self._credentials = await self._provider.retrieve()
                 return self._credentials
             except ValueError:
                 # Ignore this error and iterate other providers.
@@ -220,7 +223,7 @@ class ChainedProvider(Provider):
 
         for provider in self._providers:
             try:
-                self._credentials = provider.retrieve()
+                self._credentials = await provider.retrieve()
                 self._provider = provider
                 return self._credentials
             except ValueError:
@@ -233,15 +236,22 @@ class ChainedProvider(Provider):
 class EnvAWSProvider(Provider):
     """Credential provider from AWS environment variables."""
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
         return Credentials(
             access_key=(
-                os.environ.get("AWS_ACCESS_KEY_ID") or os.environ.get("AWS_ACCESS_KEY")
+                cast(
+                    str,
+                    os.environ.get("AWS_ACCESS_KEY_ID")
+                    or os.environ.get("AWS_ACCESS_KEY"),
+                )
             ),
             secret_key=(
-                os.environ.get("AWS_SECRET_ACCESS_KEY")
-                or os.environ.get("AWS_SECRET_KEY")
+                cast(
+                    str,
+                    os.environ.get("AWS_SECRET_ACCESS_KEY")
+                    or os.environ.get("AWS_SECRET_KEY"),
+                )
             ),
             session_token=os.environ.get("AWS_SESSION_TOKEN"),
         )
@@ -250,11 +260,11 @@ class EnvAWSProvider(Provider):
 class EnvMinioProvider(Provider):
     """Credential provider from MinIO environment variables."""
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
         return Credentials(
-            access_key=os.environ.get("MINIO_ACCESS_KEY"),
-            secret_key=os.environ.get("MINIO_SECRET_KEY"),
+            access_key=os.environ.get("MINIO_ACCESS_KEY") or "",
+            secret_key=os.environ.get("MINIO_SECRET_KEY") or "",
         )
 
 
@@ -273,7 +283,7 @@ class AWSConfigProvider(Provider):
         )
         self._profile = profile or os.environ.get("AWS_PROFILE") or "default"
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials from AWS configuration file."""
         parser = configparser.ConfigParser()
         parser.read(self._filename)
@@ -323,11 +333,11 @@ class MinioClientConfigProvider(Provider):
         )
         self._alias = alias or os.environ.get("MINIO_ALIAS") or "s3"
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credential value from MinIO client configuration file."""
         try:
-            with open(self._filename, encoding="utf-8") as conf_file:
-                config = json.load(conf_file)
+            async with async_open(self._filename, encoding="utf-8") as conf_file:
+                config = json.loads(await conf_file.read())
             aliases = config.get("hosts") or config.get("aliases")
             if not aliases:
                 raise ValueError(
@@ -348,7 +358,7 @@ class MinioClientConfigProvider(Provider):
 
 def _check_loopback_host(url: str):
     """Check whether host in url points only to localhost."""
-    host = parse_url(url).host
+    host = cast(str, URL(url).host)
     try:
         addrs = set(info[4][0] for info in socket.getaddrinfo(host, None))
         for addr in addrs:
@@ -358,11 +368,11 @@ def _check_loopback_host(url: str):
         raise ValueError("Host " + host + " is not loopback address") from exc
 
 
-def _get_jwt_token(token_file: str) -> dict[str, str]:
+async def _get_jwt_token(token_file: str) -> dict[str, str]:
     """Read and return content of token file."""
     try:
-        with open(token_file, encoding="utf-8") as file:
-            return {"access_token": file.read(), "expires_in": "0"}
+        async with async_open(token_file, encoding="utf-8") as file:
+            return {"access_token": await file.read(), "expires_in": "0"}
     except (IOError, OSError) as exc:
         raise ValueError(f"error in reading file {token_file}") from exc
 
@@ -371,33 +381,60 @@ class IamAwsProvider(Provider):
     """Credential provider using IAM roles for Amazon EC2/ECS."""
 
     def __init__(
-        self, custom_endpoint: str | None = None, http_client: PoolManager | None = None
+        self,
+        custom_endpoint: str | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        auth_token: str | None = None,
+        relative_uri: str | None = None,
+        full_uri: str | None = None,
+        token_file: str | None = None,
+        role_arn: str | None = None,
+        role_session_name: str | None = None,
+        region: str | None = None,
     ):
         self._custom_endpoint = custom_endpoint
-        self._http_client = http_client or PoolManager(
-            retries=Retry(
-                total=5,
-                backoff_factor=0.2,
-                status_forcelist=[500, 502, 503, 504],
-            ),
+        self._client_session = client_session
+        self._token = os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN") or auth_token
+        self._token_file = (
+            os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE") or auth_token
         )
-        self._token_file = os.environ.get("AWS_WEB_IDENTITY_TOKEN_FILE")
-        self._aws_region = os.environ.get("AWS_REGION")
-        self._role_arn = os.environ.get("AWS_ROLE_ARN")
-        self._role_session_name = os.environ.get("AWS_ROLE_SESSION_NAME")
-        self._relative_uri = os.environ.get(
-            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+        self._identity_file = (
+            os.environ.get("AWS_WEB_IDENTITY_TOKEN_FILE") or token_file
+        )
+        self._aws_region = os.environ.get("AWS_REGION") or region
+        self._role_arn = os.environ.get("AWS_ROLE_ARN") or role_arn
+        self._role_session_name = (
+            os.environ.get("AWS_ROLE_SESSION_NAME") or role_session_name
+        )
+        self._relative_uri = (
+            os.environ.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI") or relative_uri
         )
         if self._relative_uri and not self._relative_uri.startswith("/"):
             self._relative_uri = "/" + self._relative_uri
-        self._full_uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
-        self._credentials = None
+        self._full_uri = (
+            os.environ.get("AWS_CONTAINER_CREDENTIALS_FULL_URI") or full_uri
+        )
+        self._credentials: Credentials | None = None
 
-    def fetch(self, url: str) -> Credentials:
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                retry_options=ExponentialRetry(
+                    attempts=5, factor=0.2, statuses={500, 502, 503, 504}
+                ),
+            )
+
+        return self._client_session()
+
+    async def fetch(
+        self,
+        url: str,
+        headers: dict[str, str] | None = None,
+    ) -> Credentials:
         """Fetch credentials from EC2/ECS."""
-
-        res = _urlopen(self._http_client, "GET", url)
-        data = json.loads(res.data)
+        async with self._session() as session:
+            res = await _urlopen(session, "GET", url, headers=headers)
+            data = json.loads(await res.text())
         if data.get("Code", "Success") != "Success":
             raise ValueError(
                 f"{url} failed with code {data['Code']} "
@@ -412,7 +449,7 @@ class IamAwsProvider(Provider):
             data["Expiration"],
         )
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials from WebIdentity/EC2/ECS."""
 
         if self._credentials and not self._credentials.is_expired():
@@ -426,36 +463,62 @@ class IamAwsProvider(Provider):
                     url = f"https://sts.{self._aws_region}.amazonaws.com"
 
             provider = WebIdentityProvider(
-                lambda: _get_jwt_token(self._token_file),
+                lambda: _get_jwt_token(cast(str, self._identity_file)),
                 url,
                 role_arn=self._role_arn,
                 role_session_name=self._role_session_name,
-                http_client=self._http_client,
+                client_session=self._session,
             )
-            self._credentials = provider.retrieve()
+            self._credentials = await provider.retrieve()
             return self._credentials
 
+        headers: dict[str, str] | None = None
         if self._relative_uri:
             if not url:
                 url = "http://169.254.170.2" + self._relative_uri
+            headers = {"Authorization": self._token} if self._token else None
         elif self._full_uri:
-            if not url:
+            token = self._token
+            if self._token_file:
                 url = self._full_uri
-            _check_loopback_host(url)
+                async with async_open(self._token_file, encoding="utf-8") as file:
+                    token = await file.read()
+            else:
+                if not url:
+                    url = self._full_uri
+                    _check_loopback_host(url)
+            headers = {"Authorization": token} if token else None
         else:
             if not url:
-                url = (
-                    "http://169.254.169.254"
-                    + "/latest/meta-data/iam/security-credentials/"
-                )
+                url = "http://169.254.169.254"
 
-            res = _urlopen(self._http_client, "GET", url)
-            role_names = res.data.decode("utf-8").split("\n")
+            async with self._session() as session:
+                # Get IMDS Token
+                res = await _urlopen(
+                    session,
+                    "PUT",
+                    url + "/latest/api/token",
+                    headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+                )
+                token = await res.text("utf-8")
+            headers = {"X-aws-ec2-metadata-token": token} if token else None
+
+            # Get role name
+            url = urlunsplit(
+                url_replace(
+                    urlsplit(url),
+                    path="/latest/meta-data/iam/security-credentials/",
+                ),
+            )
+            async with self._session() as session:
+                res = await _urlopen(session, "GET", url, headers=headers)
+                role_names = (await res.text("utf-8")).split("\n")
             if not role_names:
                 raise ValueError(f"no IAM roles attached to EC2 service {url}")
-            url += "/" + role_names[0].strip("\r")
-
-        self._credentials = self.fetch(url)
+            url += role_names[0].strip("\r")
+        if not url:
+            raise ValueError("url is empty; this should not happen")
+        self._credentials = await self.fetch(url, headers=headers)
         return self._credentials
 
 
@@ -467,7 +530,7 @@ class LdapIdentityProvider(Provider):
         sts_endpoint: str,
         ldap_username: str,
         ldap_password: str,
-        http_client: PoolManager | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
     ):
         self._sts_endpoint = (
             sts_endpoint
@@ -481,31 +544,36 @@ class LdapIdentityProvider(Provider):
                 },
             )
         )
-        self._http_client = http_client or PoolManager(
-            retries=Retry(
-                total=5,
-                backoff_factor=0.2,
-                status_forcelist=[500, 502, 503, 504],
-            ),
-        )
+        self._client_session = client_session
         self._credentials = None
 
-    def retrieve(self) -> Credentials:
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                retry_options=ExponentialRetry(
+                    attempts=5, factor=0.2, statuses={500, 502, 503, 504}
+                ),
+            )
+
+        return self._client_session()
+
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
 
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
-        res = _urlopen(
-            self._http_client,
-            "POST",
-            self._sts_endpoint,
-        )
+        async with self._session() as session:
+            res = await _urlopen(
+                session,
+                "POST",
+                self._sts_endpoint,
+            )
 
-        self._credentials = _parse_credentials(
-            res.data.decode(),
-            "AssumeRoleWithLDAPIdentityResult",
-        )
+            self._credentials = _parse_credentials(
+                await res.text(),
+                "AssumeRoleWithLDAPIdentityResult",
+            )
 
         return self._credentials
 
@@ -521,7 +589,7 @@ class StaticProvider(Provider):
     ):
         self._credentials = Credentials(access_key, secret_key, session_token)
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Return passed credentials."""
         return self._credentials
 
@@ -533,13 +601,13 @@ class WebIdentityClientGrantsProvider(Provider):
 
     def __init__(
         self,
-        jwt_provider_func: Callable[[], dict[str, str]],
+        jwt_provider_func: Callable[[], Awaitable[dict[str, str]]],
         sts_endpoint: str,
         duration_seconds: int = 0,
         policy: str | None = None,
         role_arn: str | None = None,
         role_session_name: str | None = None,
-        http_client: PoolManager | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
     ):
         self._jwt_provider_func = jwt_provider_func
         self._sts_endpoint = sts_endpoint
@@ -547,14 +615,18 @@ class WebIdentityClientGrantsProvider(Provider):
         self._policy = policy
         self._role_arn = role_arn
         self._role_session_name = role_session_name
-        self._http_client = http_client or PoolManager(
-            retries=Retry(
-                total=5,
-                backoff_factor=0.2,
-                status_forcelist=[500, 502, 503, 504],
-            ),
-        )
+        self._client_session = client_session
         self._credentials: Credentials | None = None
+
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                retry_options=ExponentialRetry(
+                    attempts=5, factor=0.2, statuses={500, 502, 503, 504}
+                ),
+            )
+
+        return self._client_session()
 
     @abstractmethod
     def _is_web_identity(self) -> bool:
@@ -574,13 +646,13 @@ class WebIdentityClientGrantsProvider(Provider):
 
         return _MIN_DURATION_SECONDS if expiry < _MIN_DURATION_SECONDS else expiry
 
-    def retrieve(self) -> Credentials:
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
 
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
-        jwt = self._jwt_provider_func()
+        jwt = await self._jwt_provider_func()
 
         query_params = {"Version": "2011-06-15"}
         duration_seconds = self._get_duration_seconds(
@@ -591,9 +663,10 @@ class WebIdentityClientGrantsProvider(Provider):
         if self._policy:
             query_params["Policy"] = self._policy
 
+        access_token = jwt.get("access_token") or jwt.get("id_token", "")
         if self._is_web_identity():
             query_params["Action"] = "AssumeRoleWithWebIdentity"
-            query_params["WebIdentityToken"] = jwt.get("access_token")
+            query_params["WebIdentityToken"] = access_token
             if self._role_arn:
                 query_params["RoleArn"] = self._role_arn
                 query_params["RoleSessionName"] = (
@@ -603,19 +676,20 @@ class WebIdentityClientGrantsProvider(Provider):
                 )
         else:
             query_params["Action"] = "AssumeRoleWithClientGrants"
-            query_params["Token"] = jwt.get("access_token")
+            query_params["Token"] = access_token
 
         url = self._sts_endpoint + "?" + urlencode(query_params)
-        res = _urlopen(self._http_client, "POST", url)
+        async with self._session() as session:
+            res = await _urlopen(session, "POST", url)
 
-        self._credentials = _parse_credentials(
-            res.data.decode(),
-            (
-                "AssumeRoleWithWebIdentityResult"
-                if self._is_web_identity()
-                else "AssumeRoleWithClientGrantsResult"
-            ),
-        )
+            self._credentials = _parse_credentials(
+                await res.text(),
+                (
+                    "AssumeRoleWithWebIdentityResult"
+                    if self._is_web_identity()
+                    else "AssumeRoleWithClientGrantsResult"
+                ),
+            )
 
         return self._credentials
 
@@ -625,18 +699,18 @@ class ClientGrantsProvider(WebIdentityClientGrantsProvider):
 
     def __init__(
         self,
-        jwt_provider_func: Callable[[], dict[str, str]],
+        jwt_provider_func: Callable[[], Awaitable[dict[str, str]]],
         sts_endpoint: str,
         duration_seconds: int = 0,
         policy: str | None = None,
-        http_client: PoolManager | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
     ):
         super().__init__(
             jwt_provider_func,
             sts_endpoint,
             duration_seconds,
             policy,
-            http_client=http_client,
+            client_session=client_session,
         )
 
     def _is_web_identity(self) -> bool:
@@ -661,16 +735,16 @@ class CertificateIdentityProvider(Provider):
         key_password: str | None = None,
         ca_certs: str | None = None,
         duration_seconds: int = 0,
-        http_client: PoolManager | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
     ):
         if urlsplit(sts_endpoint).scheme != "https":
             raise ValueError("STS endpoint scheme must be HTTPS")
 
-        if bool(http_client) != (cert_file and key_file):
+        if bool(client_session) != (cert_file and key_file):
             pass
         else:
             raise ValueError(
-                "either cert/key file or custom http_client must be provided",
+                "either cert/key file or custom client_session must be provided",
             )
 
         self._sts_endpoint = (
@@ -688,36 +762,45 @@ class CertificateIdentityProvider(Provider):
                 },
             )
         )
-        self._http_client = http_client or PoolManager(
-            maxsize=10,
-            cert_file=cert_file,
-            cert_reqs="CERT_REQUIRED",
-            key_file=key_file,
-            key_password=key_password,
-            ca_certs=ca_certs or certifi.where(),
-            retries=Retry(
-                total=5,
-                backoff_factor=0.2,
-                status_forcelist=[500, 502, 503, 504],
-            ),
+        ssl_context = ssl.create_default_context(cafile=ca_certs or certifi.where())
+        if cert_file and key_file:
+            ssl_context.load_cert_chain(
+                certfile=cert_file, keyfile=key_file, password=key_password
+            )
+        self._ssl_context = ssl_context
+        self._retry_options = ExponentialRetry(
+            attempts=5, factor=0.2, statuses={500, 502, 503, 504}
         )
+        self._client_session = client_session
         self._credentials: Credentials | None = None
 
-    def retrieve(self) -> Credentials:
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                ClientSession(
+                    connector=TCPConnector(limit=10, ssl=self._ssl_context),
+                ),
+                retry_options=self._retry_options,
+            )
+
+        return self._client_session()
+
+    async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
 
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
-        res = _urlopen(
-            self._http_client,
-            "POST",
-            self._sts_endpoint,
-        )
+        async with self._session() as session:
+            res = await _urlopen(
+                session,
+                "POST",
+                self._sts_endpoint,
+            )
 
-        self._credentials = _parse_credentials(
-            res.data.decode(),
-            "AssumeRoleWithCertificateResult",
-        )
+            self._credentials = _parse_credentials(
+                await res.text(),
+                "AssumeRoleWithCertificateResult",
+            )
 
         return self._credentials

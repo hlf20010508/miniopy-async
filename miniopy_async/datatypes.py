@@ -27,10 +27,14 @@ Response of ListBuckets, ListObjects, ListObjectsV2 and ListObjectVersions API.
 from __future__ import absolute_import, annotations
 
 import base64
+import json
+from collections import OrderedDict
 from datetime import datetime
+from enum import Enum
 from typing import (
     Any,
     AsyncGenerator,
+    Iterable,
     List,
     Tuple,
     Type,
@@ -38,19 +42,20 @@ from typing import (
     cast,
     TYPE_CHECKING,
 )
-import json
-from collections import OrderedDict
 from urllib.parse import unquote_plus
 from xml.etree import ElementTree as ET
 
+from aiohttp import ClientResponse, ClientSession
+from aiohttp.typedefs import LooseHeaders
+from aiohttp_retry import RetryClient
 from multidict import CIMultiDictProxy
-from urllib3._collections import HTTPHeaderDict
+import itertools
 
-import aiohttp
+from miniopy_async.deleteobjects import DeleteError, DeleteObject
 
 from .commonconfig import Tags
 from .credentials import Credentials
-from .helpers import check_bucket_name
+from .helpers import DictType, check_bucket_name
 from .signer import get_credential_string, post_presign_v4
 from .time import from_iso8601utc, to_amz_date, to_iso8601utc, utcnow
 from .xml import find, findall, findtext
@@ -110,16 +115,18 @@ class ListAllMyBucketsResult:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, "Buckets")
+        element = cast(ET.Element, find(element, "Buckets", True))
         buckets = []
-        if element is not None:
-            elements = findall(element, "Bucket")
-            for bucket in elements:
-                name = findtext(bucket, "Name", True)
-                creation_date = findtext(bucket, "CreationDate")
-                if creation_date:
-                    creation_date = from_iso8601utc(creation_date)
-                buckets.append(Bucket(name, creation_date))
+        elements = findall(element, "Bucket")
+        for bucket in elements:
+            name = cast(str, findtext(bucket, "Name", True))
+            creation_date = findtext(bucket, "CreationDate")
+            buckets.append(
+                Bucket(
+                    name,
+                    from_iso8601utc(creation_date) if creation_date else None,
+                )
+            )
         return cls(buckets)
 
 
@@ -136,7 +143,7 @@ class Object:
         last_modified: datetime | None = None,
         etag: str | None = None,
         size: int | None = None,
-        metadata: dict[str, str] | HTTPHeaderDict | None = None,
+        metadata: LooseHeaders | None = None,
         version_id: str | None = None,
         is_latest: str | None = None,
         storage_class: str | None = None,
@@ -174,7 +181,7 @@ class Object:
     @property
     def is_dir(self) -> bool:
         """Get whether this key is a directory."""
-        return self._object_name.endswith("/")
+        return self._object_name is not None and self._object_name.endswith("/")
 
     @property
     def last_modified(self) -> datetime | None:
@@ -192,7 +199,7 @@ class Object:
         return self._size
 
     @property
-    def metadata(self) -> dict[str, str] | HTTPHeaderDict | None:
+    def metadata(self) -> LooseHeaders | None:
         """Get metadata."""
         return self._metadata
 
@@ -299,13 +306,13 @@ class Object:
         )
 
 
-async def parse_list_objects(
-    response: aiohttp.ClientResponse,
+def parse_list_objects(
+    response_data: str,
     bucket_name: str | None = None,
 ) -> tuple[list[Object], bool, str | None, str | None]:
     """Parse ListObjects/ListObjectsV2/ListObjectVersions response."""
-    element = ET.fromstring(await response.text())
-    bucket_name = findtext(element, "Name", True)
+    element = ET.fromstring(response_data)
+    bucket_name = cast(str, findtext(element, "Name", True))
     encoding_type = findtext(element, "EncodingType")
     elements = findall(element, "Contents")
     objects = [
@@ -325,7 +332,7 @@ async def parse_list_objects(
         Object(
             bucket_name,
             (
-                unquote_plus(findtext(tag, "Prefix", True))
+                unquote_plus(findtext(tag, "Prefix", True) or "")
                 if encoding_type == "url"
                 else findtext(tag, "Prefix", True)
             ),
@@ -361,7 +368,7 @@ async def parse_list_objects(
 class CompleteMultipartUploadResult:
     """CompleteMultipartUpload API result."""
 
-    def __init__(self, response: aiohttp.ClientResponse, response_data: str):
+    def __init__(self, response: ClientResponse, response_data: str):
         element = ET.fromstring(response_data)
         self._bucket_name = findtext(element, "Bucket")
         self._object_name = findtext(element, "Key")
@@ -371,10 +378,6 @@ class CompleteMultipartUploadResult:
             self._etag = self._etag.replace('"', "")
         self._version_id = response.headers.get("x-amz-version-id")
         self._http_headers = response.headers
-
-    @classmethod
-    async def from_async_response(cls, response: aiohttp.ClientResponse):
-        return cls(response, await response.text())
 
     @property
     def bucket_name(self) -> str | None:
@@ -448,15 +451,18 @@ class Part:
     @classmethod
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
-        part_number = findtext(element, "PartNumber", True)
-        etag = findtext(element, "ETag", True)
+        part_number = int(cast(str, findtext(element, "PartNumber", True)))
+        etag = cast(str, findtext(element, "ETag", True))
         etag = etag.replace('"', "")
         tag = findtext(element, "LastModified")
         last_modified = None if tag is None else from_iso8601utc(tag)
         size = findtext(element, "Size")
-        if size:
-            size = int(size)
-        return cls(part_number, etag, last_modified, size)
+        return cls(
+            part_number,
+            etag,
+            last_modified,
+            int(size) if size else None,
+        )
 
 
 class ListPartsResult:
@@ -474,19 +480,14 @@ class ListPartsResult:
         self._owner_name = None if tag is None else findtext(tag, "DisplayName")
         self._storage_class = findtext(element, "StorageClass")
         self._part_number_marker = findtext(element, "PartNumberMarker")
-        self._next_part_number_marker = findtext(
-            element,
-            "NextPartNumberMarker",
+        next_part_number_marker = findtext(element, "NextPartNumberMarker")
+        self._next_part_number_marker = (
+            int(next_part_number_marker) if next_part_number_marker else None
         )
-        if self._next_part_number_marker:
-            self._next_part_number_marker = int(self._next_part_number_marker)
-        self._max_parts = findtext(element, "MaxParts")
-        if self._max_parts:
-            self._max_parts = int(self._max_parts)
-        self._is_truncated = findtext(element, "IsTruncated")
-        self._is_truncated = (
-            self._is_truncated is not None and self._is_truncated.lower() == "true"
-        )
+        max_parts = findtext(element, "MaxParts")
+        self._max_parts = int(max_parts) if max_parts else None
+        is_truncated = findtext(element, "IsTruncated")
+        self._is_truncated = is_truncated is not None and is_truncated.lower() == "true"
         self._parts = [Part.fromxml(tag) for tag in findall(element, "Part")]
 
     @property
@@ -540,12 +541,12 @@ class ListPartsResult:
         return self._max_parts
 
     @property
-    def is_truncated(self) -> int | None:
+    def is_truncated(self) -> bool:
         """Get is-truncated flag."""
         return self._is_truncated
 
     @property
-    def parts(self) -> List[Part]:
+    def parts(self) -> list[Part]:
         """Get parts."""
         return self._parts
 
@@ -555,11 +556,9 @@ class Upload:
 
     def __init__(self, element: ET.Element, encoding_type: str | None = None):
         self._encoding_type = encoding_type
-        self._object_name = findtext(element, "Key", True)
+        object_name = cast(str, findtext(element, "Key", True))
         self._object_name = (
-            unquote_plus(self._object_name)
-            if self._encoding_type == "url"
-            else self._object_name
+            unquote_plus(object_name) if self._encoding_type == "url" else object_name
         )
         self._upload_id = findtext(element, "UploadId")
         tag = find(element, "Initiator")
@@ -569,9 +568,10 @@ class Upload:
         self._owner_id = None if tag is None else findtext(tag, "ID")
         self._owner_name = None if tag is None else findtext(tag, "DisplayName")
         self._storage_class = findtext(element, "StorageClass")
-        self._initiated_time = findtext(element, "Initiated")
-        if self._initiated_time:
-            self._initiated_time = from_iso8601utc(self._initiated_time)
+        initiated_time = findtext(element, "Initiated")
+        self._initiated_time = (
+            from_iso8601utc(initiated_time) if initiated_time else None
+        )
 
     @property
     def object_name(self) -> str:
@@ -579,32 +579,32 @@ class Upload:
         return self._object_name
 
     @property
-    def initiator_id(self) -> str:
+    def initiator_id(self) -> str | None:
         """Get initiator ID."""
         return self._initiator_id
 
     @property
-    def initator_name(self) -> str:
+    def initator_name(self) -> str | None:
         """Get initiator name."""
         return self._initiator_name
 
     @property
-    def owner_id(self) -> str:
+    def owner_id(self) -> str | None:
         """Get owner ID."""
         return self._owner_id
 
     @property
-    def owner_name(self) -> str:
+    def owner_name(self) -> str | None:
         """Get owner name."""
         return self._owner_name
 
     @property
-    def storage_class(self) -> str:
+    def storage_class(self) -> str | None:
         """Get storage class."""
         return self._storage_class
 
     @property
-    def upload_id(self) -> str:
+    def upload_id(self) -> str | None:
         """Get upload ID."""
         return self._upload_id
 
@@ -637,13 +637,10 @@ class ListMultipartUploadsResult:
                 else self._next_key_marker
             )
         self._next_upload_id_marker = findtext(element, "NextUploadIdMarker")
-        self._max_uploads = findtext(element, "MaxUploads")
-        if self._max_uploads:
-            self._max_uploads = int(self._max_uploads)
-        self._is_truncated = findtext(element, "IsTruncated")
-        self._is_truncated = (
-            self._is_truncated is not None and self._is_truncated.lower() == "true"
-        )
+        max_uploads = findtext(element, "MaxUploads")
+        self._max_uploads = int(max_uploads) if max_uploads else None
+        is_truncated = findtext(element, "IsTruncated")
+        self._is_truncated = is_truncated is not None and is_truncated.lower() == "true"
         self._uploads = [
             Upload(tag, self._encoding_type) for tag in findall(element, "Upload")
         ]
@@ -689,7 +686,7 @@ class ListMultipartUploadsResult:
         return self._encoding_type
 
     @property
-    def uploads(self) -> List[Upload]:
+    def uploads(self) -> list[Upload]:
         """Get uploads."""
         return self._uploads
 
@@ -717,21 +714,20 @@ class PostPolicy:
     Post policy information to be used to generate presigned post policy
     form-data. Condition elements and respective condition for Post policy
     is available at
-    https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4
-    -HTTPPOSTConstructPolicy.html#sigv4-PolicyConditions
+    https://docs.aws.amazon.com/AmazonS3/latest/API/sigv4-HTTPPOSTConstructPolicy.html#sigv4-PolicyConditions
     """
 
     def __init__(self, bucket_name: str, expiration: datetime):
         check_bucket_name(bucket_name)
         if not isinstance(expiration, datetime):
-            raise ValueError("expiration must be datetime.datetime type")
+            raise ValueError("expiration must be datetime type")
         self._bucket_name = bucket_name
         self._expiration = expiration
-        self._conditions = OrderedDict()
+        self._conditions: OrderedDict = OrderedDict()
         self._conditions[_EQ] = OrderedDict()
         self._conditions[_STARTS_WITH] = OrderedDict()
-        self._lower_limit = None
-        self._upper_limit = None
+        self._lower_limit: int | None = None
+        self._upper_limit: int | None = None
 
     def add_equals_condition(self, element: str, value: str):
         """Add equals condition of an element and value."""
@@ -821,7 +817,11 @@ class PostPolicy:
                 policy["conditions"].append([cond_key, "$" + key, value])
         if self._lower_limit is not None and self._upper_limit is not None:
             policy["conditions"].append(
-                ["content-length-range", self._lower_limit, self._upper_limit],
+                [
+                    "content-length-range",
+                    str(self._lower_limit),
+                    str(self._upper_limit),
+                ],
             )
         credential = get_credential_string(creds.access_key, utcnow(), region)
         amz_date = to_amz_date(utcnow())
@@ -833,9 +833,11 @@ class PostPolicy:
             )
         policy["conditions"].append([_EQ, "$x-amz-date", amz_date])
 
-        policy = base64.b64encode(json.dumps(policy).encode())
+        policy_encoded = base64.b64encode(
+            json.dumps(policy).encode(),
+        ).decode("utf-8")
         signature = post_presign_v4(
-            policy.decode(),
+            policy_encoded,
             creds.secret_key,
             utcnow(),
             region,
@@ -844,7 +846,7 @@ class PostPolicy:
             "x-amz-algorithm": _ALGORITHM,
             "x-amz-credential": credential,
             "x-amz-date": amz_date,
-            "policy": policy,
+            "policy": policy_encoded,
             "x-amz-signature": signature,
         }
         if creds.session_token:
@@ -857,23 +859,24 @@ class PostPolicy:
         return self._bucket_name
 
 
-def parse_copy_object(response_data: str):
+def parse_copy_object(response_data: str) -> tuple[str, datetime | None]:
     """Parse CopyObject/UploadPartCopy response."""
     element = ET.fromstring(response_data)
-    etag = findtext(element, "ETag")
-    if etag:
-        etag = etag.replace('"', "")
+    etag = cast(str, findtext(element, "ETag", True)).replace('"', "")
     last_modified = findtext(element, "LastModified")
-    if last_modified:
-        last_modified = from_iso8601utc(last_modified)
-    return etag, last_modified
+    return etag, from_iso8601utc(last_modified) if last_modified else None
 
 
 class AsyncEventIterable:
     """Context manager friendly event iterable."""
 
-    def __init__(self, response: aiohttp.ClientResponse):
+    def __init__(
+        self,
+        response: ClientResponse,
+        session: ClientSession | RetryClient,
+    ):
         self._response = response
+        self._session = session
 
     def __aiter__(self):
         return self
@@ -883,7 +886,7 @@ class AsyncEventIterable:
         line = await self._response.content.readline()
         if not line:
             return None
-        event: dict | list = json.loads(line)
+        event: dict = json.loads(line)
         if event["Records"]:
             return event
         return None
@@ -899,6 +902,260 @@ class AsyncEventIterable:
 
     async def __aexit__(self, exc_type, value, traceback):
         self._response.close()
+        await self._session.close()
+
+
+class PeerSite:
+    """Represents a cluster/site to be added to the set of replicated sites."""
+
+    def __init__(
+        self,
+        name: str,
+        endpoint: str,
+        access_key: str,
+        secret_key: str,
+    ):
+        self._name = name
+        self._endpoint = endpoint
+        self._access_key = access_key
+        self._secret_key = secret_key
+
+    def to_dict(self) -> dict[str, str]:
+        """Convert to dictionary."""
+        return {
+            "name": self._name,
+            "endpoints": self._endpoint,
+            "accessKey": self._access_key,
+            "secretKey": self._secret_key,
+        }
+
+
+class SiteReplicationStatusOptions:
+    """Represents site replication status options."""
+
+    ENTITY_TYPE = Enum(
+        "ENTITY_TYPE",
+        {
+            "BUCKET": "bucket",
+            "POLICY": "policy",
+            "USER": "user",
+            "GROUP": "group",
+        },
+    )
+
+    def __init__(self):
+        self._buckets = False
+        self._policies = False
+        self._users = False
+        self._groups = False
+        self._metrics = False
+        self._entity = None
+        self._entity_value = None
+        self._show_deleted = False
+
+    @property
+    def buckets(self) -> bool:
+        """Get buckets."""
+        return self._buckets
+
+    @buckets.setter
+    def buckets(self, value: bool):
+        """Set buckets."""
+        self._buckets = value
+
+    @property
+    def policies(self) -> bool:
+        """Get policies."""
+        return self._policies
+
+    @policies.setter
+    def policies(self, value: bool):
+        """Set policies."""
+        self._policies = value
+
+    @property
+    def users(self) -> bool:
+        """Get users."""
+        return self._users
+
+    @users.setter
+    def users(self, value: bool):
+        """Set users."""
+        self._users = value
+
+    @property
+    def groups(self) -> bool:
+        """Get groups."""
+        return self._groups
+
+    @groups.setter
+    def groups(self, value: bool):
+        """Set groups."""
+        self._groups = value
+
+    @property
+    def metrics(self) -> bool:
+        """Get metrics."""
+        return self._metrics
+
+    @metrics.setter
+    def metrics(self, value: bool):
+        """Set metrics."""
+        self._metrics = value
+
+    @property
+    def entity(self) -> str | None:
+        """Get entity."""
+        return self._entity
+
+    @entity.setter
+    def entity(self, value: str):
+        """Set entity."""
+        self._entity = value
+
+    @property
+    def entity_value(self) -> str | None:
+        """Get entity value."""
+        return self._entity_value
+
+    @entity_value.setter
+    def entity_value(self, value: str):
+        """Set entity value."""
+        self._entity_value = value
+
+    @property
+    def show_deleted(self) -> bool:
+        """Get show deleted."""
+        return self._show_deleted
+
+    @show_deleted.setter
+    def show_deleted(self, value: bool):
+        """Set show deleted."""
+        self._show_deleted = value
+
+    def to_query_params(self) -> dict[str, str]:
+        """Convert this options to query parameters."""
+        params = {
+            "buckets": str(self._buckets).lower(),
+            "policies": str(self._policies).lower(),
+            "users": str(self._users).lower(),
+            "groups": str(self._groups).lower(),
+            "metrics": str(self._metrics).lower(),
+            "showDeleted": str(self._show_deleted).lower(),
+        }
+        if self._entity and self._entity_value:
+            params["entityvalue"] = self._entity_value
+            params["entity"] = self._entity
+        return params
+
+
+class PeerInfo:
+    """Site replication peer information."""
+
+    def __init__(
+        self,
+        deployment_id: str,
+        endpoint: str,
+        bucket_bandwidth_limit: str,
+        bucket_bandwidth_set: str,
+    ):
+        self._deployment_id = deployment_id
+        self._endpoint = endpoint
+        self._name: str | None = None
+        self._sync_status: str | None = None
+        self._bucket_bandwidth_limit = bucket_bandwidth_limit
+        self._bucket_bandwidth_set = bucket_bandwidth_set
+        self._bucket_bandwidth_updated_at: datetime | None = None
+
+    @property
+    def deployment_id(self) -> str:
+        """Get deployment ID."""
+        return self._deployment_id
+
+    @deployment_id.setter
+    def deployment_id(self, value: str):
+        """Set deployment ID."""
+        self._deployment_id = value
+
+    @property
+    def endpoint(self) -> str:
+        """Get endpoint."""
+        return self._endpoint
+
+    @endpoint.setter
+    def endpoint(self, value: str):
+        """Set endpoint."""
+        self._endpoint = value
+
+    @property
+    def name(self) -> str | None:
+        """Get name."""
+        return self._name
+
+    @name.setter
+    def name(self, value: str):
+        """Set name."""
+        self._name = value
+
+    @property
+    def sync_status(self) -> str | None:
+        """Get sync status."""
+        return self._sync_status
+
+    @sync_status.setter
+    def sync_status(self, value: str):
+        """Set sync status."""
+        self._sync_status = value
+
+    @property
+    def bucket_bandwidth_limit(self) -> str:
+        """Get bucket bandwidth limit."""
+        return self._bucket_bandwidth_limit
+
+    @bucket_bandwidth_limit.setter
+    def bucket_bandwidth_limit(self, value: str):
+        """Set bucket bandwidth limit."""
+        self._bucket_bandwidth_limit = value
+
+    @property
+    def bucket_bandwidth_set(self) -> str:
+        """Get bucket bandwidth set."""
+        return self._bucket_bandwidth_set
+
+    @bucket_bandwidth_set.setter
+    def bucket_bandwidth_set(self, value: str):
+        """Set bucket bandwidth set."""
+        self._bucket_bandwidth_set = value
+
+    @property
+    def bucket_bandwidth_updated_at(self) -> datetime | None:
+        """Get bucket bandwidth updated at."""
+        return self._bucket_bandwidth_updated_at
+
+    @bucket_bandwidth_updated_at.setter
+    def bucket_bandwidth_updated_at(self, value: datetime | None):
+        """Set bucket bandwidth updated at."""
+        self._bucket_bandwidth_updated_at = value
+
+    def to_dict(self):
+        """Converts peer information to dictionary."""
+        data = {
+            "endpoint": self._endpoint,
+            "deploymentID": self._deployment_id,
+            "defaultbandwidth": {
+                "bandwidthLimitPerBucket": self._bucket_bandwidth_limit,
+                "set": self._bucket_bandwidth_set,
+            },
+        }
+        if self._name:
+            data["name"] = self._name
+        if self._sync_status is not None:
+            data["sync"] = "enable" if self._sync_status else "disable"
+        if self._bucket_bandwidth_updated_at:
+            data["defaultbandwidth"]["updatedAt"] = to_iso8601utc(
+                self._bucket_bandwidth_updated_at,
+            )
+        return data
 
 
 class ListObjects:
@@ -913,6 +1170,9 @@ class ListObjects:
         include_version: bool = False,
         use_api_v1: bool = False,
         use_url_encoding_type: bool = True,
+        fetch_owner: bool = False,
+        extra_headers: DictType | None = None,
+        extra_query_params: DictType | None = None,
     ):
         self.client = client
         self.bucket_name = bucket_name
@@ -923,10 +1183,10 @@ class ListObjects:
         self.include_version = include_version
         self.use_api_v1 = use_api_v1
         self.use_url_encoding_type = use_url_encoding_type
-        self.objects: list[Object] = []
-        self.buffer: list[Object] = []
+        self.fetch_owner = fetch_owner
+        self.extra_headers = extra_headers
+        self.extra_query_params = extra_query_params
         self.iterator: AsyncGenerator[Object] | None = None
-        self.is_awaited: bool = False
 
     def gen_iterator(self) -> AsyncGenerator[Object]:
         return self.client._list_objects(
@@ -938,25 +1198,23 @@ class ListObjects:
             use_api_v1=self.use_api_v1,
             include_version=self.include_version,
             encoding_type="url" if self.use_url_encoding_type else None,
+            fetch_owner=self.fetch_owner,
+            extra_headers=self.extra_headers,
+            extra_query_params=self.extra_query_params,
         )
 
     def __aiter__(self):
         self.iterator = self.gen_iterator()
         return self
 
-    async def __anext__(self) -> Object | None:
+    async def __anext__(self) -> Object:
         if self.iterator is None:
             self.gen_iterator()
 
-        if not self.buffer:
-            try:
-                self.buffer = await self.iterator.__anext__()
-                self.objects.extend(self.buffer)
-            except StopAsyncIteration:
-                raise StopAsyncIteration
-
-        if len(self.buffer) > 0:
-            return self.buffer.pop(0)
+        try:
+            return await cast(AsyncGenerator, self.iterator).__anext__()
+        except StopAsyncIteration:
+            raise StopAsyncIteration
 
     def __await__(self):
         return self._collect_objects().__await__()
@@ -965,7 +1223,80 @@ class ListObjects:
         if self.iterator is None:
             self.gen_iterator()
 
-        # async iter partial objects to collect into self.objects
-        async for _ in self:
-            pass
-        return self.objects
+        objects = []
+        async for object in self:
+            objects.append(object)
+        return objects
+
+
+class DeleteErrors:
+    def __init__(
+        self,
+        client: Minio,
+        bucket_name: str,
+        delete_object_list: Iterable[DeleteObject],
+        bypass_governance_mode: bool = False,
+    ):
+        self.client = client
+        self.bucket_name = bucket_name
+        # turn list like objects into an iterator.
+        self.delete_object_list = itertools.chain(delete_object_list)
+        self.bypass_governance_mode = bypass_governance_mode
+        self.iterator: AsyncGenerator[DeleteError] | None = None
+
+    async def gen_iterator(self) -> AsyncGenerator[DeleteError]:
+        check_bucket_name(self.bucket_name, s3_check=self.client._base_url.is_aws_host)
+
+        while True:
+            # get 1000 entries or whatever available.
+            objects = [
+                delete_object
+                for _, delete_object in zip(
+                    range(1000),
+                    self.delete_object_list,
+                )
+            ]
+
+            if not objects:
+                return
+
+            result = await self.client._delete_objects(
+                self.bucket_name,
+                objects,
+                quiet=True,
+                bypass_governance_mode=self.bypass_governance_mode,
+            )
+
+            for error in result.error_list:
+                # AWS S3 returns "NoSuchVersion" error when
+                # version doesn't exist ignore this error
+                # yield all errors otherwise
+                if error.code != "NoSuchVersion":
+                    yield error
+
+    def __aiter__(self):
+        self.iterator = self.gen_iterator()
+        return self
+
+    async def __anext__(self) -> DeleteError:
+        if self.iterator is None:
+            self.gen_iterator()
+
+        try:
+            return await cast(
+                AsyncGenerator[DeleteError, DeleteError], self.iterator
+            ).__anext__()
+        except StopAsyncIteration:
+            raise StopAsyncIteration
+
+    def __await__(self):
+        return self._collect_errors().__await__()
+
+    async def _collect_errors(self) -> List[DeleteError]:
+        if self.iterator is None:
+            self.gen_iterator()
+
+        errors = []
+        async for error in self:
+            errors.append(error)
+        return errors

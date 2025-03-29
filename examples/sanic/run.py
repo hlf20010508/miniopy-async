@@ -45,9 +45,8 @@ async def index(request):
         ):  # if f is not None then the post request is from upload, else is from download
             print("uploading ...")
             save_path = os.path.join("cache", f.name)  # save stream to cache
-            async with aiofile.open(save_path, "wb") as temp:
+            async with aiofile.async_open(save_path, "wb") as temp:
                 await temp.write(f.body)
-            temp.close()
 
             bucket = request.form.get("bucket")
             # upload from cache

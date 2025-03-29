@@ -29,7 +29,7 @@ from __future__ import absolute_import, annotations
 from typing import Type, TypeVar
 from xml.etree import ElementTree as ET
 
-import aiohttp
+from aiohttp import ClientResponse
 
 from .xml import findtext
 
@@ -83,7 +83,7 @@ class S3Error(MinioException):
         resource: str | None,
         request_id: str | None,
         host_id: str | None,
-        response: aiohttp.ClientResponse,
+        response: ClientResponse,
         bucket_name: str | None = None,
         object_name: str | None = None,
     ):
@@ -131,14 +131,12 @@ class S3Error(MinioException):
         return self._message
 
     @property
-    def response(self) -> aiohttp.ClientResponse:
+    def response(self) -> ClientResponse:
         """Get HTTP response."""
         return self._response
 
     @classmethod
-    def fromxml(
-        cls: Type[A], response: aiohttp.ClientResponse, response_data: str
-    ) -> A:
+    def fromxml(cls: Type[A], response: ClientResponse, response_data: str) -> A:
         """Create new object with values from XML element."""
         element = ET.fromstring(response_data)
         return cls(
@@ -164,3 +162,17 @@ class S3Error(MinioException):
             self._bucket_name,
             self._object_name,
         )
+
+
+class MinioAdminException(Exception):
+    """Raised to indicate admin API execution error."""
+
+    def __init__(self, code: str, body: str):
+        self._code = code
+        self._body = body
+        super().__init__(
+            f"admin request failed; Status: {code}, Body: {body}",
+        )
+
+    def __reduce__(self):
+        return type(self), (self._code, self._body)

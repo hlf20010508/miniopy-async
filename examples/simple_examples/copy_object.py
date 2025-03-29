@@ -20,9 +20,12 @@
 # Date: 2022-07-11
 
 from datetime import datetime, timezone
+from typing import cast
 from miniopy_async import Minio
 from miniopy_async.commonconfig import REPLACE, CopySource
 import asyncio
+
+from miniopy_async.datatypes import DictType
 
 client = Minio(
     "play.min.io",
@@ -62,7 +65,7 @@ async def main():
         "my-job-bucket",
         "my-copied-object3",
         CopySource("my-bucket", "my-object"),
-        metadata=metadata,
+        metadata=cast(DictType, metadata),
         metadata_directive=REPLACE,
     )
     print(result.object_name, result.version_id)

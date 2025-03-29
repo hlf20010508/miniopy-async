@@ -26,19 +26,19 @@ from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
 from binascii import crc32
-from io import BytesIO, RawIOBase
+from io import BytesIO
 from typing import (
     AsyncGenerator,
     Iterable,
     SupportsBytes,
     SupportsIndex,
-    Type,
 )
+from aiohttp_retry import RetryClient
 from typing_extensions import Buffer
 from xml.etree import ElementTree as ET
 from .error import MinioException
 from .xml import Element, SubElement, findtext
-from aiohttp import ClientResponse, ClientSession
+from aiohttp import ClientResponse, ClientSession, StreamReader
 
 ReadableBuffer = Buffer
 
@@ -69,16 +69,15 @@ class InputSerialization:
             COMPRESSION_TYPE_BZIP2,
         ]:
             raise ValueError(
-                "compression type must be {0}, {1} or {2}".format(
-                    COMPRESSION_TYPE_NONE,
-                    COMPRESSION_TYPE_GZIP,
-                    COMPRESSION_TYPE_BZIP2,
-                ),
+                f"compression type must be {COMPRESSION_TYPE_NONE}, "
+                f"{COMPRESSION_TYPE_GZIP} or {COMPRESSION_TYPE_BZIP2}"
             )
         self._compression_type = compression_type
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         if self._compression_type is not None:
             SubElement(element, "CompressionType", self._compression_type)
         return element
@@ -108,11 +107,8 @@ class CSVInputSerialization(InputSerialization):
             FILE_HEADER_INFO_NONE,
         ]:
             raise ValueError(
-                "file header info must be {0}, {1} or {2}".format(
-                    FILE_HEADER_INFO_USE,
-                    FILE_HEADER_INFO_IGNORE,
-                    FILE_HEADER_INFO_NONE,
-                ),
+                f"file header info must be {FILE_HEADER_INFO_USE}, "
+                f"{FILE_HEADER_INFO_IGNORE} or {FILE_HEADER_INFO_NONE}"
             )
         self._file_header_info = file_header_info
         self._quote_character = quote_character
@@ -121,8 +117,10 @@ class CSVInputSerialization(InputSerialization):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         super().toxml(element)
-        element = SubElement(element, "CSV")
+        SubElement(element, "CSV")
         if self._allow_quoted_record_delimiter is not None:
             SubElement(
                 element,
@@ -145,6 +143,7 @@ class CSVInputSerialization(InputSerialization):
             )
         if self._record_delimiter is not None:
             SubElement(element, "RecordDelimiter", self._record_delimiter)
+        return element
 
 
 class JSONInputSerialization(InputSerialization):
@@ -159,19 +158,19 @@ class JSONInputSerialization(InputSerialization):
             JSON_TYPE_LINES,
         ]:
             raise ValueError(
-                "json type must be {0} or {1}".format(
-                    JSON_TYPE_DOCUMENT,
-                    JSON_TYPE_LINES,
-                ),
+                f"json type must be {JSON_TYPE_DOCUMENT} or {JSON_TYPE_LINES}"
             )
         self._json_type = json_type
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         super().toxml(element)
         element = SubElement(element, "JSON")
         if self._json_type is not None:
             SubElement(element, "Type", self._json_type)
+        return element
 
 
 class ParquetInputSerialization(InputSerialization):
@@ -182,6 +181,8 @@ class ParquetInputSerialization(InputSerialization):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         super().toxml(element)
         return SubElement(element, "Parquet")
 
@@ -213,8 +214,10 @@ class CSVOutputSerialization:
         self._quote_fields = quote_fields
         self._record_delimiter = record_delimiter
 
-    def toxml(self, element: ET.Element | None) -> ET.Element:
+    def toxml(self, element: ET.Element | None):
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "CSV")
         if self._field_delimiter is not None:
             SubElement(element, "FieldDelimiter", self._field_delimiter)
@@ -238,8 +241,10 @@ class JSONOutputSerialization:
     def __init__(self, record_delimiter: str | None = None):
         self._record_delimiter = record_delimiter
 
-    def toxml(self, element: ET.Element | None) -> ET.Element:
+    def toxml(self, element: ET.Element | None):
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "JSON")
         if self._record_delimiter is not None:
             SubElement(element, "RecordDelimiter", self._record_delimiter)
@@ -312,7 +317,7 @@ class SelectRequest:
         return element
 
 
-async def _read(reader: Type[RawIOBase], size: int) -> bytes:
+async def _read(reader: StreamReader, size: int) -> bytes:
     """Wrapper to RawIOBase.read() to error out on short reads."""
     data = await reader.read(size)
     if len(data) != size:
@@ -377,13 +382,13 @@ class SelectObjectReader:
     Minio.select_object_content() API.
     """
 
-    def __init__(self, response: ClientResponse, session: ClientSession):
+    def __init__(self, response: ClientResponse, session: ClientSession | RetryClient):
         self._response = response
         self._session = session
         self._stats: Stats | None = None
         self._payload: bytes | None = None
 
-    def __enter__(self):
+    def __aenter__(self):
         return self
 
     async def __aexit__(self, exc_type, exc_value, exc_traceback):
@@ -415,10 +420,8 @@ class SelectObjectReader:
         prelude_crc = await _read(self._response.content, 4)
         if _crc32(prelude) != _int(prelude_crc):
             raise IOError(
-                "prelude CRC mismatch; expected: {0}, got: {1}".format(
-                    _crc32(prelude),
-                    _int(prelude_crc),
-                ),
+                f"prelude CRC mismatch; expected: {_crc32(prelude)}, "
+                f"got: {_int(prelude_crc)}"
             )
 
         total_length = _int(prelude[:4])
@@ -426,10 +429,9 @@ class SelectObjectReader:
         message_crc = _int(await _read(self._response.content, 4))
         if _crc32(prelude + prelude_crc + data) != message_crc:
             raise IOError(
-                "message CRC mismatch; expected: {0}, got: {1}".format(
-                    _crc32(prelude + prelude_crc + data),
-                    message_crc,
-                ),
+                f"message CRC mismatch; "
+                f"expected: {_crc32(prelude + prelude_crc + data)}, "
+                f"got: {message_crc}"
             )
 
         header_length = _int(prelude[4:])
@@ -437,10 +439,7 @@ class SelectObjectReader:
 
         if headers.get(":message-type") == "error":
             raise MinioException(
-                "{0}: {1}".format(
-                    headers.get(":error-code"),
-                    headers.get(":error-message"),
-                ),
+                f"{headers.get(':error-code')}: " f"{headers.get(':error-message')}"
             )
 
         if headers.get(":event-type") == "End":
@@ -460,7 +459,7 @@ class SelectObjectReader:
             return len(payload)
 
         raise MinioException(
-            "unknown event-type {0}".format(headers.get(":event-type")),
+            f"unknown event-type {headers.get(':event-type')}",
         )
 
     async def stream(self, num_bytes: int = 32 * 1024) -> AsyncGenerator[bytes]:

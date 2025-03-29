@@ -20,25 +20,26 @@
 # Date: 2022-07-11
 
 import json
-import urllib3
+from aiohttp import ClientSession
 from miniopy_async import Minio
 from miniopy_async.credentials import WebIdentityProvider
 import asyncio
 
 
-def get_jwt(client_id, client_secret, idp_client_id, idp_endpoint):
-    res = urllib3.PoolManager().request(
-        "POST",
-        idp_endpoint,
-        fields={
-            "username": client_id,
-            "password": client_secret,
-            "grant_type": "password",
-            "client_id": idp_client_id,
-        },
-    )
+async def get_jwt(client_id, client_secret, idp_client_id, idp_endpoint):
+    async with ClientSession() as session:
+        res = await session.request(
+            "POST",
+            idp_endpoint,
+            params={
+                "username": client_id,
+                "password": client_secret,
+                "grant_type": "password",
+                "client_id": idp_client_id,
+            },
+        )
 
-    return json.loads(res.data.encode())
+        return json.loads(await res.text())
 
 
 # IDP endpoint.

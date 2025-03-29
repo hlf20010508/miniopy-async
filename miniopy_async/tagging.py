@@ -20,7 +20,7 @@
 
 from __future__ import absolute_import, annotations
 
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .commonconfig import Tags
@@ -43,7 +43,7 @@ class Tagging:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, "TagSet")
+        element = cast(ET.Element, find(element, "TagSet", True))
         tags = None if find(element, "Tag") is None else Tags.fromxml(element)
         return cls(tags)
 

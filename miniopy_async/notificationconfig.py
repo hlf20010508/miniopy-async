@@ -24,7 +24,7 @@ GetBucketNotiicationConfiguration APIs.
 from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .xml import Element, SubElement, find, findall, findtext
@@ -54,12 +54,14 @@ class FilterRule:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        name = findtext(element, "Name")
-        value = findtext(element, "Value")
+        name = cast(str, findtext(element, "Name", True))
+        value = cast(str, findtext(element, "Value", True))
         return cls(name, value)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "FilterRule")
         SubElement(element, "Name", self._name)
         SubElement(element, "Value", self._value)
@@ -125,24 +127,31 @@ class CommonConfig:
     ) -> tuple[list[str], str | None, PrefixFilterRule | None, SuffixFilterRule | None]:
         """Parse XML."""
         elements = findall(element, "Event")
-        events = [tag.text for tag in elements]
+        events = []
+        for tag in elements:
+            if tag.text is None:
+                raise ValueError("missing value in XML tag 'Event'")
+            events.append(tag.text)
         config_id = findtext(element, "Id")
+        elem = find(element, "Filter")
+        if elem is None:
+            return events, config_id, None, None
         prefix_filter_rule = None
         suffix_filter_rule = None
-        element = find(element, "Filter")
-        if element is not None:
-            element = find(element, "S3Key")
-            elements = findall(element, "FilterRule")
-            for tag in elements:
-                filter_rule = FilterRule.fromxml(tag)
-                if filter_rule.name == "prefix":
-                    prefix_filter_rule = PrefixFilterRule(filter_rule.value)
-                else:
-                    suffix_filter_rule = SuffixFilterRule(filter_rule.value)
+        elem = cast(ET.Element, find(elem, "S3Key", True))
+        elements = findall(elem, "FilterRule")
+        for tag in elements:
+            filter_rule = FilterRule.fromxml(tag)
+            if filter_rule.name == "prefix":
+                prefix_filter_rule = PrefixFilterRule(filter_rule.value)
+            else:
+                suffix_filter_rule = SuffixFilterRule(filter_rule.value)
         return events, config_id, prefix_filter_rule, suffix_filter_rule
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         for event in self._events:
             SubElement(element, "Event", event)
         if self._config_id is not None:
@@ -150,10 +159,10 @@ class CommonConfig:
         if self._prefix_filter_rule or self._suffix_filter_rule:
             rule = SubElement(element, "Filter")
             rule = SubElement(rule, "S3Key")
-        if self._prefix_filter_rule:
-            self._prefix_filter_rule.toxml(rule)
-        if self._suffix_filter_rule:
-            self._suffix_filter_rule.toxml(rule)
+            if self._prefix_filter_rule:
+                self._prefix_filter_rule.toxml(rule)
+            if self._suffix_filter_rule:
+                self._suffix_filter_rule.toxml(rule)
         return element
 
 
@@ -189,7 +198,7 @@ class CloudFuncConfig(CommonConfig):
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        cloud_func = findtext(element, "CloudFunction", True)
+        cloud_func = cast(str, findtext(element, "CloudFunction", True))
         (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
             element
         )
@@ -199,6 +208,8 @@ class CloudFuncConfig(CommonConfig):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "CloudFunctionConfiguration")
         SubElement(element, "CloudFunction", self._cloud_func)
         super().toxml(element)
@@ -237,7 +248,7 @@ class QueueConfig(CommonConfig):
     @classmethod
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
-        queue = findtext(element, "Queue", True)
+        queue = cast(str, findtext(element, "Queue", True))
         (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
             element
         )
@@ -245,6 +256,8 @@ class QueueConfig(CommonConfig):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "QueueConfiguration")
         SubElement(element, "Queue", self._queue)
         super().toxml(element)
@@ -283,7 +296,7 @@ class TopicConfig(CommonConfig):
     @classmethod
     def fromxml(cls: Type[D], element: ET.Element) -> D:
         """Create new object with values from XML element."""
-        topic = findtext(element, "Topic", True)
+        topic = cast(str, findtext(element, "Topic", True))
         (events, config_id, prefix_filter_rule, suffix_filter_rule) = cls.parsexml(
             element
         )
@@ -291,6 +304,8 @@ class TopicConfig(CommonConfig):
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "TopicConfiguration")
         SubElement(element, "Topic", self._topic)
         super().toxml(element)
@@ -314,17 +329,17 @@ class NotificationConfig:
         self._topic_config_list = topic_config_list or []
 
     @property
-    def cloud_func_config_list(self) -> list[CloudFuncConfig]:
+    def cloud_func_config_list(self) -> list[CloudFuncConfig] | None:
         """Get cloud function configuration list."""
         return self._cloud_func_config_list
 
     @property
-    def queue_config_list(self) -> list[QueueConfig]:
+    def queue_config_list(self) -> list[QueueConfig] | None:
         """Get queue configuration list."""
         return self._queue_config_list
 
     @property
-    def topic_config_list(self) -> list[TopicConfig]:
+    def topic_config_list(self) -> list[TopicConfig] | None:
         """Get topic configuration list."""
         return self._topic_config_list
 
@@ -352,10 +367,10 @@ class NotificationConfig:
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         element = Element("NotificationConfiguration")
-        for config in self._cloud_func_config_list:
-            config.toxml(element)
-        for config in self._queue_config_list:
-            config.toxml(element)
+        for cloud_func_config in self._cloud_func_config_list:
+            cloud_func_config.toxml(element)
+        for queue_config in self._queue_config_list:
+            queue_config.toxml(element)
         for config in self._topic_config_list:
             config.toxml(element)
         return element

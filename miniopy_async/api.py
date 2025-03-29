@@ -27,26 +27,28 @@
 
 from __future__ import absolute_import, annotations
 
-import asyncio
 import itertools
+import json
 import os
-import platform
-from random import random
+import tarfile
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import BinaryIO, AsyncGenerator
 from io import BytesIO
-import tarfile
-
-from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from random import random
+from typing import Any, BinaryIO, AsyncGenerator, Callable, TextIO, cast
 from urllib.parse import urlunsplit
 from xml.etree import ElementTree as ET
 
-import aiofile
-import aiohttp
+import certifi
+import asyncio
+from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
+from aiohttp.typedefs import LooseHeaders
+from aiohttp_retry import ExponentialRetry, RetryClient
+import ssl
+from multidict import CIMultiDict
+from aiofile import FileIOWrapperBase, async_open
 
-from . import __title__, __version__, time
+from . import time
 from .commonconfig import COPY, ComposeSource, CopySource, REPLACE, Tags, SnowballObject
 from .credentials import Credentials, StaticProvider
 from .credentials.providers import Provider
@@ -54,6 +56,7 @@ from .datatypes import (
     Bucket,
     AsyncEventIterable,
     CompleteMultipartUploadResult,
+    DeleteErrors,
     ListAllMyBucketsResult,
     ListMultipartUploadsResult,
     ListPartsResult,
@@ -67,26 +70,28 @@ from .datatypes import (
 from .deleteobjects import DeleteError, DeleteObject, DeleteRequest, DeleteResult
 from .error import InvalidResponseError, S3Error, ServerError
 from .helpers import (
-    BaseURL,
-    DictType,
+    _DEFAULT_USER_AGENT,
     MAX_MULTIPART_COUNT,
     MAX_MULTIPART_OBJECT_SIZE,
     MAX_PART_SIZE,
     MIN_PART_SIZE,
+    BaseURL,
+    DictType,
     ObjectWriteResult,
     ProgressType,
     check_bucket_name,
-    check_non_empty_string,
+    check_object_name,
     check_sse,
     check_ssec,
     genheaders,
     get_part_info,
+    headers_to_strings,
     is_valid_policy_type,
     makedirs,
     md5sum_hash,
+    queryencode,
     read_part_data,
     sha256_hash,
-    async_generator,
 )
 from .legalhold import LegalHold
 from .lifecycleconfig import LifecycleConfig
@@ -102,13 +107,6 @@ from .tagging import Tagging
 from .versioningconfig import VersioningConfig
 from .xml import Element, SubElement, findtext, getbytes, marshal, unmarshal
 
-_DEFAULT_USER_AGENT = "MinIO ({os}; {arch}) {lib}/{ver}".format(
-    os=platform.system(),
-    arch=platform.machine(),
-    lib=__title__,
-    ver=__version__,
-)
-
 
 class Minio:  # pylint: disable=too-many-public-methods
     """
@@ -122,6 +120,7 @@ class Minio:  # pylint: disable=too-many-public-methods
     :param bool secure: Flag to indicate to use secure (TLS) connection to S3service or not.
     :param str | None region: Region name of buckets in S3 service.
     :param Provider | None credentials: Credentials provider of your account in S3 service.
+    :param Callable[..., aiohttp.ClientSession | aiohttp_retry.RetryClient] | None client_session: Custom HTTP client session caller.
     :param bool cert_check: Flag to indicate to verify SSL certificate or not.
     :return: :class:`Minio` object
     :rtype: Minio
@@ -146,9 +145,9 @@ class Minio:  # pylint: disable=too-many-public-methods
     _region_map: dict[str, str]
     _base_url: BaseURL
     _user_agent: str
+    _trace_stream: TextIO | None
     _provider: Provider | None
 
-    # pylint: disable=too-many-function-args
     def __init__(
         self,
         endpoint: str,
@@ -157,6 +156,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         session_token: str | None = None,
         secure: bool = True,
         region: str | None = None,
+        client_session: Callable[..., ClientSession | RetryClient] | None = None,
         credentials: Provider | None = None,
         cert_check: bool = True,
     ):
@@ -166,16 +166,48 @@ class Minio:  # pylint: disable=too-many-public-methods
             region,
         )
         self._user_agent = _DEFAULT_USER_AGENT
+        self._trace_stream = None
         if access_key:
+            if secret_key is None:
+                raise ValueError("secret key must be provided with access key")
             credentials = StaticProvider(access_key, secret_key, session_token)
         self._provider = credentials
-        self._ssl = None if cert_check else False
+        self._client_session = client_session
+
+        if cert_check:
+            ssl_context = ssl.create_default_context(
+                cafile=os.environ.get("SSL_CERT_FILE") or certifi.where()
+            )
+        else:
+            ssl_context = ssl.create_default_context(
+                cafile=os.environ.get("SSL_CERT_FILE") or certifi.where()
+            )
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+        self._ssl_context = ssl_context
+        timeout = timedelta(minutes=5).seconds
+        self._timeout = ClientTimeout(connect=timeout, sock_read=timeout)
+        self._retry_options = ExponentialRetry(
+            attempts=5, factor=0.2, statuses={500, 502, 503, 504}
+        )
+
+    def _session(self) -> ClientSession | RetryClient:
+        if self._client_session is None:
+            return RetryClient(
+                ClientSession(
+                    connector=TCPConnector(limit=10, ssl=self._ssl_context),
+                    timeout=self._timeout,
+                ),
+                retry_options=self._retry_options,
+            )
+
+        return self._client_session()
 
     def _handle_redirect_response(
         self,
         method: str,
         bucket_name: str | None,
-        response: aiohttp.ClientResponse,
+        response: ClientResponse,
         retry: bool = False,
     ) -> tuple[str | None, str | None]:
         """
@@ -205,12 +237,12 @@ class Minio:  # pylint: disable=too-many-public-methods
     async def _build_headers(
         self,
         host: str,
-        headers: DictType | None,
+        headers: LooseHeaders | DictType | None,
         body: bytes | BytesIO | None,
-        credentials: Credentials | None,
-    ) -> tuple[DictType, datetime]:
+        creds: Credentials | None,
+    ) -> tuple[dict[str, str], datetime]:
         """Build headers with given parameters."""
-        headers = headers or {}
+        headers = cast(dict[str, str], dict(headers) if headers is not None else {})
         md5sum_added = headers.get("Content-MD5")
         headers["Host"] = host
         headers["User-Agent"] = self._user_agent
@@ -222,41 +254,38 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         if body:
             headers["Content-Length"] = str(len(body))
-        if credentials:
+        if creds:
             if self._base_url.is_https:
                 sha256 = "UNSIGNED-PAYLOAD"
                 md5sum = None if md5sum_added else md5sum_hash(body)
             else:
-                _current_event_loop = asyncio.get_event_loop()
-                _thread_pool_executor = ThreadPoolExecutor(max_workers=16)
-                sha256 = await _current_event_loop.run_in_executor(
-                    _thread_pool_executor, sha256_hash, body
-                )
+                sha256 = await asyncio.to_thread(sha256_hash, body)
         else:
             md5sum = None if md5sum_added else md5sum_hash(body)
         if md5sum:
             headers["Content-MD5"] = md5sum
         if sha256:
             headers["x-amz-content-sha256"] = sha256
-        if credentials and credentials.session_token:
-            headers["X-Amz-Security-Token"] = credentials.session_token
+        if creds and creds.session_token:
+            headers["X-Amz-Security-Token"] = creds.session_token
         date = time.utcnow()
         headers["x-amz-date"] = time.to_amz_date(date)
         return headers, date
 
-    async def _url_open(  # pylint: disable=too-many-branches
+    async def _url_open(
         self,
         method: str,
         region: str,
         bucket_name: str | None = None,
         object_name: str | None = None,
         body: bytes | BytesIO | None = None,
-        headers: DictType | None = None,
+        headers: LooseHeaders | DictType | None = None,
         query_params: DictType | None = None,
-        session: aiohttp.ClientSession | None = None,
-    ) -> aiohttp.ClientResponse:
+        no_body_trace: bool = False,
+        session: ClientSession | RetryClient | None = None,
+    ) -> ClientResponse:
         """Execute HTTP request."""
-        credentials = self._provider.retrieve() if self._provider else None
+        creds = await self._provider.retrieve() if self._provider else None
         url = self._base_url.build(
             method,
             region,
@@ -264,40 +293,117 @@ class Minio:  # pylint: disable=too-many-public-methods
             object_name=object_name,
             query_params=query_params,
         )
-        headers, date = await self._build_headers(
-            url.netloc, headers, body, credentials
-        )
-        if credentials:
+        headers, date = await self._build_headers(url.netloc, headers, body, creds)
+        if creds:
             headers = sign_v4_s3(
                 method,
                 url,
                 region,
                 headers,
-                credentials,
-                headers.get("x-amz-content-sha256"),
+                creds,
+                cast(str, headers.get("x-amz-content-sha256")),
                 date,
             )
 
+        headers = dict(headers)
+        if self._trace_stream:
+            self._trace_stream.write("---------START-HTTP---------\n")
+            query = ("?" + url.query) if url.query else ""
+            self._trace_stream.write(f"{method} {url.path}{query} HTTP/1.1\n")
+            self._trace_stream.write(
+                headers_to_strings(headers, titled_key=True),
+            )
+            self._trace_stream.write("\n")
+            if not no_body_trace and body is not None:
+                self._trace_stream.write("\n")
+                self._trace_stream.write(
+                    body.decode() if isinstance(body, bytes) else str(body),
+                )
+                self._trace_stream.write("\n")
+            self._trace_stream.write("\n")
+
+        http_headers = CIMultiDict()
+        for key, value in (headers or {}).items():
+            if isinstance(value, (list, tuple)):
+                for val in value:
+                    http_headers.add(key, val)
+            else:
+                http_headers.add(key, value)
+
         if session is None:
-            session = aiohttp.ClientSession()
+            async with self._session() as session:
+                response = await session.request(
+                    method,
+                    urlunsplit(url),
+                    data=body,
+                    headers=http_headers,
+                )
 
-        response = await session.request(
-            method, urlunsplit(url), data=body, headers=headers, ssl=self._ssl
-        )
+                if self._trace_stream:
+                    self._trace_stream.write(f"HTTP/1.1 {response.status}\n")
+                    self._trace_stream.write(
+                        headers_to_strings(response.headers),
+                    )
+                    self._trace_stream.write("\n")
 
-        if response.status in [200, 204, 206]:
-            return response
+                if response.status in [200, 204, 206]:
+                    if self._trace_stream:
+                        self._trace_stream.write("\n")
+                        self._trace_stream.write(await response.text())
+                        self._trace_stream.write("\n")
+                        self._trace_stream.write("----------END-HTTP----------\n")
+                    return response
 
-        response_data = await response.content.read()
-        content_types = response.headers.get("content-type", "").split(";")
-        if method != "HEAD" and "application/xml" not in content_types:
+                response_data = await response.content.read()
+        else:
+            response = await session.request(
+                method,
+                urlunsplit(url),
+                data=body,
+                headers=http_headers,
+            )
+
+            if self._trace_stream:
+                self._trace_stream.write(f"HTTP/1.1 {response.status}\n")
+                self._trace_stream.write(
+                    headers_to_strings(response.headers),
+                )
+                self._trace_stream.write("\n")
+
+            if response.status in [200, 204, 206]:
+                if self._trace_stream:
+                    self._trace_stream.write("\n")
+                    self._trace_stream.write(await response.text())
+                    self._trace_stream.write("\n")
+                    self._trace_stream.write("----------END-HTTP----------\n")
+                return response
+
+            response_data = await response.content.read()
+
+        if self._trace_stream and method != "HEAD" and response_data:
+            self._trace_stream.write(response_data.decode())
+            self._trace_stream.write("\n")
+
+        if method != "HEAD" and "application/xml" not in response.headers.get(
+            "content-type",
+            "",
+        ).split(";"):
+            if self._trace_stream:
+                self._trace_stream.write("----------END-HTTP----------\n")
+            if response.status == 304 and not response_data:
+                raise ServerError(
+                    f"server failed with HTTP status code {response.status}",
+                    response.status,
+                )
             raise InvalidResponseError(
                 response.status,
-                response.headers.get("content-type"),
-                response_data if response_data else None,
+                cast(str, response.headers.get("content-type")),
+                response_data.decode() if response_data else None,
             )
 
         if not response_data and method != "HEAD":
+            if self._trace_stream:
+                self._trace_stream.write("----------END-HTTP----------\n")
             raise InvalidResponseError(
                 response.status,
                 response.headers.get("content-type"),
@@ -305,8 +411,11 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
         response_error = (
-            S3Error.fromxml(response, response_data) if response_data else None
+            S3Error.fromxml(response, response_data.decode()) if response_data else None
         )
+
+        if self._trace_stream:
+            self._trace_stream.write("----------END-HTTP----------\n")
 
         error_map = {
             301: lambda: self._handle_redirect_response(
@@ -374,7 +483,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
         if response_error.code in ["NoSuchBucket", "RetryHead"]:
-            self._region_map.pop(bucket_name, None)
+            if bucket_name is not None:
+                self._region_map.pop(bucket_name, None)
 
         raise response_error
 
@@ -386,14 +496,15 @@ class Minio:  # pylint: disable=too-many-public-methods
         body: bytes | BytesIO | None = None,
         headers: DictType | None = None,
         query_params: DictType | None = None,
-        session: aiohttp.ClientSession | None = None,
-    ) -> aiohttp.ClientResponse:
+        no_body_trace: bool = False,
+        session: ClientSession | RetryClient | None = None,
+    ) -> ClientResponse:
         """Execute HTTP request."""
-        region = await self._get_region(bucket_name, None)
+        region = await self._get_region(bucket_name)
 
         try:
             if session is None:
-                async with aiohttp.ClientSession() as session:
+                async with self._session() as session:
                     response = await self._url_open(
                         method,
                         region,
@@ -402,6 +513,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                         body=body,
                         headers=headers,
                         query_params=query_params,
+                        no_body_trace=no_body_trace,
                         session=session,
                     )
                     return response
@@ -414,6 +526,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     body=body,
                     headers=headers,
                     query_params=query_params,
+                    no_body_trace=no_body_trace,
                     session=session,
                 )
                 return response
@@ -424,7 +537,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         # Retry only once on RetryHead error.
         try:
             if session is None:
-                async with aiohttp.ClientSession() as session:
+                async with self._session() as session:
                     response = await self._url_open(
                         method,
                         region,
@@ -433,6 +546,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                         body=body,
                         headers=headers,
                         query_params=query_params,
+                        no_body_trace=no_body_trace,
                         session=session,
                     )
                     return response
@@ -445,6 +559,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     body=body,
                     headers=headers,
                     query_params=query_params,
+                    no_body_trace=no_body_trace,
                     session=session,
                 )
                 return response
@@ -457,25 +572,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                 bucket_name,
                 exc.response,
             )
-            raise exc.copy(code, message)
+            raise exc.copy(cast(str, code), cast(str, message))
 
-    async def _get_region(self, bucket_name: str | None, region: str | None) -> str:
+    async def _get_region(self, bucket_name: str | None) -> str:
         """
         Return region of given bucket either from region cache or set in
         constructor.
         """
-
-        if region:
-            # Error out if region does not match with region passed via
-            # constructor.
-            if self._base_url.region and self._base_url.region != region:
-                raise ValueError(
-                    "region must be {0}, but passed {1}".format(
-                        self._base_url.region,
-                        region,
-                    ),
-                )
-            return region
 
         if self._base_url.region:
             return self._base_url.region
@@ -488,17 +591,14 @@ class Minio:  # pylint: disable=too-many-public-methods
             return region
 
         # Execute GetBucketLocation REST API to get region of the bucket.
-        async with aiohttp.ClientSession() as session:
-            response = await self._url_open(
-                "GET",
-                "us-east-1",
-                bucket_name=bucket_name,
-                query_params={"location": ""},
-                session=session,
-            )
+        response = await self._url_open(
+            "GET",
+            "us-east-1",
+            bucket_name=bucket_name,
+            query_params={"location": ""},
+        )
 
-            element = ET.fromstring(await response.text())
-
+        element = ET.fromstring(await response.text())
         if not element.text:
             region = "us-east-1"
         elif element.text == "EU":
@@ -523,12 +623,24 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         if not (app_name and app_version):
             raise ValueError("Application name/version cannot be empty.")
+        self._user_agent = f"{_DEFAULT_USER_AGENT} {app_name}/{app_version}"
 
-        self._user_agent = "{0} {1}/{2}".format(
-            _DEFAULT_USER_AGENT,
-            app_name,
-            app_version,
-        )
+    def trace_on(self, stream: TextIO):
+        """
+        Enable http trace.
+
+        :param TextIO stream: Stream for writing HTTP call tracing.
+        """
+        if not stream:
+            raise ValueError("Input stream for trace output is invalid.")
+        # Save new output stream.
+        self._trace_stream = stream
+
+    def trace_off(self):
+        """
+        Disable HTTP trace.
+        """
+        self._trace_stream = None
 
     def enable_accelerate_endpoint(self):
         """Enables accelerate endpoint for Amazon S3 endpoint."""
@@ -602,18 +714,18 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if not isinstance(request, SelectRequest):
             raise ValueError("request must be SelectRequest type")
         body = marshal(request)
-        session = aiohttp.ClientSession()
+        session = self._session()
         response = await self._execute(
             "POST",
             bucket_name=bucket_name,
             object_name=object_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"select": "", "select-type": "2"},
             session=session,
         )
@@ -622,14 +734,14 @@ class Minio:  # pylint: disable=too-many-public-methods
     async def make_bucket(
         self,
         bucket_name: str,
-        location: str = "us-east-1",
+        location: str | None = None,
         object_lock: bool = False,
     ):
         """
         Create a bucket with region and object lock.
 
         :param str bucket_name: Name of the bucket.
-        :param str location: Region in which the bucket will be created.
+        :param str | None location: Region in which the bucket will be created.
         :param bool object_lock: Flag to set object-lock feature.
         :raise ValueError: If location is not same as region passed via base url
 
@@ -661,7 +773,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name, True)
+        check_bucket_name(bucket_name, True, s3_check=self._base_url.is_aws_host)
         if self._base_url.region:
             # Error out if region does not match with region passed via
             # constructor.
@@ -671,14 +783,16 @@ class Minio:  # pylint: disable=too-many-public-methods
                     f"but {location} was passed"
                 )
         location = self._base_url.region or location or "us-east-1"
-        headers = {"x-amz-bucket-object-lock-enabled": "true"} if object_lock else None
+        headers: DictType | None = (
+            {"x-amz-bucket-object-lock-enabled": "true"} if object_lock else None
+        )
 
         body = None
         if location != "us-east-1":
             element = Element("CreateBucketConfiguration")
             SubElement(element, "LocationConstraint", location)
             body = getbytes(element)
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             await self._url_open(
                 "PUT",
                 location,
@@ -715,7 +829,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute("GET", session=session)
             result = unmarshal(ListAllMyBucketsResult, await response.text())
             return result.buckets
@@ -750,7 +864,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
             await self._execute("HEAD", bucket_name)
             return True
@@ -782,7 +896,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         await self._execute("DELETE", bucket_name)
         self._region_map.pop(bucket_name, None)
 
@@ -812,8 +926,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        async with aiohttp.ClientSession() as session:
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        async with self._session() as session:
             response = await self._execute(
                 "GET", bucket_name, query_params={"policy": ""}, session=session
             )
@@ -842,7 +956,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         await self._execute("DELETE", bucket_name, query_params={"policy": ""})
 
     async def set_bucket_policy(self, bucket_name: str, policy: str | bytes):
@@ -920,13 +1034,13 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         is_valid_policy_type(policy)
         await self._execute(
             "PUT",
             bucket_name,
-            body=policy,
-            headers={"Content-MD5": md5sum_hash(policy)},
+            body=policy if isinstance(policy, bytes) else policy.encode(),
+            headers={"Content-MD5": cast(str, md5sum_hash(policy))},
             query_params={"policy": ""},
         )
 
@@ -956,8 +1070,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        async with aiohttp.ClientSession() as session:
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        async with self._session() as session:
             response = await self._execute(
                 "GET", bucket_name, query_params={"notification": ""}, session=session
             )
@@ -1003,7 +1117,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, NotificationConfig):
             raise ValueError("config must be NotificationConfig type")
         body = marshal(config)
@@ -1011,7 +1125,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"notification": ""},
         )
 
@@ -1069,7 +1183,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, SSEConfig):
             raise ValueError("config must be SSEConfig type")
         body = marshal(config)
@@ -1077,7 +1191,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"encryption": ""},
         )
 
@@ -1108,9 +1222,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET", bucket_name, query_params={"encryption": ""}, session=session
                 )
@@ -1144,7 +1258,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
             await self._execute(
                 "DELETE",
@@ -1165,7 +1279,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "s3:ObjectRemoved:*",
             "s3:ObjectAccessed:*",
         ),
-    ) -> AsyncEventIterable[aiohttp.ClientResponse]:
+    ) -> AsyncEventIterable:
         """
         Listen events of object prefix and suffix of a bucket. Caller should
         iterate returned iterator to read new events.
@@ -1194,19 +1308,20 @@ class Minio:  # pylint: disable=too-many-public-methods
                 events = await client.listen_bucket_notification(
                     "my-bucket",
                     prefix="my-prefix/",
-                    events=["s3:ObjectCreated:*", "s3:ObjectRemoved:*"],
+                    events=("s3:ObjectCreated:*", "s3:ObjectRemoved:*"),
                 )
                 async for event in events:
                     print('event:',event)
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if self._base_url.is_aws_host:
             raise ValueError(
                 "ListenBucketNotification API is not supported in Amazon S3",
             )
 
+        session = self._session()
         return AsyncEventIterable(
             await self._execute(
                 "GET",
@@ -1214,9 +1329,11 @@ class Minio:  # pylint: disable=too-many-public-methods
                 query_params={
                     "prefix": prefix or "",
                     "suffix": suffix or "",
-                    "events": events,
+                    "events": cast(tuple[str], events),
                 },
+                session=session,
             ),
+            session=session,
         )
 
     async def set_bucket_versioning(
@@ -1251,7 +1368,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, VersioningConfig):
             raise ValueError("config must be VersioningConfig type")
         body = marshal(config)
@@ -1259,7 +1376,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"versioning": ""},
         )
 
@@ -1289,8 +1406,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        async with aiohttp.ClientSession() as session:
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        async with self._session() as session:
             response = await self._execute(
                 "GET", bucket_name, query_params={"versioning": ""}, session=session
             )
@@ -1407,7 +1524,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
 
         file_size = os.stat(file_path).st_size
-        with open(file_path, "rb") as file_data:
+        async with async_open(file_path, "rb") as file_data:
             return await self.put_object(
                 bucket_name,
                 object_name,
@@ -1435,7 +1552,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         extra_query_params: DictType | None = None,
         tmp_file_path: str | None = None,
         progress: ProgressType | None = None,
-        session: aiohttp.ClientSession | None = None,
+        session: ClientSession | RetryClient | None = None,
     ) -> Object:
         """
         Downloads data of an object to file.
@@ -1449,7 +1566,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param DictType | None extra_query_params: Extra query parameters for advanced usage.
         :param str | None tmp_file_path: Path to a temporary file.
         :param ProgressType | None progress: A progress object.
-        :param aiohttp.ClientSession | None session: :class:`aiohttp.ClientSession()` object.
+        :param aiohttp.ClientSession | aiohttp_retry.RetryClient | None session: :class:`aiohttp.ClientSession()` object.
         :return: Object information.
         :rtype: Object
         :raise ValueError: If file_path is a directory.
@@ -1489,8 +1606,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
 
         if os.path.isdir(file_path):
             raise ValueError(f"file {file_path} is a directory")
@@ -1503,29 +1620,20 @@ class Minio:  # pylint: disable=too-many-public-methods
             object_name,
             ssec,
             version_id=version_id,
+            extra_headers=request_headers,
         )
 
+        etag = queryencode(cast(str, stat.etag))
         # Write to a temporary file "file_path.part.minio" before saving.
-        tmp_file_path = tmp_file_path or file_path + "." + stat.etag + ".part.minio"
-        try:
-            tmp_file_stat = os.stat(tmp_file_path)
-        except IOError:
-            tmp_file_stat = None  # Ignore this error.
-        offset = tmp_file_stat.st_size if tmp_file_stat else 0
-        if offset > stat.size:
-            os.remove(tmp_file_path)
-            offset = 0
+        tmp_file_path = tmp_file_path or f"{file_path}.{etag}.part.minio"
 
         try:
-            if session is None:
-                session = aiohttp.ClientSession()
 
-            async with session:
+            async def write_to_file(session):
                 response = await self.get_object(
                     bucket_name,
                     object_name,
                     session,
-                    offset=offset,
                     request_headers=request_headers,
                     ssec=ssec,
                     version_id=version_id,
@@ -1535,13 +1643,21 @@ class Minio:  # pylint: disable=too-many-public-methods
                 if progress:
                     # Set progress bar length and object name before upload
                     length = int(response.headers.get("content-length", 0))
-                    progress.set_meta(object_name=object_name, total_length=length)
+                    await progress.set_meta(
+                        object_name=object_name, total_length=length
+                    )
 
-                async with aiofile.async_open(tmp_file_path, "wb") as tmp_file:
+                async with async_open(tmp_file_path, "wb") as tmp_file:
                     async for data in response.content.iter_chunked(n=1024 * 1024):
                         size = await tmp_file.write(data)
                         if progress:
-                            progress.update(size)
+                            await progress.update(size)
+
+            if session is None:
+                async with self._session() as session:
+                    await write_to_file(session)
+            else:
+                await write_to_file(session)
 
             if os.path.exists(file_path):
                 os.remove(file_path)  # For windows compatibility.
@@ -1555,14 +1671,14 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        session: aiohttp.ClientSession,
+        session: ClientSession | RetryClient,
         offset: int = 0,
         length: int = 0,
         request_headers: DictType | None = None,
         ssec: SseCustomerKey | None = None,
         version_id: str | None = None,
         extra_query_params: DictType | None = None,
-    ) -> aiohttp.ClientResponse:
+    ) -> ClientResponse:
         """
         Get data of an object. Returned response should be closed after use to
         release network resources. To reuse the connection, it's required to
@@ -1570,7 +1686,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
-        :param aiohttp.ClientSession session: :class:`aiohttp.ClientSession()` object.
+        :param aiohttp.ClientSession | aiohttp_retry.RetryClient session: :class:`aiohttp.ClientSession()` object.
         :param int offset: Start byte position of object data.
         :param int length: Number of bytes of object data from offset.
         :param DictType | None request_headers: Any additional headers to be added with GET
@@ -1630,17 +1746,16 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         check_ssec(ssec)
 
-        headers = ssec.headers() if ssec else {}
+        headers = cast(DictType, ssec.headers() if ssec else {})
         headers.update(request_headers or {})
 
         if offset or length:
-            headers["Range"] = "bytes={}-{}".format(
-                offset, offset + length - 1 if length else ""
-            )
+            end = (offset + length - 1) if length else ""
+            headers["Range"] = f"bytes={offset}-{end}"
 
         if version_id:
             extra_query_params = extra_query_params or {}
@@ -1654,6 +1769,96 @@ class Minio:  # pylint: disable=too-many-public-methods
             query_params=extra_query_params,
             session=session,
         )
+
+    async def prompt_object(
+        self,
+        bucket_name: str,
+        object_name: str,
+        prompt: str,
+        lambda_arn: str | None = None,
+        request_headers: DictType | None = None,
+        ssec: SseCustomerKey | None = None,
+        version_id: str | None = None,
+        session: ClientSession | RetryClient | None = None,
+        **kwargs: Any | None,
+    ) -> ClientResponse:
+        """
+        Prompt an object using natural language.
+
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str prompt: Prompt the Object to interact with the AI model.
+                                request.
+        :param str | None lambda_arn: Lambda ARN to use for prompt.
+        :param DictType | None request_headers: Any additional headers to be added with POST
+        :param SseCustomerKey | None ssec: Server-side encryption customer key.
+        :param str | None version_id: Version-ID of the object.
+        :param Any | None kwargs: Extra parameters for advanced usage.
+        :return: :class:`aiohttp.ClientResponse` object.
+        :rtype: aiohttp.ClientResponse
+
+        .. code-block:: python
+
+            from miniopy_async import Minio
+            import asyncio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True  # http for False, https for True
+            )
+
+            async def main():
+                response = await self.client.prompt_object(
+                    "ai-data",
+                    "receipt_from_la.png",
+                    "What is the address of the restaurant?"
+                    stream=False
+                )
+
+                print(await response.text())
+
+            asyncio.run(main())
+        """
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
+        check_ssec(ssec)
+
+        headers = cast(DictType, ssec.headers() if ssec else {})
+        headers.update(request_headers or {})
+
+        extra_query_params = {"lambdaArn": lambda_arn or ""}
+
+        if version_id:
+            extra_query_params["versionId"] = version_id
+
+        prompt_body = kwargs
+        prompt_body["prompt"] = prompt
+
+        body = json.dumps(prompt_body)
+
+        if session is not None:
+            return await self._execute(
+                "POST",
+                bucket_name,
+                object_name,
+                headers=cast(DictType, headers),
+                query_params=cast(DictType, extra_query_params),
+                body=body.encode(),
+                session=session,
+            )
+        else:
+            async with self._session() as session:
+                return await self._execute(
+                    "POST",
+                    bucket_name,
+                    object_name,
+                    headers=cast(DictType, headers),
+                    query_params=cast(DictType, extra_query_params),
+                    body=body.encode(),
+                    session=session,
+                )
 
     async def copy_object(
         self,
@@ -1748,8 +1953,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if not isinstance(source, CopySource):
             raise ValueError("source must be CopySource type")
         check_sse(sse)
@@ -1758,13 +1963,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         if retention is not None and not isinstance(retention, Retention):
             raise ValueError("retention must be Retention type")
         if metadata_directive is not None and metadata_directive not in [COPY, REPLACE]:
-            raise ValueError(
-                "metadata directive must be {0} or {1}".format(COPY, REPLACE),
-            )
+            raise ValueError(f"metadata directive must be {COPY} or {REPLACE}")
         if tagging_directive is not None and tagging_directive not in [COPY, REPLACE]:
-            raise ValueError(
-                "tagging directive must be {0} or {1}".format(COPY, REPLACE),
-            )
+            raise ValueError(f"tagging directive must be {COPY} or {REPLACE}")
 
         size = -1
         if source.offset is None and source.length is None:
@@ -1779,7 +1980,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if (
             source.offset is not None
             or source.length is not None
-            or size > MAX_PART_SIZE
+            or (size is not None and size > MAX_PART_SIZE)
         ):
             if metadata_directive == COPY:
                 raise ValueError(
@@ -1808,7 +2009,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if tagging_directive:
             headers["x-amz-tagging-directive"] = tagging_directive
         headers.update(source.gen_copy_headers())
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "PUT",
                 bucket_name,
@@ -1839,8 +2040,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                 version_id=src.version_id,
                 ssec=src.ssec,
             )
-            src.build_headers(stat.size, stat.etag)
-            size = stat.size
+            src.build_headers(cast(int, stat.size), cast(str, stat.etag))
+            size = cast(int, stat.size)
             if src.length is not None:
                 size = src.length
             elif src.offset is not None:
@@ -1848,20 +2049,15 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             if size < MIN_PART_SIZE and len(sources) != 1 and i != len(sources):
                 raise ValueError(
-                    "source {0}/{1}: size {2} must be greater than {3}".format(
-                        src.bucket_name,
-                        src.object_name,
-                        size,
-                        MIN_PART_SIZE,
-                    ),
+                    f"source {src.bucket_name}/{src.object_name}: size {size} "
+                    f"must be greater than {MIN_PART_SIZE}"
                 )
 
             object_size += size
             if object_size > MAX_MULTIPART_OBJECT_SIZE:
                 raise ValueError(
-                    "destination object size must be less than {0}".format(
-                        MAX_MULTIPART_OBJECT_SIZE,
-                    ),
+                    f"destination object size must be less than "
+                    f"{MAX_MULTIPART_OBJECT_SIZE}"
                 )
 
             if size > MAX_PART_SIZE:
@@ -1877,15 +2073,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                     and i != len(sources)
                 ):
                     raise ValueError(
-                        (
-                            "source {0}/{1}: for multipart split upload of "
-                            "{2}, last part size is less than {3}"
-                        ).format(
-                            src.bucket_name,
-                            src.object_name,
-                            size,
-                            MIN_PART_SIZE,
-                        ),
+                        f"source {src.bucket_name}/{src.object_name}: "
+                        f"for multipart split upload of {size}, "
+                        f"last part size is less than {MIN_PART_SIZE}"
                     )
                 part_count += count
             else:
@@ -1893,9 +2083,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         if part_count > MAX_MULTIPART_COUNT:
             raise ValueError(
-                (
-                    "Compose sources create more than allowed multipart " "count {0}"
-                ).format(MAX_MULTIPART_COUNT),
+                f"Compose sources create more than allowed multipart "
+                f"count {MAX_MULTIPART_COUNT}"
             )
         return part_count
 
@@ -1908,17 +2097,16 @@ class Minio:  # pylint: disable=too-many-public-methods
         headers: DictType,
     ) -> tuple[str, datetime | None]:
         """Execute UploadPartCopy S3 API."""
-        query_params = {
-            "partNumber": str(part_number),
-            "uploadId": upload_id,
-        }
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "PUT",
                 bucket_name,
                 object_name,
                 headers=headers,
-                query_params=query_params,
+                query_params={
+                    "partNumber": str(part_number),
+                    "uploadId": upload_id,
+                },
                 session=session,
             )
             return parse_copy_object(await response.text())
@@ -2007,16 +2195,14 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if not isinstance(sources, (list, tuple)) or not sources:
             raise ValueError("sources must be non-empty list or tuple type")
         i = 0
         for src in sources:
             if not isinstance(src, ComposeSource):
-                raise ValueError(
-                    "sources[{0}] must be ComposeSource type".format(i),
-                )
+                raise ValueError(f"sources[{i}] must be ComposeSource type")
             i += 1
         check_sse(sse)
         if tags is not None and not isinstance(tags, Tags):
@@ -2050,23 +2236,23 @@ class Minio:  # pylint: disable=too-many-public-methods
             part_number = 0
             total_parts = []
             for src in sources:
-                size = src.object_size
+                size = cast(int, src.object_size)
                 if src.length is not None:
                     size = src.length
                 elif src.offset is not None:
                     size -= src.offset
                 offset = src.offset or 0
-                headers = src.headers
+                headers = cast(DictType, src.headers)
                 headers.update(ssec_headers)
                 if size <= MAX_PART_SIZE:
                     part_number += 1
                     if src.length is not None:
-                        headers["x-amz-copy-source-range"] = "bytes={0}-{1}".format(
-                            offset, offset + src.length - 1
+                        headers["x-amz-copy-source-range"] = (
+                            f"bytes={offset}-{offset + src.length - 1}"
                         )
                     elif src.offset is not None:
-                        headers["x-amz-copy-source-range"] = "bytes={0}-{1}".format(
-                            offset, offset + size - 1
+                        headers["x-amz-copy-source-range"] = (
+                            f"bytes={offset}-{offset + size - 1}"
                         )
                     etag, _ = await self._upload_part_copy(
                         bucket_name,
@@ -2079,13 +2265,11 @@ class Minio:  # pylint: disable=too-many-public-methods
                     continue
                 while size > 0:
                     part_number += 1
-                    start_bytes = offset
-                    end_bytes = start_bytes + MAX_PART_SIZE
-                    if size < MAX_PART_SIZE:
-                        end_bytes = start_bytes + size
+                    length = size if size < MAX_PART_SIZE else MAX_PART_SIZE
+                    end_bytes = offset + length - 1
                     headers_copy = headers.copy()
-                    headers_copy["x-amz-copy-source-range"] = "bytes={0}-{1}".format(
-                        start_bytes, end_bytes
+                    headers_copy["x-amz-copy-source-range"] = (
+                        f"bytes={offset}-{end_bytes}"
                     )
                     etag, _ = await self._upload_part_copy(
                         bucket_name,
@@ -2095,8 +2279,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                         headers_copy,
                     )
                     total_parts.append(Part(part_number, etag))
-                    offset = start_bytes
-                    size -= end_bytes - start_bytes
+                    offset += length
+                    size -= length
             result = await self._complete_multipart_upload(
                 bucket_name,
                 object_name,
@@ -2104,8 +2288,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                 total_parts,
             )
             return ObjectWriteResult(
-                result.bucket_name,
-                result.object_name,
+                cast(str, result.bucket_name),
+                cast(str, result.object_name),
                 result.version_id,
                 result.etag,
                 result.http_headers,
@@ -2148,7 +2332,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             SubElement(tag, "PartNumber", str(part.part_number))
             SubElement(tag, "ETag", '"' + part.etag + '"')
         body = getbytes(element)
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "POST",
                 bucket_name,
@@ -2156,12 +2340,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                 body=body,
                 headers={
                     "Content-Type": "application/xml",
-                    "Content-MD5": md5sum_hash(body),
+                    "Content-MD5": cast(str, md5sum_hash(body)),
                 },
                 query_params={"uploadId": upload_id},
                 session=session,
             )
-            return await CompleteMultipartUploadResult.from_async_response(response)
+            return CompleteMultipartUploadResult(response, await response.text())
 
     async def _create_multipart_upload(
         self,
@@ -2172,7 +2356,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """Execute CreateMultipartUpload S3 API."""
         if not headers.get("Content-Type"):
             headers["Content-Type"] = "application/octet-stream"
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "POST",
                 bucket_name,
@@ -2182,7 +2366,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 session=session,
             )
             element = ET.fromstring(await response.text())
-        return findtext(element, "UploadId")
+        return cast(str, findtext(element, "UploadId", True))
 
     async def _put_object(
         self,
@@ -2193,7 +2377,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         query_params: DictType | None = None,
     ) -> ObjectWriteResult:
         """Execute PutObject S3 API."""
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "PUT",
                 bucket_name,
@@ -2201,13 +2385,14 @@ class Minio:  # pylint: disable=too-many-public-methods
                 body=BytesIO(data),
                 headers=headers,
                 query_params=query_params,
+                no_body_trace=True,
                 session=session,
             )
             return ObjectWriteResult(
                 bucket_name,
                 object_name,
                 response.headers.get("x-amz-version-id"),
-                response.headers.get("etag").replace('"', ""),
+                response.headers.get("etag", "").replace('"', ""),
                 response.headers,
             )
 
@@ -2219,20 +2404,27 @@ class Minio:  # pylint: disable=too-many-public-methods
         headers: DictType | None,
         upload_id: str,
         part_number: int,
+        semaphore: asyncio.Semaphore | None = None,
     ) -> str:
         """Execute UploadPart S3 API."""
-        query_params = {
-            "partNumber": str(part_number),
-            "uploadId": upload_id,
-        }
-        result = await self._put_object(
-            bucket_name,
-            object_name,
-            data,
-            headers,
-            query_params=query_params,
-        )
-        return result.etag
+
+        async def get_result():
+            return await self._put_object(
+                bucket_name,
+                object_name,
+                data,
+                headers,
+                query_params={
+                    "partNumber": str(part_number),
+                    "uploadId": upload_id,
+                },
+            )
+
+        if semaphore:
+            async with semaphore:
+                return cast(str, (await get_result()).etag)
+        else:
+            return cast(str, (await get_result()).etag)
 
     async def _upload_part_task(self, args):
         """Upload_part task for CoroutinePool."""
@@ -2242,7 +2434,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        data: BinaryIO,
+        data: BinaryIO | FileIOWrapperBase,
         length: int,
         content_type: str = "application/octet-stream",
         metadata: DictType | None = None,
@@ -2259,7 +2451,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
-        :param BinaryIO data: An object having callable read() returning bytes object.
+        :param BinaryIO | FileIOWrapperBase data: An object having callable read() returning bytes object.
         :param int length: Data size; -1 for unknown size and set valid part_size.
         :param str content_type: Content type of the object.
         :param DictType | None metadata: Any additional metadata to be uploaded along
@@ -2366,8 +2558,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         check_sse(sse)
         if tags is not None and not isinstance(tags, Tags):
             raise ValueError("tags must be Tags type")
@@ -2378,7 +2570,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         part_size, part_count = get_part_info(length, part_size)
         if progress:
             # Set progress bar length and object name before upload
-            progress.set_meta(object_name=object_name, total_length=length)
+            await progress.set_meta(object_name=object_name, total_length=length)
 
         headers = genheaders(metadata, sse, tags, retention, legal_hold)
         headers["Content-Type"] = content_type or "application/octet-stream"
@@ -2391,6 +2583,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         upload_id = None
         parts = []
         parallel_tasks = []
+        semaphore: asyncio.Semaphore | None = None
 
         try:
             while not stop:
@@ -2406,10 +2599,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                     )
                     if len(part_data) != part_size:
                         raise IOError(
-                            (
-                                "stream having not enough data;"
-                                "expected: {0}, got: {1} bytes"
-                            ).format(part_size, len(part_data))
+                            f"stream having not enough data;"
+                            f"expected: {part_size}, "
+                            f"got: {len(part_data)} bytes"
                         )
                 else:
                     part_data = await read_part_data(
@@ -2440,50 +2632,50 @@ class Minio:  # pylint: disable=too-many-public-methods
                         object_name,
                         headers,
                     )
+                    if num_parallel_uploads and num_parallel_uploads > 1:
+                        semaphore = asyncio.Semaphore(num_parallel_uploads)
 
                 args = (
                     bucket_name,
                     object_name,
                     part_data,
-                    sse.headers() if isinstance(sse, SseCustomerKey) else None,
+                    (
+                        cast(DictType, sse.headers())
+                        if isinstance(sse, SseCustomerKey)
+                        else None
+                    ),
                     upload_id,
                     part_number,
+                    semaphore,
                 )
-                if num_parallel_uploads and num_parallel_uploads > 1:
+                if num_parallel_uploads > 1:
                     parallel_tasks.append(
-                        asyncio.ensure_future(self._upload_part_task(args))
+                        asyncio.create_task(self._upload_part_task(args))
                     )
-                    if (
-                        part_number % num_parallel_uploads == 0
-                        or part_number == part_count
-                    ):
-                        parts.extend(
-                            (
-                                Part(number, etag)
-                                for number, etag in await asyncio.gather(
-                                    *parallel_tasks
-                                )
-                            )
-                        )
-                        parallel_tasks.clear()
-
                 else:
-                    etag = await self._upload_part(*args, progress=progress)
+                    etag = await self._upload_part(*args)
                     parts.append(Part(part_number, etag))
 
-            result = await self._complete_multipart_upload(
+            if semaphore:
+                result = await asyncio.gather(*parallel_tasks)
+                parts = [Part(0, "")] * part_count
+                while len(result) > 0:
+                    part_number, etag = result.pop(0)
+                    parts[part_number - 1] = Part(part_number, etag)
+
+            upload_result = await self._complete_multipart_upload(
                 bucket_name,
                 object_name,
-                upload_id,
+                cast(str, upload_id),
                 parts,
             )
             return ObjectWriteResult(
-                result.bucket_name,
-                result.object_name,
-                result.version_id,
-                result.etag,
-                result.http_headers,
-                location=result.location,
+                cast(str, upload_result.bucket_name),
+                cast(str, upload_result.object_name),
+                upload_result.version_id,
+                upload_result.etag,
+                upload_result.http_headers,
+                location=upload_result.location,
             )
         except Exception as exc:
             if upload_id:
@@ -2504,6 +2696,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         include_version: bool = False,
         use_api_v1: bool = False,
         use_url_encoding_type: bool = True,
+        fetch_owner: bool = False,
+        extra_headers: DictType | None = None,
+        extra_query_params: DictType | None = None,
     ) -> ListObjects:
         """
         Lists object information of a bucket.
@@ -2519,6 +2714,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param bool use_api_v1: Flag to control to use ListObjectV1 S3 API or not.
         :param bool use_url_encoding_type: Flag to control whether URL encoding type
                                       to be used or not.
+        :param bool fetch_owner: Flag to control whether to fetch owner information.
+        :param DictType | None extra_headers: Any additional headers to be added with GET request.
+        :param DictType | None extra_query_params: Extra query parameters for advanced usage.
         :return: Iterator of :class:`Object`.
         :rtype: ListObjects
 
@@ -2588,6 +2786,9 @@ class Minio:  # pylint: disable=too-many-public-methods
             include_version=include_version,
             use_api_v1=use_api_v1,
             use_url_encoding_type=use_url_encoding_type,
+            fetch_owner=fetch_owner,
+            extra_headers=extra_headers,
+            extra_query_params=extra_query_params,
         )
 
     async def stat_object(
@@ -2596,7 +2797,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         object_name: str,
         ssec: SseCustomerKey | None = None,
         version_id: str | None = None,
-        request_headers: DictType | None = None,
+        extra_headers: DictType | None = None,
         extra_query_params: DictType | None = None,
     ) -> Object:
         """
@@ -2661,16 +2862,17 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
 
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         check_ssec(ssec)
 
-        headers = ssec.headers() if ssec else {}
-        if request_headers:
-            headers.update(request_headers)
+        headers = cast(DictType, ssec.headers() if ssec else {})
+        if extra_headers:
+            headers.update(extra_headers)
+
         query_params = extra_query_params or {}
         query_params.update({"versionId": version_id} if version_id else {})
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "HEAD",
                 bucket_name,
@@ -2680,9 +2882,11 @@ class Minio:  # pylint: disable=too-many-public-methods
                 session=session,
             )
 
-            last_modified = response.headers.get("last-modified")
-            if last_modified:
-                last_modified = time.from_http_header(last_modified)
+            value = response.headers.get("last-modified")
+            if value is not None:
+                last_modified = time.from_http_header(value)
+            else:
+                last_modified = None
 
             return Object(
                 bucket_name,
@@ -2694,20 +2898,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                 metadata=response.headers,
                 version_id=response.headers.get("x-amz-version-id"),
             )
-
-    async def list_object_versions(self, bucket_name: str) -> str:
-        """
-        List all object versions in a bucket.
-
-        :param str bucket_name: Name of the bucket.
-        :return: List of object versions.
-        :rtype: str
-        """
-        async with aiohttp.ClientSession() as session:
-            response = await self._execute(
-                "GET", bucket_name, query_params={"versions": ""}, session=session
-            )
-            return await response.text()
 
     async def remove_object(
         self, bucket_name: str, object_name: str, version_id: str | None = None
@@ -2745,8 +2935,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         await self._execute(
             "DELETE",
             bucket_name,
@@ -2773,10 +2963,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         :rtype: DeleteResult
         """
         body = marshal(DeleteRequest(delete_object_list, quiet=quiet))
-        headers = {"Content-MD5": md5sum_hash(body)}
+        headers: DictType = {
+            "Content-MD5": cast(str, md5sum_hash(body)),
+        }
         if bypass_governance_mode:
             headers["x-amz-bypass-governance-retention"] = "true"
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "POST",
                 bucket_name,
@@ -2793,12 +2985,12 @@ class Minio:  # pylint: disable=too-many-public-methods
                 else unmarshal(DeleteResult, await response.text())
             )
 
-    async def remove_objects(
+    def remove_objects(
         self,
         bucket_name: str,
         delete_object_list: Iterable[DeleteObject],
         bypass_governance_mode: bool = False,
-    ) -> AsyncGenerator[DeleteError]:
+    ) -> DeleteErrors:
         """
         Remove multiple objects.
 
@@ -2806,9 +2998,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param Iterable[DeleteObject] delete_object_list: An iterable containing
             :class:`DeleteObject` object.
         :param bool bypass_governance_mode: Bypass Governance retention mode.
-        :return: An async generator containing :class:`DeleteError`
-            object.
-        :rtype: AsyncGenerator[DeleteError]
+        :return: A :class:`DeleteErrors` object to be an async generator and list.
+        :rtype: DeleteErrors
 
         .. code-block:: python
 
@@ -2835,11 +3026,24 @@ class Minio:  # pylint: disable=too-many-public-methods
                         "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
                     ],
                 )
-                async for error in errors:
+                for error in errors:
+                    print("error occured when deleting object", error)
+
+                # As async generator
+                print('example two')
+                async for error in client.remove_objects(
+                    "my-bucket",
+                    [
+                        DeleteObject("my-object1"),
+                        DeleteObject("my-object2"),
+                        DeleteObject("my-object3",
+                        "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+                    ],
+                ):
                     print("error occured when deleting object", error)
 
                 # Remove a prefix recursively.
-                print('example two')
+                print('example three')
                 delete_object_list = [DeleteObject(obj.object_name)
                     for obj in await client.list_objects(
                         "my-bucket",
@@ -2847,47 +3051,18 @@ class Minio:  # pylint: disable=too-many-public-methods
                         recursive=True
                     )
                 ]
-                errors = await client.remove_objects("my-bucket",
-                delete_object_list)
-                async for error in errors:
+                errors = await client.remove_objects("my-bucket", delete_object_list)
+                for error in errors:
                     print("error occured when deleting object", error)
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-
-        # turn list like objects into an iterator.
-        delete_object_list = itertools.chain(delete_object_list)
-
-        while True:
-            # get 1000 entries or whatever available.
-            objects = [
-                delete_object
-                for _, delete_object in zip(
-                    range(1000),
-                    delete_object_list,
-                )
-            ]
-
-            if not objects:
-                return []
-
-            result = await self._delete_objects(
-                bucket_name,
-                objects,
-                quiet=True,
-                bypass_governance_mode=bypass_governance_mode,
-            )
-
-            async def _async_generator():
-                for error in result.error_list:
-                    # AWS S3 returns "NoSuchVersion" error when
-                    # version doesn't exist ignore this error
-                    # yield all errors otherwise
-                    if error.code != "NoSuchVersion":
-                        yield error
-
-            return _async_generator()
+        return DeleteErrors(
+            client=self,
+            bucket_name=bucket_name,
+            delete_object_list=delete_object_list,
+            bypass_governance_mode=bypass_governance_mode,
+        )
 
     async def get_presigned_url(
         self,
@@ -2899,7 +3074,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         request_date: datetime | None = None,
         version_id: str | None = None,
         extra_query_params: DictType | None = None,
-        change_host: str | None = None,
     ) -> str:
         """
         Get presigned URL of an object for HTTP method, expiry time and custom
@@ -2917,11 +3091,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                              current date.
         :param str | None version_id: Version ID of the object.
         :param DictType | None extra_query_params: Extra query parameters for advanced usage.
-        :param str | None change_host: Change the host for this presign temporaryly.
-                            This parameter is for the circumstance in which
-                            your base url is set with private IP address
-                            such as 127.0.0.1 or 0.0.0.0 and you want to
-                            create a url with public IP address.
         :return: URL string.
         :rtype: str
         :raise ValueError: If expires is not between 1 second to 7 days.
@@ -2975,61 +3144,28 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
-                # Get presigned URL string to download 'my-object' in
-                # 'my-bucket' with public IP address when using private IP
-                address.
-                client = Minio(
-                    "127.0.0.1:9000",
-                    access_key="your access key",
-                    secret_key="you secret key",
-                    secure=False  # http for False, https for True
-                )
-
-                print('example four')
-                url = await client.get_presigned_url(
-                    "GET",
-                    "my-bucket",
-                    "my-object",
-                    change_host='https://YOURHOST:YOURPORT',
-                )
-                print('url:', url)
-
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if expires.total_seconds() < 1 or expires.total_seconds() > 604800:
             raise ValueError("expires must be between 1 second to 7 days")
 
-        region = await self._get_region(bucket_name, None)
+        region = await self._get_region(bucket_name)
         query_params = extra_query_params or {}
         query_params.update({"versionId": version_id} if version_id else {})
         query_params.update(response_headers or {})
-        creds = self._provider.retrieve() if self._provider else None
+        creds = await self._provider.retrieve() if self._provider else None
         if creds and creds.session_token:
             query_params["X-Amz-Security-Token"] = creds.session_token
-
-        url = None
-        if change_host:
-            url = BaseURL(
-                change_host,
-                region,
-            ).build(
-                method,
-                region,
-                bucket_name=bucket_name,
-                object_name=object_name,
-                query_params=query_params,
-            )
-        else:
-            url = self._base_url.build(
-                method,
-                region,
-                bucket_name=bucket_name,
-                object_name=object_name,
-                query_params=query_params,
-            )
+        url = self._base_url.build(
+            method,
+            region,
+            bucket_name=bucket_name,
+            object_name=object_name,
+            query_params=query_params,
+        )
 
         if creds:
             url = presign_v4(
@@ -3051,7 +3187,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         request_date: datetime | None = None,
         version_id: str | None = None,
         extra_query_params: DictType | None = None,
-        change_host: str | None = None,
     ) -> str:
         """
         Get presigned URL of an object to download its data with expiry time
@@ -3068,11 +3203,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                               current date.
         :param str | None version_id: Version ID of the object.
         :param DictType | None extra_query_params: Extra query parameters for advanced usage.
-        :param str | None change_host: Change the host for this presign temporaryly. This parameter
-                            is for the circumstance in which your base url is
-                            set with private IP address
-                            such as 127.0.0.1 or 0.0.0.0 and you want to
-                            create a url with public IP address.
         :return: URL string.
         :rtype: str
 
@@ -3105,23 +3235,6 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
-                # Get presigned URL string to download 'my-object' in
-                # 'my-bucket' with public IP address when using private IP
-                address.
-                client = Minio(
-                    "127.0.0.1:9000",
-                    access_key="your access key",
-                    secret_key="you secret key",
-                    secure=False  # http for False, https for True
-                )
-
-                print('example three')
-                url = await client.presigned_get_object(
-                    "my-bucket",
-                    "my-object",
-                    change_host='https://YOURHOST:YOURPORT',
-                )
-                print('url:', url)
 
             asyncio.run(main())
         """
@@ -3134,7 +3247,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             request_date=request_date,
             version_id=version_id,
             extra_query_params=extra_query_params,
-            change_host=change_host,
         )
 
     async def presigned_put_object(
@@ -3142,7 +3254,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         bucket_name: str,
         object_name: str,
         expires: timedelta = timedelta(days=7),
-        change_host: str | None = None,
     ) -> str:
         """
         Get presigned URL of an object to upload data with expiry time and
@@ -3151,11 +3262,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
         :param datetime.timedelta expires: Expiry in seconds; defaults to 7 days.
-        :param str | None change_host: Change the host for this presign temporaryly. This parameter
-                            is for the circumstance in which your base url is
-                            set with private IP address
-                            such as 127.0.0.1 or 0.0.0.0 and you want to
-                            create a url with public IP address.
         :return: URL string.
         :rtype: str
 
@@ -3186,28 +3292,13 @@ class Minio:  # pylint: disable=too-many-public-methods
                 )
                 print('url:', url)
 
-                # Get presigned URL string to upload data to 'my-object' in
-                # 'my-bucket' with public IP address when using private IP
-                address.
-                client = Minio(
-                    "127.0.0.1:9000",
-                    access_key="your access key",
-                    secret_key="you secret key",
-                    secure=False  # http for False, https for True
-                )
-
-                print('example three')
-                url = await client.presigned_put_object(
-                    "my-bucket",
-                    "my-object",
-                    change_host='https://YOURHOST:YOURPORT',
-                )
-                print('url:', url)
-
             asyncio.run(main())
         """
         return await self.get_presigned_url(
-            "PUT", bucket_name, object_name, expires, change_host=change_host
+            "PUT",
+            bucket_name,
+            object_name,
+            expires,
         )
 
     async def presigned_post_policy(self, policy: PostPolicy) -> dict[str, str]:
@@ -3262,8 +3353,8 @@ class Minio:  # pylint: disable=too-many-public-methods
                 "anonymous access does not require presigned post form-data",
             )
         return policy.form_data(
-            self._provider.retrieve(),
-            await self._get_region(policy.bucket_name, None),
+            await self._provider.retrieve(),
+            await self._get_region(policy.bucket_name),
         )
 
     async def delete_bucket_replication(self, bucket_name: str):
@@ -3289,7 +3380,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         await self._execute("DELETE", bucket_name, query_params={"replication": ""})
 
     async def get_bucket_replication(
@@ -3321,9 +3412,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET",
                     bucket_name,
@@ -3394,7 +3485,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, ReplicationConfig):
             raise ValueError("config must be ReplicationConfig type")
         body = marshal(config)
@@ -3402,7 +3493,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"replication": ""},
         )
 
@@ -3429,7 +3520,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         await self._execute("DELETE", bucket_name, query_params={"lifecycle": ""})
 
     async def get_bucket_lifecycle(self, bucket_name: str) -> LifecycleConfig | None:
@@ -3459,9 +3550,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET", bucket_name, query_params={"lifecycle": ""}, session=session
                 )
@@ -3520,7 +3611,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, LifecycleConfig):
             raise ValueError("config must be LifecycleConfig type")
         body = marshal(config)
@@ -3528,7 +3619,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"lifecycle": ""},
         )
 
@@ -3555,7 +3646,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         await self._execute("DELETE", bucket_name, query_params={"tagging": ""})
 
     async def get_bucket_tags(self, bucket_name: str) -> Tags | None:
@@ -3585,9 +3676,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET", bucket_name, query_params={"tagging": ""}, session=session
                 )
@@ -3628,7 +3719,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(tags, Tags):
             raise ValueError("tags must be Tags type")
         body = marshal(Tagging(tags))
@@ -3636,7 +3727,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"tagging": ""},
         )
 
@@ -3666,19 +3757,19 @@ class Minio:  # pylint: disable=too-many-public-methods
             )
 
             async def main():
-                await client.delete_object_tags("my-bucket")
+                await client.delete_object_tags("my-bucket", "my-object")
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         query_params = {"versionId": version_id} if version_id else {}
         query_params["tagging"] = ""
         await self._execute(
             "DELETE",
             bucket_name,
             object_name=object_name,
-            query_params=query_params,
+            query_params=cast(DictType, query_params),
         )
 
     async def get_object_tags(
@@ -3715,17 +3806,17 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         query_params = {"versionId": version_id} if version_id else {}
         query_params["tagging"] = ""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET",
                     bucket_name,
                     object_name=object_name,
-                    query_params=query_params,
+                    query_params=cast(DictType, query_params),
                     session=session,
                 )
                 tagging = unmarshal(Tagging, await response.text())
@@ -3773,8 +3864,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if not isinstance(tags, Tags):
             raise ValueError("tags must be Tags type")
         body = marshal(Tagging(tags))
@@ -3785,8 +3876,8 @@ class Minio:  # pylint: disable=too-many-public-methods
             bucket_name,
             object_name=object_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
-            query_params=query_params,
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
+            query_params=cast(DictType, query_params),
         )
 
     async def enable_object_legal_hold(
@@ -3819,18 +3910,18 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         body = marshal(LegalHold(True))
-        query_params = {"versionId", version_id} if version_id else {}
+        query_params = {"versionId": version_id} if version_id else {}
         query_params["legal-hold"] = ""
         await self._execute(
             "PUT",
             bucket_name,
             object_name=object_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
-            query_params=query_params,
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
+            query_params=cast(DictType, query_params),
         )
 
     async def disable_object_legal_hold(
@@ -3863,18 +3954,18 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         body = marshal(LegalHold(False))
-        query_params = {"versionId", version_id} if version_id else {}
+        query_params = {"versionId": version_id} if version_id else {}
         query_params["legal-hold"] = ""
         await self._execute(
             "PUT",
             bucket_name,
             object_name=object_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
-            query_params=query_params,
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
+            query_params=cast(DictType, query_params),
         )
 
     async def is_object_legal_hold_enabled(
@@ -3914,17 +4005,17 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
-        query_params = {"versionId", version_id} if version_id else {}
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
+        query_params = {"versionId": version_id} if version_id else {}
         query_params["legal-hold"] = ""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET",
                     bucket_name,
                     object_name=object_name,
-                    query_params=query_params,
+                    query_params=cast(DictType, query_params),
                     session=session,
                 )
                 legal_hold = unmarshal(LegalHold, await response.text())
@@ -3987,8 +4078,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        async with aiohttp.ClientSession() as session:
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        async with self._session() as session:
             response = await self._execute(
                 "GET", bucket_name, query_params={"object-lock": ""}, session=session
             )
@@ -4027,7 +4118,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         if not isinstance(config, ObjectLockConfig):
             raise ValueError("config must be ObjectLockConfig type")
         body = marshal(config)
@@ -4035,7 +4126,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "PUT",
             bucket_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
             query_params={"object-lock": ""},
         )
 
@@ -4074,17 +4165,17 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
-        query_params = {"versionId", version_id} if version_id else {}
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
+        query_params = {"versionId": version_id} if version_id else {}
         query_params["retention"] = ""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
                     "GET",
                     bucket_name,
                     object_name=object_name,
-                    query_params=query_params,
+                    query_params=cast(DictType, query_params),
                     session=session,
                 )
                 return unmarshal(Retention, await response.text())
@@ -4136,20 +4227,20 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        check_bucket_name(bucket_name)
-        check_non_empty_string(object_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
         if not isinstance(config, Retention):
             raise ValueError("config must be Retention type")
         body = marshal(config)
-        query_params = {"versionId", version_id} if version_id else {}
+        query_params = {"versionId": version_id} if version_id else {}
         query_params["retention"] = ""
         await self._execute(
             "PUT",
             bucket_name,
             object_name=object_name,
             body=body,
-            headers={"Content-MD5": md5sum_hash(body)},
-            query_params=query_params,
+            headers={"Content-MD5": cast(str, md5sum_hash(body))},
+            query_params=cast(DictType, query_params),
         )
 
     async def upload_snowball_objects(
@@ -4219,6 +4310,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         object_name = f"snowball.{random()}.tar"
 
+        # turn list like objects into an iterator.
+        object_list = itertools.chain(object_list)
+
         metadata = metadata or {}
         metadata["X-Amz-Meta-Snowball-Auto-Extract"] = "true"
 
@@ -4226,20 +4320,20 @@ class Minio:  # pylint: disable=too-many-public-methods
         mode = "w:gz" if compression else "w"
         fileobj = None if name else BytesIO()
         with tarfile.open(name=name, mode=mode, fileobj=fileobj) as tar:
-            async for obj in async_generator(object_list):
+            for obj in object_list:
                 if obj.filename:
                     tar.add(obj.filename, obj.object_name)
                 else:
                     info = tarfile.TarInfo(obj.object_name)
-                    info.size = obj.length
+                    info.size = cast(int, obj.length)
                     info.mtime = int(
                         time.to_float(obj.mod_time or time.utcnow()),
                     )
                     tar.addfile(info, obj.data)
 
         if not name:
-            length = fileobj.tell()
-            fileobj.seek(0)
+            length = cast(BytesIO, fileobj).tell()
+            cast(BytesIO, fileobj).seek(0)
         else:
             length = os.stat(name).st_size
 
@@ -4260,7 +4354,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         return await self.put_object(
             bucket_name,
             object_name,
-            fileobj,
+            cast(BinaryIO, fileobj),
             length,
             metadata=metadata,
             sse=sse,
@@ -4286,6 +4380,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         version_id_marker: str | None = None,  # versioned
         use_api_v1: bool = False,
         include_version: bool = False,
+        extra_headers: DictType | None = None,
+        extra_query_params: DictType | None = None,
     ) -> AsyncGenerator[Object]:
         """
         List objects optionally including versions.
@@ -4295,13 +4391,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         policies.
         """
 
-        check_bucket_name(bucket_name)
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
 
         if version_id_marker:
             include_version = True
 
         is_truncated = True
-
         while is_truncated:
             query = {}
             if include_version:
@@ -4331,9 +4426,13 @@ class Minio:  # pylint: disable=too-many-public-methods
             if version_id_marker:
                 query["version-id-marker"] = version_id_marker
 
-            async with aiohttp.ClientSession() as session:
+            async with self._session() as session:
                 response = await self._execute(
-                    "GET", bucket_name, query_params=query, session=session
+                    "GET",
+                    bucket_name,
+                    query_params=query,
+                    headers=extra_headers,
+                    session=session,
                 )
 
                 (
@@ -4341,14 +4440,15 @@ class Minio:  # pylint: disable=too-many-public-methods
                     is_truncated,
                     start_after,
                     version_id_marker,
-                ) = await parse_list_objects(response)
+                ) = parse_list_objects(await response.text())
 
-                yield objects
+                if not include_version:
+                    version_id_marker = None
+                    if not use_api_v1:
+                        continuation_token = start_after
 
-            if not include_version:
-                version_id_marker = None
-                if not use_api_v1:
-                    continuation_token = start_after
+                for object in objects:
+                    yield object
 
     async def _list_multipart_uploads(
         self,
@@ -4397,7 +4497,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if upload_id_marker:
             query_params["upload-id-marker"] = upload_id_marker
 
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "GET",
                 bucket_name,
@@ -4441,7 +4541,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         if part_number_marker:
             query_params["part-number-marker"] = part_number_marker
 
-        async with aiohttp.ClientSession() as session:
+        async with self._session() as session:
             response = await self._execute(
                 "GET",
                 bucket_name,

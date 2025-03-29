@@ -71,7 +71,7 @@ class Progress(Thread):
         self.stdout = stdout
         self.start()
 
-    def set_meta(self, total_length, object_name):
+    async def set_meta(self, total_length, object_name):
         """
         Metadata settings for the object. This method called before uploading
         object
@@ -114,7 +114,7 @@ class Progress(Thread):
                 self.done_progress()
                 return
 
-    def update(self, size):
+    async def update(self, size):
         """
         Update object size to be showed. This method called while uploading
         :param size: Object size to be showed. The object size should be in

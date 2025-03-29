@@ -23,7 +23,7 @@ APIs.
 
 from __future__ import absolute_import, annotations
 
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .commonconfig import COMPLIANCE, ENABLED, GOVERNANCE
@@ -49,15 +49,11 @@ class ObjectLockConfig:
                 raise ValueError("mode must be provided")
             raise ValueError("duration must be provided")
         if mode is not None and mode not in [GOVERNANCE, COMPLIANCE]:
-            raise ValueError(
-                "mode must be {0} or {1}".format(GOVERNANCE, COMPLIANCE),
-            )
+            raise ValueError(f"mode must be {GOVERNANCE} or {COMPLIANCE}")
         if duration_unit:
             duration_unit = duration_unit.title()
         if duration is not None and duration_unit not in [DAYS, YEARS]:
-            raise ValueError(
-                "duration unit must be {0} or {1}".format(DAYS, YEARS),
-            )
+            raise ValueError(f"duration unit must be {DAYS} or {YEARS}")
         self._mode = mode
         self._duration = duration
         self._duration_unit = duration_unit
@@ -75,18 +71,19 @@ class ObjectLockConfig:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, "Rule")
-        if element is None:
+        elem = find(element, "Rule")
+        if elem is None:
             return cls(None, None, None)
-        element = find(element, "DefaultRetention")
-        mode = findtext(element, "Mode")
+        elem = cast(ET.Element, find(elem, "DefaultRetention", True))
+        mode = findtext(elem, "Mode")
         duration_unit = DAYS
-        duration = findtext(element, duration_unit)
+        duration = findtext(elem, duration_unit)
         if not duration:
             duration_unit = YEARS
-            duration = findtext(element, duration_unit)
-        duration = int(duration)
-        return cls(mode, duration, duration_unit)
+            duration = findtext(elem, duration_unit)
+        if not duration:
+            raise ValueError(f"XML element <{DAYS}> or <{YEARS}> not found")
+        return cls(mode, int(duration), duration_unit)
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
@@ -96,5 +93,7 @@ class ObjectLockConfig:
             rule = SubElement(element, "Rule")
             retention = SubElement(rule, "DefaultRetention")
             SubElement(retention, "Mode", self._mode)
+            if not self._duration_unit:
+                raise ValueError("duration unit must be provided")
             SubElement(retention, self._duration_unit, str(self._duration))
         return element

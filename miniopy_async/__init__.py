@@ -44,10 +44,6 @@ __version__ = "1.21.3"
 __license__ = "Apache 2.0"
 __copyright__ = "(C) 2022 L-ING <hlf01@icloud.com>"
 
-import threading
-
-__LOCALE_LOCK__ = threading.Lock()
-
 from .api import Minio
 from .error import InvalidResponseError, S3Error, ServerError
 from .minioadmin import MinioAdmin

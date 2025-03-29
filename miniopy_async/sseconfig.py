@@ -21,7 +21,7 @@
 from __future__ import absolute_import, annotations
 
 from abc import ABCMeta
-from typing import Type, TypeVar
+from typing import Type, TypeVar, cast
 from xml.etree import ElementTree as ET
 
 from .xml import Element, SubElement, find, findtext
@@ -71,13 +71,19 @@ class Rule:
     @classmethod
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
-        element = find(element, "ApplyServerSideEncryptionByDefault")
-        sse_algorithm = findtext(element, "SSEAlgorithm", True)
-        kms_master_key_id = findtext(element, "KMSMasterKeyID")
-        return cls(sse_algorithm, kms_master_key_id)
+        element = cast(
+            ET.Element,
+            find(element, "ApplyServerSideEncryptionByDefault", True),
+        )
+        return cls(
+            cast(str, findtext(element, "SSEAlgorithm", True)),
+            findtext(element, "KMSMasterKeyID"),
+        )
 
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
+        if element is None:
+            raise ValueError("element must be provided")
         element = SubElement(element, "Rule")
         tag = SubElement(element, "ApplyServerSideEncryptionByDefault")
         SubElement(tag, "SSEAlgorithm", self._sse_algorithm)
@@ -90,7 +96,7 @@ B = TypeVar("B", bound="SSEConfig")
 
 
 class SSEConfig:
-    """server-side encyption configuration."""
+    """server-side encryption configuration."""
 
     def __init__(self, rule: Rule):
         if not rule:
@@ -105,7 +111,7 @@ class SSEConfig:
     @classmethod
     def fromxml(cls: Type[B], element: ET.Element) -> B:
         """Create new object with values from XML element."""
-        element = find(element, "Rule")
+        element = cast(ET.Element, find(element, "Rule", True))
         return cls(Rule.fromxml(element))
 
     def toxml(self, element: ET.Element | None) -> ET.Element:

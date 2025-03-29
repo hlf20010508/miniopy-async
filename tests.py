@@ -1,3 +1,4 @@
+from typing import cast
 import unittest
 from miniopy_async import Minio
 from miniopy_async.commonconfig import (
@@ -59,7 +60,10 @@ class Test(unittest.IsolatedAsyncioTestCase):
             )
             await cls.client.remove_objects(
                 cls.bucket_name,
-                [DeleteObject(obj.object_name, obj.version_id) for obj in objects],
+                [
+                    DeleteObject(cast(str, obj.object_name), obj.version_id)
+                    for obj in objects
+                ],
             )
             await cls.client.remove_bucket(cls.bucket_name)
 
@@ -85,29 +89,35 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
     async def test_put_object(self):
         test_content = BytesIO(b"hello" * 1024 * 1024)
-        await self.client.put_object(
+        result = await self.client.put_object(
             self.bucket_name,
             self.test_file_name,
             test_content,
             length=test_content.getbuffer().nbytes,
         )
 
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+
     async def test_fput_object(self):
         with open(self.test_file_name, "wb") as file:
             file.write(b"hello" * 1024 * 1024)
         self.addCleanup(os.remove, self.test_file_name)
 
-        await self.client.fput_object(
+        result = await self.client.fput_object(
             self.bucket_name,
             self.test_file_name,
             self.test_file_name,
         )
 
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+
     async def test_upload_snowball_objects(self):
         test_content1 = BytesIO(b"hello" * 1024 * 1024)
         test_content2 = BytesIO(b"world" * 1024 * 1024)
 
-        await self.client.upload_snowball_objects(
+        result = await self.client.upload_snowball_objects(
             self.bucket_name,
             [
                 SnowballObject(
@@ -126,6 +136,10 @@ class Test(unittest.IsolatedAsyncioTestCase):
         )
         self.addCleanup(os.remove, "testfiles.tar")
 
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertTrue(result.object_name.startswith("snowball."))
+        self.assertTrue(result.object_name.endswith(".tar"))
+
     async def test_compose_object(self):
         test_file_names = ["testfile-1", "testfile-2"]
         for test_file_name in test_file_names:
@@ -135,16 +149,26 @@ class Test(unittest.IsolatedAsyncioTestCase):
             ComposeSource(self.bucket_name, test_file_name)
             for test_file_name in test_file_names
         ]
-        await self.client.compose_object(self.bucket_name, "composed-object", sources)
+        compose_name = "composed-object"
+        result = await self.client.compose_object(
+            self.bucket_name, compose_name, sources
+        )
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, compose_name)
 
     async def test_copy_object(self):
         await self.put_test_file()
 
-        await self.client.copy_object(
+        copy_name = "copied-object"
+        result = await self.client.copy_object(
             self.bucket_name,
-            "copied-object",
+            copy_name,
             CopySource(self.bucket_name, self.test_file_name),
         )
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, copy_name)
 
     async def test_set_bucket_versioning(self):
         await self.client.set_bucket_versioning(
@@ -214,15 +238,27 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def test_stat_object(self):
         await self.put_test_file()
 
-        await self.client.stat_object(self.bucket_name, self.test_file_name)
+        result = await self.client.stat_object(self.bucket_name, self.test_file_name)
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(result.size, 5 * 1024 * 1024)
 
     async def test_presigned_get_object(self):
         await self.put_test_file()
 
-        await self.client.presigned_get_object(self.bucket_name, self.test_file_name)
+        result = await self.client.presigned_get_object(
+            self.bucket_name, self.test_file_name
+        )
+
+        self.assertTrue(result.startswith("https://play.min.io/"))
 
     async def test_presigned_put_object(self):
-        await self.client.presigned_put_object(self.bucket_name, self.test_file_name)
+        result = await self.client.presigned_put_object(
+            self.bucket_name, self.test_file_name
+        )
+
+        self.assertTrue(result.startswith("https://play.min.io/"))
 
     async def test_presigned_post_policy(self):
         bucket_post_policy = PostPolicy(
@@ -236,10 +272,20 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self.client.presigned_post_policy(bucket_post_policy)
 
     async def test_list_buckets(self):
-        await self.client.list_buckets()
+        result = await self.client.list_buckets()
+
+        self.assertTrue(len(result) > 0)
 
     async def test_list_objects(self):
-        await self.client.list_objects(self.bucket_name)
+        result = await self.client.list_objects(self.bucket_name)
+
+        self.assertTrue(len(result) > 0)
+
+        count = 0
+        async for _ in self.client.list_objects(self.bucket_name):
+            count += 1
+
+        self.assertTrue(count > 0)
 
     async def test_get_object(self):
         await self.put_test_file()
@@ -248,13 +294,19 @@ class Test(unittest.IsolatedAsyncioTestCase):
             response = await self.client.get_object(
                 self.bucket_name, self.test_file_name, session
             )
-            await response.content.read()
+            content = await response.content.read()
+
+        self.assertEqual(content, b"hello" * 1024 * 1024)
 
     async def test_fget_object(self):
-        await self.client.fget_object(
+        result = await self.client.fget_object(
             self.bucket_name, self.test_file_name, self.test_file_name
         )
         self.addCleanup(os.remove, self.test_file_name)
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(result.size, 5 * 1024 * 1024)
 
     async def test_select_object_content(self):
         await self.put_test_file(content=b"hello")
@@ -276,9 +328,6 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self.put_test_file()
 
         await self.client.remove_object(self.bucket_name, self.test_file_name)
-
-    async def test_list_object_versions(self):
-        await self.client.list_object_versions(self.bucket_name)
 
 
 if __name__ == "__main__":

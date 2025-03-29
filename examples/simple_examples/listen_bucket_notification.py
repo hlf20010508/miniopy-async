@@ -35,7 +35,7 @@ async def main():
     events = await client.listen_bucket_notification(
         "my-bucket",
         prefix="my-prefix/",
-        events=["s3:ObjectCreated:*", "s3:ObjectRemoved:*"],
+        events=("s3:ObjectCreated:*", "s3:ObjectRemoved:*"),
     )
     async for event in events:
         print("event:", event)
