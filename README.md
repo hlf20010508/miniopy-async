@@ -1,37 +1,12 @@
 # miniopy-async
-> Asynchronous MinIO Client SDK for Python
-
 [![PyPI](https://img.shields.io/pypi/v/miniopy-async)](https://pypi.org/project/miniopy-async/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)](https://pypi.org/project/miniopy-async/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)](https://pypi.org/project/miniopy-async/)  
-[![GitHub repo size](https://img.shields.io/github/repo-size/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async)
-[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/hlf20010508/miniopy-async/python-publish.yml)](https://github.com/hlf20010508/miniopy-async/actions)
-[![GitHub closed issues](https://img.shields.io/github/issues-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/issues?q=is%3Aissue+is%3Aclosed)
-[![GitHub closed pull requests](https://img.shields.io/github/issues-pr-closed/hlf20010508/miniopy-async)](https://github.com/hlf20010508/miniopy-async/pulls?q=is%3Apr+is%3Aclosed)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/miniopy-async)](https://pypi.org/project/miniopy-async/) 
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/miniopy-async)](https://pypi.org/project/miniopy-async/) 
 
-Document: https://hlf20010508.github.io/miniopy-async/
+Asynchronous MinIO Client SDK for Python
 
-## Catalogue
-- [Declaration](#declaration)
-- [Minimum Requirements](#requirements)
-- [Build from source](#build)
-- [Installation](#installation)
-- [Quick Start](#example)
-- [More References](#references)
-
-<span id="declaration"></span>
-
-## Declaration
-- This project is based on Huseyn Mashadiyev's [minio-async](https://github.com/HuseynMashadiyev/minio-async/tree/78128443f7ce9618191e1155689b47507df67bb1) 1.0.0.
-- This project has fixed some bugs of minio-async and added some new features.
-- Miniopy-async 1.2 has been pulled requests to minio-async.
-
-<span id="requirements"></span>
-
-## Minimum Requirements
-- Python >= 3.10
-
-<span id="build"></span>
+- Document: https://hlf20010508.github.io/miniopy-async/
+- Examples: https://github.com/hlf20010508/miniopy-async/tree/master/examples
 
 ## Build from Source
 ```sh
@@ -40,8 +15,6 @@ cd miniopy-async
 poetry install
 poetry build
 ```
-
-<span id="installation"></span>
 
 ## Installation
 PyPI
@@ -53,8 +26,6 @@ Github Repository
 ```sh
 pip install git+https://github.com/hlf20010508/miniopy-async.git
 ```
-
-<span id="example"></span>
 
 ## Quick Start
 ```py
@@ -105,8 +76,3 @@ async def download(request):
     url = await client.presigned_get_object(bucket_name=bucket, object_name=fileName)
     return response.redirect(url)
 ```
-
-<span id="references"></span>
-
-## More References
-- <a href="https://github.com/hlf20010508/miniopy-async/tree/master/examples">Examples</a>
