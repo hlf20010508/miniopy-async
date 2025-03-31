@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "miniopy-async"
-version = "1.21.3"
+version = "1.22.0"
 description = "Asynchronous MinIO Client SDK for Python"
 authors = [
     "L-ING <hlf01@icloud.com>",
