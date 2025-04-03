@@ -132,13 +132,7 @@ class MinioAdmin:
             raise ValueError("valid credentials must be provided")
         if region and not _REGION_REGEX.match(region):
             raise ValueError(f"invalid region {region}")
-        if client_session:
-            if not isinstance(client_session, (ClientSession | RetryClient)):
-                raise ValueError(
-                    "HTTP client should be instance of "
-                    "`aiohttp.ClientSession` or `aiohttp_retry.RetryClient`"
-                )
-        else:
+        if not client_session:
             if cert_check:
                 ssl_context = ssl.create_default_context(
                     cafile=os.environ.get("SSL_CERT_FILE") or certifi.where()
