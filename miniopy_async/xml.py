@@ -21,10 +21,8 @@
 from __future__ import absolute_import, annotations
 
 import io
-from typing import Type, TypeVar
+from typing import Protocol, Type, TypeVar
 from xml.etree import ElementTree as ET
-
-from typing_extensions import Protocol
 
 _S3_NAMESPACE = "http://s3.amazonaws.com/doc/2006-03-01/"
 

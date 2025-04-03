@@ -24,6 +24,7 @@
 
 from __future__ import absolute_import, annotations, division, unicode_literals
 
+import asyncio
 import base64
 import errno
 import hashlib
@@ -33,12 +34,10 @@ import platform
 import re
 import urllib.parse
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Tuple, Union
+from typing import BinaryIO, Dict, List, Protocol, Tuple, Union
 
-from typing_extensions import Protocol
-from aiohttp.typedefs import LooseHeaders
 from aiofile import FileIOWrapperBase
-import asyncio
+from aiohttp.typedefs import LooseHeaders
 
 from . import __title__, __version__
 from .sse import Sse, SseCustomerKey
