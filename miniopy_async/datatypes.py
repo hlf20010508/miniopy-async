@@ -27,11 +27,13 @@ Response of ListBuckets, ListObjects, ListObjectsV2 and ListObjectVersions API.
 from __future__ import absolute_import, annotations
 
 import base64
+import itertools
 import json
 from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
 from typing import (
+    TYPE_CHECKING,
     Any,
     AsyncGenerator,
     Iterable,
@@ -40,7 +42,6 @@ from typing import (
     Type,
     TypeVar,
     cast,
-    TYPE_CHECKING,
 )
 from urllib.parse import unquote_plus
 from xml.etree import ElementTree as ET
@@ -49,19 +50,17 @@ from aiohttp import ClientResponse, ClientSession
 from aiohttp.typedefs import LooseHeaders
 from aiohttp_retry import RetryClient
 from multidict import CIMultiDictProxy
-import itertools
-
-from miniopy_async.deleteobjects import DeleteError, DeleteObject
 
 from .commonconfig import Tags
 from .credentials import Credentials
+from .deleteobjects import DeleteError, DeleteObject
 from .helpers import DictType, check_bucket_name
 from .signer import get_credential_string, post_presign_v4
 from .time import from_iso8601utc, to_amz_date, to_iso8601utc, utcnow
 from .xml import find, findall, findtext
 
 if TYPE_CHECKING:
-    from miniopy_async.api import Minio
+    from .api import Minio
 
 
 class Bucket:

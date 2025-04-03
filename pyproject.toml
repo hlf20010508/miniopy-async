@@ -47,3 +47,7 @@ reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "warning"
 reportDeprecated = "warning"
+reportPrivateImportUsage = "none"
+
+[tool.isort]
+profile = "black"

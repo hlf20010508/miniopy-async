@@ -27,45 +27,45 @@
 
 from __future__ import absolute_import, annotations
 
+import asyncio
 import itertools
 import json
 import os
+import ssl
 import tarfile
 from collections.abc import Iterable
 from datetime import datetime, timedelta
 from io import BytesIO
 from random import random
-from typing import Any, BinaryIO, AsyncGenerator, Callable, TextIO, cast
+from typing import Any, AsyncGenerator, BinaryIO, Callable, TextIO, cast
 from urllib.parse import urlunsplit
 from xml.etree import ElementTree as ET
 
 import certifi
-import asyncio
+from aiofile import FileIOWrapperBase, async_open
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
 from aiohttp.typedefs import LooseHeaders
 from aiohttp_retry import ExponentialRetry, RetryClient
-import ssl
 from multidict import CIMultiDict
-from aiofile import FileIOWrapperBase, async_open
 
 from . import time
-from .commonconfig import COPY, ComposeSource, CopySource, REPLACE, Tags, SnowballObject
+from .commonconfig import COPY, REPLACE, ComposeSource, CopySource, SnowballObject, Tags
 from .credentials import Credentials, StaticProvider
 from .credentials.providers import Provider
 from .datatypes import (
-    Bucket,
     AsyncEventIterable,
+    Bucket,
     CompleteMultipartUploadResult,
     DeleteErrors,
     ListAllMyBucketsResult,
     ListMultipartUploadsResult,
+    ListObjects,
     ListPartsResult,
     Object,
     Part,
     PostPolicy,
     parse_copy_object,
     parse_list_objects,
-    ListObjects,
 )
 from .deleteobjects import DeleteError, DeleteObject, DeleteRequest, DeleteResult
 from .error import InvalidResponseError, S3Error, ServerError

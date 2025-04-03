@@ -27,18 +27,15 @@ from __future__ import absolute_import, annotations
 from abc import ABCMeta
 from binascii import crc32
 from io import BytesIO
-from typing import (
-    AsyncGenerator,
-    Iterable,
-    SupportsBytes,
-    SupportsIndex,
-)
+from typing import AsyncGenerator, Iterable, SupportsBytes, SupportsIndex
+from xml.etree import ElementTree as ET
+
+from aiohttp import ClientResponse, ClientSession, StreamReader
 from aiohttp_retry import RetryClient
 from typing_extensions import Buffer
-from xml.etree import ElementTree as ET
+
 from .error import MinioException
 from .xml import Element, SubElement, findtext
-from aiohttp import ClientResponse, ClientSession, StreamReader
 
 ReadableBuffer = Buffer
 

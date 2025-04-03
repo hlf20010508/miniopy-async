@@ -24,6 +24,7 @@ from __future__ import absolute_import, annotations
 
 import json
 import os
+import ssl
 from datetime import timedelta
 from enum import Enum, unique
 from typing import Any, Callable, TextIO, Tuple, cast
@@ -33,8 +34,6 @@ import certifi
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
 from aiohttp_retry import ExponentialRetry, RetryClient
 from multidict import CIMultiDict
-import ssl
-
 
 from . import time
 from .credentials import Provider

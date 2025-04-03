@@ -35,8 +35,8 @@ from urllib.parse import SplitResult
 from aiohttp.typedefs import LooseHeaders
 
 from . import time
-from .helpers import queryencode, sha256_hash
 from .credentials import Credentials
+from .helpers import queryencode, sha256_hash
 
 SIGN_V4_ALGORITHM = "AWS4-HMAC-SHA256"
 _MULTI_SPACE_REGEX = re.compile(r"( +)")

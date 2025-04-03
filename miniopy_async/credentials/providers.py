@@ -29,6 +29,7 @@ import ipaddress
 import json
 import os
 import socket
+import ssl
 import sys
 import time
 from abc import ABCMeta, abstractmethod
@@ -39,12 +40,11 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
 
 import certifi
+from aiofile import async_open
 from aiohttp import ClientResponse, ClientSession, TCPConnector
 from aiohttp.typedefs import LooseHeaders
 from aiohttp_retry import ExponentialRetry, RetryClient
-from aiofile import async_open
 from yarl import URL
-import ssl
 
 from miniopy_async.helpers import sha256_hash, url_replace
 from miniopy_async.signer import sign_v4_sts

@@ -20,9 +20,9 @@
 
 from __future__ import absolute_import, annotations
 
+import sys
 import time as ctime
 from datetime import datetime, timezone
-import sys
 
 if sys.version_info > (3, 11):
     from datetime import UTC

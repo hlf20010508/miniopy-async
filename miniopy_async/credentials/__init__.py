@@ -28,6 +28,7 @@ from .credentials import Credentials
 from .providers import (
     AssumeRoleProvider,
     AWSConfigProvider,
+    CertificateIdentityProvider,
     ChainedProvider,
     ClientGrantsProvider,
     EnvAWSProvider,
@@ -38,5 +39,4 @@ from .providers import (
     Provider,
     StaticProvider,
     WebIdentityProvider,
-    CertificateIdentityProvider,
 )
