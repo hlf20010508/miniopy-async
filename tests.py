@@ -1,32 +1,36 @@
-from typing import cast
+import asyncio
+import json
+import os
 import unittest
+import warnings
+from datetime import datetime, timedelta
+from io import BytesIO
+from typing import cast
+
+import aiohttp
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import (
+    ENABLED,
     ComposeSource,
     CopySource,
-    ENABLED,
     Filter,
-    Tags,
     SnowballObject,
+    Tags,
 )
-from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig, Rule as lcRule
-from miniopy_async.time import utcnow
-from miniopy_async.versioningconfig import VersioningConfig
-from miniopy_async.sseconfig import Rule as sseRule, SSEConfig
 from miniopy_async.datatypes import PostPolicy
 from miniopy_async.deleteobjects import DeleteObject
+from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig
+from miniopy_async.lifecycleconfig import Rule as lcRule
 from miniopy_async.select import (
     CSVInputSerialization,
     CSVOutputSerialization,
     SelectRequest,
 )
-import asyncio
-import os
-import json
-from datetime import datetime, timedelta
-import aiohttp
-from io import BytesIO
-import warnings
+from miniopy_async.sseconfig import Rule as sseRule
+from miniopy_async.sseconfig import SSEConfig
+from miniopy_async.time import utcnow
+from miniopy_async.versioningconfig import VersioningConfig
 
 
 class Test(unittest.IsolatedAsyncioTestCase):
@@ -243,6 +247,29 @@ class Test(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.bucket_name, self.bucket_name)
         self.assertEqual(result.object_name, self.test_file_name)
         self.assertEqual(result.size, 5 * 1024 * 1024)
+
+    async def test_get_presigned_url(self):
+        await self.put_test_file()
+
+        result = await self.client.get_presigned_url(
+            "GET", self.bucket_name, self.test_file_name
+        )
+
+        self.assertTrue(result.startswith("https://play.min.io/"))
+
+        client = Minio(
+            "play.min.io",
+            access_key="Q3AM3UQ867SPQQA43P2F",
+            secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+            secure=True,  # http for False, https for True
+            server_url="https://example.com",
+        )
+
+        result = await client.get_presigned_url(
+            "GET", self.bucket_name, self.test_file_name
+        )
+
+        self.assertTrue(result.startswith("https://example.com/"))
 
     async def test_presigned_get_object(self):
         await self.put_test_file()

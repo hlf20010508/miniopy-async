@@ -122,6 +122,7 @@ class Minio:  # pylint: disable=too-many-public-methods
     :param Provider | None credentials: Credentials provider of your account in S3 service.
     :param Callable[..., aiohttp.ClientSession | aiohttp_retry.RetryClient] | None client_session: Custom HTTP client session caller.
     :param bool cert_check: Flag to indicate to verify SSL certificate or not.
+    :param str | None server_url: Server url of minio service, used for presigned url.
     :return: :class:`Minio` object
     :rtype: Minio
 
@@ -159,11 +160,20 @@ class Minio:  # pylint: disable=too-many-public-methods
         client_session: Callable[..., ClientSession | RetryClient] | None = None,
         credentials: Provider | None = None,
         cert_check: bool = True,
+        server_url: str | None = None,
     ):
         self._region_map = dict()
         self._base_url = BaseURL(
             ("https://" if secure else "http://") + endpoint,
             region,
+        )
+        self._server_url = (
+            BaseURL(
+                server_url,
+                region,
+            )
+            if server_url
+            else None
         )
         self._user_agent = _DEFAULT_USER_AGENT
         self._trace_stream = None
@@ -3159,7 +3169,12 @@ class Minio:  # pylint: disable=too-many-public-methods
         creds = await self._provider.retrieve() if self._provider else None
         if creds and creds.session_token:
             query_params["X-Amz-Security-Token"] = creds.session_token
-        url = self._base_url.build(
+
+        if self._server_url:
+            base_url = self._server_url
+        else:
+            base_url = self._base_url
+        url = base_url.build(
             method,
             region,
             bucket_name=bucket_name,
