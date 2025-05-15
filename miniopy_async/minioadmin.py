@@ -27,7 +27,7 @@ import os
 import ssl
 from datetime import timedelta
 from enum import Enum, unique
-from typing import Any, Callable, TextIO, Tuple, cast
+from typing import Any, TextIO, Tuple, cast
 from urllib.parse import urlunsplit
 
 import certifi
@@ -124,15 +124,26 @@ class MinioAdmin:
         region: str = "",
         secure: bool = True,
         cert_check: bool = True,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         url = _parse_url(("https://" if secure else "http://") + endpoint)
         if not isinstance(credentials, Provider):
             raise ValueError("valid credentials must be provided")
         if region and not _REGION_REGEX.match(region):
             raise ValueError(f"invalid region {region}")
-        if not client_session:
-            if cert_check:
+        self._session = session
+
+        self._url = url
+        self._provider = credentials
+        self._region = region
+        self._secure = secure
+        self._cert_check = cert_check
+        self._user_agent = _DEFAULT_USER_AGENT
+        self._trace_stream: TextIO | None = None
+
+    def _ensure_session(self):
+        if self._session is None:
+            if self._cert_check:
                 ssl_context = ssl.create_default_context(
                     cafile=os.environ.get("SSL_CERT_FILE") or certifi.where()
                 )
@@ -142,33 +153,21 @@ class MinioAdmin:
                 )
                 ssl_context.check_hostname = False
                 ssl_context.verify_mode = ssl.CERT_NONE
-            self._ssl_context = ssl_context
+
             timeout = timedelta(minutes=5).seconds
-            self._timeout = ClientTimeout(connect=timeout, sock_read=timeout)
-            self._retry_options = ExponentialRetry(
+            client_timeout = ClientTimeout(connect=timeout, sock_read=timeout)
+
+            retry_options = ExponentialRetry(
                 attempts=5, factor=0.2, statuses={500, 502, 503, 504}
             )
 
-        self._url = url
-        self._provider = credentials
-        self._region = region
-        self._secure = secure
-        self._cert_check = cert_check
-        self._client_session = client_session
-        self._user_agent = _DEFAULT_USER_AGENT
-        self._trace_stream: TextIO | None = None
-
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
+            self._session = RetryClient(
                 ClientSession(
-                    connector=TCPConnector(limit=10, ssl=self._ssl_context),
-                    timeout=self._timeout,
+                    connector=TCPConnector(limit=10, ssl=ssl_context),
+                    timeout=client_timeout,
                 ),
-                retry_options=self._retry_options,
+                retry_options=retry_options,
             )
-
-        return self._client_session()
 
     async def _url_open(
         self,
@@ -238,32 +237,34 @@ class MinioAdmin:
             else:
                 http_headers.add(key, value)
 
-        async with self._session() as session:
-            response = await session.request(
-                method,
-                urlunsplit(url),
-                data=body,
-                headers=http_headers,
+        self._ensure_session()
+        session = cast(ClientSession | RetryClient, self._session)
+
+        response = await session.request(
+            method,
+            urlunsplit(url),
+            data=body,
+            headers=http_headers,
+        )
+
+        if self._trace_stream:
+            self._trace_stream.write(f"HTTP/1.1 {response.status}\n")
+            self._trace_stream.write(
+                headers_to_strings(response.headers),
             )
+            self._trace_stream.write("\n")
+            self._trace_stream.write("\n")
+            self._trace_stream.write(_safe_str(await response.read()))
+            self._trace_stream.write("\n")
+            self._trace_stream.write("----------END-HTTP----------\n")
 
-            if self._trace_stream:
-                self._trace_stream.write(f"HTTP/1.1 {response.status}\n")
-                self._trace_stream.write(
-                    headers_to_strings(response.headers),
-                )
-                self._trace_stream.write("\n")
-                self._trace_stream.write("\n")
-                self._trace_stream.write(_safe_str(await response.read()))
-                self._trace_stream.write("\n")
-                self._trace_stream.write("----------END-HTTP----------\n")
+        if response.status in [200, 204, 206]:
+            return response
 
-            if response.status in [200, 204, 206]:
-                return response
-
-            raise MinioAdminException(
-                str(response.status),
-                _safe_str(await response.read()),
-            )
+        raise MinioAdminException(
+            str(response.status),
+            _safe_str(await response.read()),
+        )
 
     def set_app_info(self, app_name: str, app_version: str):
         """

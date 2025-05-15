@@ -30,8 +30,7 @@ from io import BytesIO
 from typing import AsyncGenerator, Iterable, SupportsBytes, SupportsIndex
 from xml.etree import ElementTree as ET
 
-from aiohttp import ClientResponse, ClientSession, StreamReader
-from aiohttp_retry import RetryClient
+from aiohttp import ClientResponse, StreamReader
 from typing_extensions import Buffer
 
 from .error import MinioException
@@ -379,9 +378,8 @@ class SelectObjectReader:
     Minio.select_object_content() API.
     """
 
-    def __init__(self, response: ClientResponse, session: ClientSession | RetryClient):
+    def __init__(self, response: ClientResponse):
         self._response = response
-        self._session = session
         self._stats: Stats | None = None
         self._payload: bytes | None = None
 
@@ -403,7 +401,6 @@ class SelectObjectReader:
         """Close response and release network resources."""
         self._response.close()
         await self._response.release()
-        await self._session.close()
 
     def stats(self) -> Stats | None:
         """Get stats information."""

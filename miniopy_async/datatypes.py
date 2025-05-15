@@ -46,9 +46,8 @@ from typing import (
 from urllib.parse import unquote_plus
 from xml.etree import ElementTree as ET
 
-from aiohttp import ClientResponse, ClientSession
+from aiohttp import ClientResponse
 from aiohttp.typedefs import LooseHeaders
-from aiohttp_retry import RetryClient
 from multidict import CIMultiDictProxy
 
 from .commonconfig import Tags
@@ -872,10 +871,8 @@ class AsyncEventIterable:
     def __init__(
         self,
         response: ClientResponse,
-        session: ClientSession | RetryClient,
     ):
         self._response = response
-        self._session = session
 
     def __aiter__(self):
         return self
@@ -901,7 +898,6 @@ class AsyncEventIterable:
 
     async def __aexit__(self, exc_type, value, traceback):
         self._response.close()
-        await self._session.close()
 
 
 class PeerSite:
@@ -1171,7 +1167,6 @@ class ListObjects:
         use_url_encoding_type: bool = True,
         fetch_owner: bool = False,
         extra_headers: DictType | None = None,
-        extra_query_params: DictType | None = None,
     ):
         self.client = client
         self.bucket_name = bucket_name
@@ -1184,7 +1179,6 @@ class ListObjects:
         self.use_url_encoding_type = use_url_encoding_type
         self.fetch_owner = fetch_owner
         self.extra_headers = extra_headers
-        self.extra_query_params = extra_query_params
         self.iterator: AsyncGenerator[Object] | None = None
 
     def gen_iterator(self) -> AsyncGenerator[Object]:
@@ -1199,7 +1193,6 @@ class ListObjects:
             encoding_type="url" if self.use_url_encoding_type else None,
             fetch_owner=self.fetch_owner,
             extra_headers=self.extra_headers,
-            extra_query_params=self.extra_query_params,
         )
 
     def __aiter__(self):

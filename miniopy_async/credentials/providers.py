@@ -72,20 +72,6 @@ def _parse_credentials(data: str, name: str) -> Credentials:
     )
 
 
-async def _urlopen(
-    session: ClientSession | RetryClient,
-    method: str,
-    url: str,
-    body: str | bytes | None = None,
-    headers: LooseHeaders | None = None,
-) -> ClientResponse:
-    """Wrapper of urlopen() handles HTTP status code."""
-    res = await session.request(method, url, data=body, headers=headers)
-    if res.status not in [200, 204, 206]:
-        raise ValueError(f"{url} failed with HTTP status code {res.status}")
-    return res
-
-
 def _user_home_dir() -> str:
     """Return current user home folder."""
     return os.environ.get("HOME") or os.environ.get("UserProfile") or str(Path.home())
@@ -95,10 +81,31 @@ class Provider:  # pylint: disable=too-few-public-methods
     """Credential retriever."""
 
     __metaclass__ = ABCMeta
+    _session: ClientSession | RetryClient | None = None
 
     @abstractmethod
     async def retrieve(self) -> Credentials:
         """Retrieve credentials and its expiry if available."""
+
+    def _ensure_session(self):
+        raise NotImplementedError
+
+    async def _urlopen(
+        self,
+        method: str,
+        url: str,
+        body: str | bytes | None = None,
+        headers: LooseHeaders | None = None,
+    ) -> ClientResponse:
+        """Wrapper of urlopen() handles HTTP status code."""
+        self._ensure_session()
+        if self._session is None:
+            raise ValueError("Session is not initialized")
+        session = cast(ClientSession | RetryClient, self._session)
+        res = await session.request(method, url, data=body, headers=headers)
+        if res.status not in [200, 204, 206]:
+            raise ValueError(f"{url} failed with HTTP status code {res.status}")
+        return res
 
 
 class AssumeRoleProvider(Provider):
@@ -115,13 +122,13 @@ class AssumeRoleProvider(Provider):
         role_arn: str | None = None,
         role_session_name: str | None = None,
         external_id: str | None = None,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         self._sts_endpoint = sts_endpoint
         self._access_key = access_key
         self._secret_key = secret_key
         self._region = region or ""
-        self._client_session = client_session
+        self._session = session
 
         query_params = {
             "Action": "AssumeRole",
@@ -153,15 +160,13 @@ class AssumeRoleProvider(Provider):
             self._host = cast(str, url.hostname)
         self._credentials = None
 
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
+    def _ensure_session(self):
+        if self._session is None:
+            self._session = RetryClient(
                 retry_options=ExponentialRetry(
                     attempts=5, factor=0.2, statuses={500, 502, 503, 504}
                 ),
             )
-
-        return self._client_session()
 
     async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
@@ -183,19 +188,17 @@ class AssumeRoleProvider(Provider):
             utctime,
         )
 
-        async with self._session() as session:
-            res = await _urlopen(
-                session,
-                "POST",
-                self._sts_endpoint,
-                body=self._body,
-                headers=headers,
-            )
+        res = await self._urlopen(
+            "POST",
+            self._sts_endpoint,
+            body=self._body,
+            headers=headers,
+        )
 
-            self._credentials = _parse_credentials(
-                await res.text(),
-                "AssumeRoleResult",
-            )
+        self._credentials = _parse_credentials(
+            await res.text(),
+            "AssumeRoleResult",
+        )
 
         return self._credentials
 
@@ -383,7 +386,7 @@ class IamAwsProvider(Provider):
     def __init__(
         self,
         custom_endpoint: str | None = None,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
         auth_token: str | None = None,
         relative_uri: str | None = None,
         full_uri: str | None = None,
@@ -393,7 +396,7 @@ class IamAwsProvider(Provider):
         region: str | None = None,
     ):
         self._custom_endpoint = custom_endpoint
-        self._client_session = client_session
+        self._session = session
         self._token = os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN") or auth_token
         self._token_file = (
             os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE") or auth_token
@@ -416,15 +419,13 @@ class IamAwsProvider(Provider):
         )
         self._credentials: Credentials | None = None
 
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
+    def _ensure_session(self):
+        if self._session is None:
+            self._session = RetryClient(
                 retry_options=ExponentialRetry(
                     attempts=5, factor=0.2, statuses={500, 502, 503, 504}
                 ),
             )
-
-        return self._client_session()
 
     async def fetch(
         self,
@@ -432,9 +433,8 @@ class IamAwsProvider(Provider):
         headers: dict[str, str] | None = None,
     ) -> Credentials:
         """Fetch credentials from EC2/ECS."""
-        async with self._session() as session:
-            res = await _urlopen(session, "GET", url, headers=headers)
-            data = json.loads(await res.text())
+        res = await self._urlopen("GET", url, headers=headers)
+        data = json.loads(await res.text())
         if data.get("Code", "Success") != "Success":
             raise ValueError(
                 f"{url} failed with code {data['Code']} "
@@ -467,7 +467,7 @@ class IamAwsProvider(Provider):
                 url,
                 role_arn=self._role_arn,
                 role_session_name=self._role_session_name,
-                client_session=self._session,
+                session=self._session,
             )
             self._credentials = await provider.retrieve()
             return self._credentials
@@ -492,15 +492,13 @@ class IamAwsProvider(Provider):
             if not url:
                 url = "http://169.254.169.254"
 
-            async with self._session() as session:
-                # Get IMDS Token
-                res = await _urlopen(
-                    session,
-                    "PUT",
-                    url + "/latest/api/token",
-                    headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
-                )
-                token = await res.text("utf-8")
+            # Get IMDS Token
+            res = await self._urlopen(
+                "PUT",
+                url + "/latest/api/token",
+                headers={"X-aws-ec2-metadata-token-ttl-seconds": "21600"},
+            )
+            token = await res.text("utf-8")
             headers = {"X-aws-ec2-metadata-token": token} if token else None
 
             # Get role name
@@ -510,9 +508,8 @@ class IamAwsProvider(Provider):
                     path="/latest/meta-data/iam/security-credentials/",
                 ),
             )
-            async with self._session() as session:
-                res = await _urlopen(session, "GET", url, headers=headers)
-                role_names = (await res.text("utf-8")).split("\n")
+            res = await self._urlopen("GET", url, headers=headers)
+            role_names = (await res.text("utf-8")).split("\n")
             if not role_names:
                 raise ValueError(f"no IAM roles attached to EC2 service {url}")
             url += role_names[0].strip("\r")
@@ -530,7 +527,7 @@ class LdapIdentityProvider(Provider):
         sts_endpoint: str,
         ldap_username: str,
         ldap_password: str,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         self._sts_endpoint = (
             sts_endpoint
@@ -544,18 +541,16 @@ class LdapIdentityProvider(Provider):
                 },
             )
         )
-        self._client_session = client_session
+        self._session = session
         self._credentials = None
 
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
+    def _ensure_session(self):
+        if self._session is None:
+            self._session = RetryClient(
                 retry_options=ExponentialRetry(
                     attempts=5, factor=0.2, statuses={500, 502, 503, 504}
                 ),
             )
-
-        return self._client_session()
 
     async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
@@ -563,17 +558,15 @@ class LdapIdentityProvider(Provider):
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
-        async with self._session() as session:
-            res = await _urlopen(
-                session,
-                "POST",
-                self._sts_endpoint,
-            )
+        res = await self._urlopen(
+            "POST",
+            self._sts_endpoint,
+        )
 
-            self._credentials = _parse_credentials(
-                await res.text(),
-                "AssumeRoleWithLDAPIdentityResult",
-            )
+        self._credentials = _parse_credentials(
+            await res.text(),
+            "AssumeRoleWithLDAPIdentityResult",
+        )
 
         return self._credentials
 
@@ -607,7 +600,7 @@ class WebIdentityClientGrantsProvider(Provider):
         policy: str | None = None,
         role_arn: str | None = None,
         role_session_name: str | None = None,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         self._jwt_provider_func = jwt_provider_func
         self._sts_endpoint = sts_endpoint
@@ -615,18 +608,16 @@ class WebIdentityClientGrantsProvider(Provider):
         self._policy = policy
         self._role_arn = role_arn
         self._role_session_name = role_session_name
-        self._client_session = client_session
+        self._session = session
         self._credentials: Credentials | None = None
 
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
+    def _ensure_session(self):
+        if self._session is None:
+            self._session = RetryClient(
                 retry_options=ExponentialRetry(
                     attempts=5, factor=0.2, statuses={500, 502, 503, 504}
                 ),
             )
-
-        return self._client_session()
 
     @abstractmethod
     def _is_web_identity(self) -> bool:
@@ -679,17 +670,16 @@ class WebIdentityClientGrantsProvider(Provider):
             query_params["Token"] = access_token
 
         url = self._sts_endpoint + "?" + urlencode(query_params)
-        async with self._session() as session:
-            res = await _urlopen(session, "POST", url)
+        res = await self._urlopen("POST", url)
 
-            self._credentials = _parse_credentials(
-                await res.text(),
-                (
-                    "AssumeRoleWithWebIdentityResult"
-                    if self._is_web_identity()
-                    else "AssumeRoleWithClientGrantsResult"
-                ),
-            )
+        self._credentials = _parse_credentials(
+            await res.text(),
+            (
+                "AssumeRoleWithWebIdentityResult"
+                if self._is_web_identity()
+                else "AssumeRoleWithClientGrantsResult"
+            ),
+        )
 
         return self._credentials
 
@@ -703,14 +693,14 @@ class ClientGrantsProvider(WebIdentityClientGrantsProvider):
         sts_endpoint: str,
         duration_seconds: int = 0,
         policy: str | None = None,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         super().__init__(
             jwt_provider_func,
             sts_endpoint,
             duration_seconds,
             policy,
-            client_session=client_session,
+            session=session,
         )
 
     def _is_web_identity(self) -> bool:
@@ -735,16 +725,16 @@ class CertificateIdentityProvider(Provider):
         key_password: str | None = None,
         ca_certs: str | None = None,
         duration_seconds: int = 0,
-        client_session: Callable[..., ClientSession | RetryClient] | None = None,
+        session: ClientSession | RetryClient | None = None,
     ):
         if urlsplit(sts_endpoint).scheme != "https":
             raise ValueError("STS endpoint scheme must be HTTPS")
 
-        if bool(client_session) != (cert_file and key_file):
+        if bool(session) != (cert_file and key_file):
             pass
         else:
             raise ValueError(
-                "either cert/key file or custom client_session must be provided",
+                "either cert/key file or custom session must be provided",
             )
 
         self._sts_endpoint = (
@@ -762,28 +752,36 @@ class CertificateIdentityProvider(Provider):
                 },
             )
         )
-        ssl_context = ssl.create_default_context(cafile=ca_certs or certifi.where())
-        if cert_file and key_file:
-            ssl_context.load_cert_chain(
-                certfile=cert_file, keyfile=key_file, password=key_password
-            )
-        self._ssl_context = ssl_context
-        self._retry_options = ExponentialRetry(
-            attempts=5, factor=0.2, statuses={500, 502, 503, 504}
-        )
-        self._client_session = client_session
+
+        self._ca_certs = ca_certs
+        self._cert_file = cert_file
+        self._key_file = key_file
+        self._key_password = key_password
+        self._session = session
         self._credentials: Credentials | None = None
 
-    def _session(self) -> ClientSession | RetryClient:
-        if self._client_session is None:
-            return RetryClient(
-                ClientSession(
-                    connector=TCPConnector(limit=10, ssl=self._ssl_context),
-                ),
-                retry_options=self._retry_options,
+    def _ensure_session(self):
+        if self._session is None:
+            ssl_context = ssl.create_default_context(
+                cafile=self._ca_certs or certifi.where()
+            )
+            if self._cert_file and self._key_file:
+                ssl_context.load_cert_chain(
+                    certfile=self._cert_file,
+                    keyfile=self._key_file,
+                    password=self._key_password,
+                )
+
+            retry_options = ExponentialRetry(
+                attempts=5, factor=0.2, statuses={500, 502, 503, 504}
             )
 
-        return self._client_session()
+            self._session = RetryClient(
+                ClientSession(
+                    connector=TCPConnector(limit=10, ssl=ssl_context),
+                ),
+                retry_options=retry_options,
+            )
 
     async def retrieve(self) -> Credentials:
         """Retrieve credentials."""
@@ -791,16 +789,14 @@ class CertificateIdentityProvider(Provider):
         if self._credentials and not self._credentials.is_expired():
             return self._credentials
 
-        async with self._session() as session:
-            res = await _urlopen(
-                session,
-                "POST",
-                self._sts_endpoint,
-            )
+        res = await self._urlopen(
+            "POST",
+            self._sts_endpoint,
+        )
 
-            self._credentials = _parse_credentials(
-                await res.text(),
-                "AssumeRoleWithCertificateResult",
-            )
+        self._credentials = _parse_credentials(
+            await res.text(),
+            "AssumeRoleWithCertificateResult",
+        )
 
         return self._credentials

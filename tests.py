@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from typing import cast
 
-import aiohttp
-
 from miniopy_async import Minio
 from miniopy_async.commonconfig import (
     ENABLED,
@@ -33,23 +31,45 @@ from miniopy_async.time import utcnow
 from miniopy_async.versioningconfig import VersioningConfig
 
 
+def get_client():
+    return Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    )
+
+
 class Test(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
         warnings.simplefilter("ignore", ResourceWarning)
-        cls.client = Minio(
-            "play.min.io",
-            access_key="Q3AM3UQ867SPQQA43P2F",
-            secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-            secure=True,  # http for False, https for True
-        )
+        cls.client = get_client()
         cls.bucket_name = "miniopy-async"
         cls.test_file_name = "testfile"
-        asyncio.run(cls.create_bucket())
+
+        async def create_bucket():
+            cls.client = get_client()
+            await cls.create_bucket()
+            await cls.client.close_session()
+
+        asyncio.run(create_bucket())
+
+    async def asyncSetUp(self):
+        self.client._ensure_session()
+
+    async def asyncTearDown(self):
+        await self.client.close_session()
+        await asyncio.sleep(5)
 
     @classmethod
     def tearDownClass(cls):
-        asyncio.run(cls.remove_bucket())
+        async def remove_bucket():
+            cls.client._ensure_session()
+            await cls.remove_bucket()
+            await cls.client.close_session()
+
+        asyncio.run(remove_bucket())
 
     @classmethod
     async def create_bucket(cls):
@@ -70,9 +90,6 @@ class Test(unittest.IsolatedAsyncioTestCase):
                 ],
             )
             await cls.client.remove_bucket(cls.bucket_name)
-
-    async def asyncTearDown(self):
-        await asyncio.sleep(5)
 
     async def recreate_bucket(self):
         await self.remove_bucket()
@@ -265,9 +282,10 @@ class Test(unittest.IsolatedAsyncioTestCase):
             server_url="https://example.com",
         )
 
-        result = await client.get_presigned_url(
-            "GET", self.bucket_name, self.test_file_name
-        )
+        async with client:
+            result = await client.get_presigned_url(
+                "GET", self.bucket_name, self.test_file_name
+            )
 
         self.assertTrue(result.startswith("https://example.com/"))
 
@@ -317,11 +335,8 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def test_get_object(self):
         await self.put_test_file()
 
-        async with aiohttp.ClientSession() as session:
-            response = await self.client.get_object(
-                self.bucket_name, self.test_file_name, session
-            )
-            content = await response.content.read()
+        response = await self.client.get_object(self.bucket_name, self.test_file_name)
+        content = await response.content.read()
 
         self.assertEqual(content, b"hello" * 1024 * 1024)
 

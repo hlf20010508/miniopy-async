@@ -14,13 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from io import BytesIO
+from urllib import parse
+
 from sanic import Sanic
 from sanic.response import redirect
 from sanic_jinja2 import SanicJinja2
+
 from miniopy_async import Minio
-import aiofile
-import os
-from urllib import parse
 
 app = Sanic(__name__)
 template = SanicJinja2(
@@ -43,17 +44,13 @@ async def index(request):
         if (
             f
         ):  # if f is not None then the post request is from upload, else is from download
-            print("uploading ...")
-            save_path = os.path.join("cache", f.name)  # save stream to cache
-            async with aiofile.async_open(save_path, "wb") as temp:
-                await temp.write(f.body)
-
             bucket = request.form.get("bucket")
-            # upload from cache
-            await client.fput_object(
-                bucket_name=bucket, object_name=f.name, file_path=save_path
+            await client.put_object(
+                bucket_name=bucket,
+                object_name=f.name,
+                data=BytesIO(f.body),
+                length=len(f.body),
             )
-            os.remove(save_path)  # clear cache
 
             return redirect(app.url_for("index"))
         else:  # redirect to download
