@@ -42,7 +42,7 @@ miniopy-async - Asynchronous MinIO Client SDK for Python
 
 __title__ = "miniopy-async"
 __author__ = "L-ING"
-__version__ = "1.22.1"
+__version__ = "1.23.0"
 __license__ = "Apache 2.0"
 __copyright__ = "(C) 2022 L-ING <hlf01@icloud.com>"
 
