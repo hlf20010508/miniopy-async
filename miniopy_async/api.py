@@ -185,12 +185,6 @@ class Minio:  # pylint: disable=too-many-public-methods
         self._session = session
         self._cert_check = cert_check
 
-        timeout = timedelta(minutes=5).seconds
-        self._timeout = ClientTimeout(connect=timeout, sock_read=timeout)
-        self._retry_options = ExponentialRetry(
-            attempts=5, factor=0.2, statuses={500, 502, 503, 504}
-        )
-
     def _ensure_session(self):
         if self._session is None:
             if self._cert_check:
