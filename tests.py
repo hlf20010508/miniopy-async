@@ -31,25 +31,20 @@ from miniopy_async.time import utcnow
 from miniopy_async.versioningconfig import VersioningConfig
 
 
-def get_client():
-    return Minio(
-        "play.min.io",
-        access_key="Q3AM3UQ867SPQQA43P2F",
-        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-        secure=True,  # http for False, https for True
-    )
-
-
 class Test(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def setUpClass(cls):
         warnings.simplefilter("ignore", ResourceWarning)
-        cls.client = get_client()
+        cls.client = Minio(
+            "play.min.io",
+            access_key="Q3AM3UQ867SPQQA43P2F",
+            secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+            secure=True,  # http for False, https for True
+        )
         cls.bucket_name = "miniopy-async"
         cls.test_file_name = "testfile"
 
         async def create_bucket():
-            cls.client = get_client()
             await cls.create_bucket()
             await cls.client.close_session()
 
