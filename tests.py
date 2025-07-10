@@ -131,7 +131,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
     async def test_upload_snowball_objects(self):
         test_content1 = BytesIO(b"hello" * 1024 * 1024)
-        test_content2 = BytesIO(b"world" * 1024 * 1024)
+        test_content2 = BytesIO(b"world" * 2048 * 1024)
 
         result = await self.client.upload_snowball_objects(
             self.bucket_name,
