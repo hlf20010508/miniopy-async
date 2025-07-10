@@ -4166,6 +4166,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_list: Iterable[SnowballObject],
+        object_name: str | None = None,
         metadata: DictType | None = None,
         sse: Sse | None = None,
         tags: Tags | None = None,
@@ -4182,6 +4183,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param str bucket_name: Name of the bucket.
         :param Iterable[SnowballObject] object_list: An iterable containing
             :class:`SnowballObject` object.
+        :param str object_name: Optional name for the uploaded TAR archive.
+            If not provided, a random name in the format `snowball.<random>.tar` will be used.
         :param DictType | None metadata: Any additional metadata to be uploaded along
             with your PUT request.
         :param Sse | None sse: Server-side encryption.
@@ -4227,7 +4230,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
 
-        object_name = f"snowball.{random()}.tar"
+        object_name = object_name or "snowball.{random()}.tar"
 
         # turn list like objects into an iterator.
         object_list = itertools.chain(object_list)
@@ -4256,7 +4259,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         else:
             length = os.stat(name).st_size
 
-        part_size = 0
+        part_size = 0 if length < MIN_PART_SIZE else length
 
         if name:
             return await self.fput_object(
