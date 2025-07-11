@@ -4230,7 +4230,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
 
-        object_name = object_name or "snowball.{random()}.tar"
+        object_name = object_name or f"snowball.{random()}.tar"
 
         # turn list like objects into an iterator.
         object_list = itertools.chain(object_list)
