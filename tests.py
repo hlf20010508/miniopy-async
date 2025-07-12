@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from typing import cast
 
+from faker import Faker
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import (
     ENABLED,
@@ -30,6 +32,8 @@ from miniopy_async.sseconfig import Rule as sseRule
 from miniopy_async.sseconfig import SSEConfig
 from miniopy_async.time import utcnow
 from miniopy_async.versioningconfig import VersioningConfig
+
+fake = Faker()
 
 
 class Test(unittest.IsolatedAsyncioTestCase):
@@ -94,7 +98,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
     async def put_test_file(
         self,
         filename: str | None = None,
-        content: bytes = b"hello" * 1024 * 1024,
+        content: bytes = fake.binary(5 * 1024 * 1024),
     ):
         test_content = BytesIO(content)
         await self.client.put_object(
@@ -105,7 +109,8 @@ class Test(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_put_object(self):
-        test_content = BytesIO(b"hello" * 1024 * 1024)
+        raw_content = fake.binary(5 * 1024 * 1024)
+        test_content = BytesIO(raw_content)
         result = await self.client.put_object(
             self.bucket_name,
             self.test_file_name,
@@ -115,35 +120,84 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result.bucket_name, self.bucket_name)
         self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(
+            await (
+                await self.client.get_object(self.bucket_name, self.test_file_name)
+            ).read(),
+            raw_content,
+        )
 
-    async def test_fput_object(self):
-        with open(self.test_file_name, "wb") as file:
-            file.write(b"hello" * 1024 * 1024)
-        self.addCleanup(os.remove, self.test_file_name)
-
-        result = await self.client.fput_object(
+        raw_content = fake.binary(2 * 5 * 1024 * 1024)
+        test_content = BytesIO(raw_content)
+        result = await self.client.put_object(
             self.bucket_name,
             self.test_file_name,
-            self.test_file_name,
+            test_content,
+            length=test_content.getbuffer().nbytes,
         )
 
         self.assertEqual(result.bucket_name, self.bucket_name)
         self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(
+            await (
+                await self.client.get_object(self.bucket_name, self.test_file_name)
+            ).read(),
+            raw_content,
+        )
+
+    async def test_fput_object(self):
+        raw_content = fake.binary(5 * 1024 * 1024)
+        file_name = f"{self.test_file_name}-1"
+        with open(file_name, "wb") as file:
+            file.write(raw_content)
+        self.addCleanup(os.remove, file_name)
+
+        result = await self.client.fput_object(
+            self.bucket_name,
+            file_name,
+            file_name,
+        )
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, file_name)
+        self.assertEqual(
+            await (await self.client.get_object(self.bucket_name, file_name)).read(),
+            raw_content,
+        )
+
+        raw_content = fake.binary(2 * 5 * 1024 * 1024)
+        file_name = f"{self.test_file_name}-2"
+        with open(file_name, "wb") as file:
+            file.write(raw_content)
+        self.addCleanup(os.remove, file_name)
+
+        result = await self.client.fput_object(
+            self.bucket_name,
+            file_name,
+            file_name,
+        )
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, file_name)
+        self.assertEqual(
+            await (await self.client.get_object(self.bucket_name, file_name)).read(),
+            raw_content,
+        )
 
     async def test_upload_snowball_objects(self):
-        test_content1 = BytesIO(b"hello" * 1024 * 1024)
-        test_content2 = BytesIO(b"world" * 2048 * 1024)
+        test_content1 = BytesIO(fake.binary(5 * 1024 * 1024))
+        test_content2 = BytesIO(fake.binary(2 * 5 * 1024 * 1024))
 
         result = await self.client.upload_snowball_objects(
             self.bucket_name,
             [
                 SnowballObject(
-                    "testfile-1",
+                    "test_snowball_file-1",
                     data=test_content1,
                     length=test_content1.getbuffer().nbytes,
                 ),
                 SnowballObject(
-                    "testfile-2",
+                    "test_snowball_file-2",
                     data=test_content2,
                     length=test_content2.getbuffer().nbytes,
                     mod_time=datetime.now(),
@@ -156,6 +210,13 @@ class Test(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.bucket_name, self.bucket_name)
         self.assertTrue(result.object_name.startswith("snowball."))
         self.assertTrue(result.object_name.endswith(".tar"))
+        self.assertEqual(
+            len(await self.client.list_objects(self.bucket_name, "test_snowball_file")),
+            2,
+        )
+        self.assertEqual(
+            len(await self.client.list_objects(self.bucket_name, "snowball")), 0
+        )
 
     async def test_compose_object(self):
         test_file_names = ["testfile-1", "testfile-2"]
@@ -329,12 +390,13 @@ class Test(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(count > 0)
 
     async def test_get_object(self):
-        await self.put_test_file()
+        raw_content = fake.binary(5 * 1024 * 1024)
+        await self.put_test_file(content=raw_content)
 
         response = await self.client.get_object(self.bucket_name, self.test_file_name)
         content = await response.content.read()
 
-        self.assertEqual(content, b"hello" * 1024 * 1024)
+        self.assertEqual(content, raw_content)
 
     async def test_fget_object(self):
         result = await self.client.fget_object(
@@ -347,7 +409,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.size, 5 * 1024 * 1024)
 
     async def test_select_object_content(self):
-        await self.put_test_file(content=b"hello")
+        await self.put_test_file(content=fake.text(5).encode())
 
         result = await self.client.select_object_content(
             self.bucket_name,
