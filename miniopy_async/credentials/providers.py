@@ -40,7 +40,6 @@ from urllib.parse import urlencode, urlsplit, urlunsplit
 from xml.etree import ElementTree as ET
 
 import certifi
-from aiofile import async_open
 from aiohttp import ClientResponse, ClientSession, TCPConnector
 from aiohttp.typedefs import LooseHeaders
 from aiohttp_retry import ExponentialRetry, RetryClient
@@ -339,8 +338,8 @@ class MinioClientConfigProvider(Provider):
     async def retrieve(self) -> Credentials:
         """Retrieve credential value from MinIO client configuration file."""
         try:
-            async with async_open(self._filename, encoding="utf-8") as conf_file:
-                config = json.loads(await conf_file.read())
+            with open(self._filename, encoding="utf-8") as conf_file:
+                config = json.loads(conf_file.read())
             aliases = config.get("hosts") or config.get("aliases")
             if not aliases:
                 raise ValueError(
@@ -374,8 +373,8 @@ def _check_loopback_host(url: str):
 async def _get_jwt_token(token_file: str) -> dict[str, str]:
     """Read and return content of token file."""
     try:
-        async with async_open(token_file, encoding="utf-8") as file:
-            return {"access_token": await file.read(), "expires_in": "0"}
+        with open(token_file, encoding="utf-8") as file:
+            return {"access_token": file.read(), "expires_in": "0"}
     except (IOError, OSError) as exc:
         raise ValueError(f"error in reading file {token_file}") from exc
 
@@ -481,8 +480,8 @@ class IamAwsProvider(Provider):
             token = self._token
             if self._token_file:
                 url = self._full_uri
-                async with async_open(self._token_file, encoding="utf-8") as file:
-                    token = await file.read()
+                with open(self._token_file, encoding="utf-8") as file:
+                    token = file.read()
             else:
                 if not url:
                     url = self._full_uri
