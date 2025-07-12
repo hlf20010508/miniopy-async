@@ -24,10 +24,10 @@
 
 from __future__ import absolute_import, annotations, division, unicode_literals
 
-import asyncio
 import base64
 import errno
 import hashlib
+import io
 import math
 import os
 import platform
@@ -36,8 +36,9 @@ import urllib.parse
 from datetime import datetime
 from typing import BinaryIO, Dict, List, Protocol, Tuple, Union
 
-from aiofile import FileIOWrapperBase
 from aiohttp.typedefs import LooseHeaders
+
+from miniopy_async.error import UnreachableError
 
 from . import __title__, __version__
 from .sse import Sse, SseCustomerKey
@@ -214,29 +215,6 @@ class ProgressType(Protocol):
         """Set current progress length."""
 
 
-async def read_part_data(
-    stream: BinaryIO | FileIOWrapperBase,
-    size: int,
-    part_data: bytes = b"",
-    progress: ProgressType | None = None,
-) -> bytes:
-    """Read part data of given size from stream."""
-    size -= len(part_data)
-    while size:
-        data = stream.read(size)
-        if asyncio.iscoroutine(data):
-            data = await data
-        if not data:
-            break  # EOF reached
-        if not isinstance(data, bytes):
-            raise ValueError("read() must return 'bytes' object")
-        part_data += data
-        size -= len(data)
-        if progress:
-            await progress.update(len(data))
-    return part_data
-
-
 def makedirs(path: str):
     """Wrapper of os.makedirs() ignores errno.EEXIST."""
     try:
@@ -335,7 +313,7 @@ def check_sse(sse: Sse | None):
         raise ValueError("Sse type is required")
 
 
-def md5sum_hash(data: str | bytes | None) -> str | None:
+def md5sum_hash(data: str | bytes | BinaryIO | Substream | None) -> str | None:
     """Compute MD5 of data and return hash as Base64 encoded value."""
     if data is None:
         return None
@@ -346,19 +324,53 @@ def md5sum_hash(data: str | bytes | None) -> str | None:
         "md5",
         usedforsecurity=False,
     )
-    hasher.update(data.encode() if isinstance(data, str) else data)
+    if isinstance(data, (str, bytes)):
+        hasher.update(data.encode() if isinstance(data, str) else data)
+    elif isinstance(data, (io.BytesIO, Substream)) and data.readable():
+        pos = data.tell()
+        data.seek(0)
+
+        chunk_size = 8192
+        while True:
+            chunk = data.read(chunk_size)
+            if not chunk:
+                break
+            hasher.update(chunk)
+
+        data.seek(pos)
+    else:
+        raise TypeError(
+            "data must be str, bytes, or BinaryIO type",
+        )
+
     md5sum = base64.b64encode(hasher.digest())
-    return md5sum.decode() if isinstance(md5sum, bytes) else md5sum
+    return md5sum.decode()
 
 
-def sha256_hash(data: str | bytes | None) -> str:
+def sha256_hash(data: str | bytes | BinaryIO | Substream | None) -> str:
     """Compute SHA-256 of data and return hash as hex encoded value."""
     data = data or b""
     hasher = hashlib.sha256()
-    hasher.update(data.encode() if isinstance(data, str) else data)
+    if isinstance(data, (str, bytes)):
+        hasher.update(data.encode() if isinstance(data, str) else data)
+    elif isinstance(data, (io.BytesIO, Substream)) and data.readable():
+        pos = data.tell()
+        data.seek(0)
+
+        chunk_size = 8192
+        while True:
+            chunk = data.read(chunk_size)
+            if not chunk:
+                break
+            hasher.update(chunk)
+
+        data.seek(pos)
+    else:
+        raise TypeError(
+            "data must be str, bytes, or BinaryIO type",
+        )
+
     sha256sum = hasher.hexdigest()
-    if isinstance(sha256sum, bytes):
-        return sha256sum.decode()
     return sha256sum
 
 
@@ -850,3 +862,126 @@ class ObjectWriteResult:
     def location(self) -> str | None:
         """Get location."""
         return self._location
+
+
+class Substream(io.IOBase):
+    def __init__(self, base: BinaryIO, offset: int, part_size: int):
+        if not (hasattr(base, "read") and hasattr(base, "seek")):
+            raise TypeError("Base object must support read() and seek()")
+
+        self._base = base
+        self._start = offset
+        self._size = self._get_size(part_size)
+        self._pos = 0
+        self._closed = False
+
+    def _get_size(self, part_size: int) -> int:
+        """Get size of the substream using bisection."""
+        head = self._start
+        tail = self._start + part_size - 1
+
+        self._base.seek(tail)
+        data = self._base.read(1)
+        if data:
+            return part_size
+
+        self._base.seek(head)
+        data = self._base.read(1)
+        if not data:
+            return 0
+
+        # bisection
+        while tail >= head:
+            center = (head + tail) // 2
+            self._base.seek(center)
+            data = self._base.read(2)
+            if not data:
+                tail = center - 1
+            elif len(data) == 2:
+                head = center + 1
+            else:
+                return center - self._start + 1
+
+        raise UnreachableError
+
+    @property
+    def size(self) -> int:
+        """Get size of the substream."""
+        return self._size
+
+    def read(self, size: int = -1) -> bytes:
+        """Read data from the substream."""
+        self._check_closed()
+        self._base.seek(self._start + self._pos)
+
+        remaining = self._size - self._pos
+        if remaining <= 0:
+            return b""
+        if size < 0 or size > remaining:
+            size = remaining
+        data = self._base.read(size)
+        self._pos += len(data)
+        return data
+
+    def is_empty(self) -> bool:
+        """Check if the substream is empty."""
+        pos = self._pos
+
+        self.seek(0)
+        if not self.read(1):
+            return True
+
+        self._pos = pos
+        return False
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        """Seek to a position in the substream."""
+        if whence == io.SEEK_SET:
+            new_pos = offset
+        elif whence == io.SEEK_CUR:
+            new_pos = self._pos + offset
+        elif whence == io.SEEK_END:
+            new_pos = self._size + offset
+        else:
+            raise ValueError(f"Invalid whence: {whence!r}")
+
+        if not 0 <= new_pos <= self._size:
+            raise ValueError("seek position out of range")
+
+        self._pos = new_pos
+        return self._pos
+
+    def tell(self) -> int:
+        """Return the current position in the substream."""
+        self._check_closed()
+        return self._pos
+
+    def readable(self) -> bool:
+        """Check if the substream is readable."""
+        return True
+
+    def seekable(self) -> bool:
+        """Check if the substream is seekable."""
+        return True
+
+    def close(self) -> None:
+        self._closed = True
+
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
+    def _check_closed(self) -> None:
+        if self._closed:
+            raise ValueError("I/O operation on closed file.")
+
+    def __enter__(self):
+        self._check_closed()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
+    def remaining(self) -> int:
+        """Bytes left to read."""
+        return max(0, self._size - self._pos)

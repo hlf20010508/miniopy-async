@@ -18,6 +18,7 @@ from miniopy_async.commonconfig import (
 )
 from miniopy_async.datatypes import PostPolicy
 from miniopy_async.deleteobjects import DeleteObject
+from miniopy_async.helpers import Substream
 from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig
 from miniopy_async.lifecycleconfig import Rule as lcRule
 from miniopy_async.select import (
@@ -365,6 +366,22 @@ class Test(unittest.IsolatedAsyncioTestCase):
         await self.put_test_file()
 
         await self.client.remove_object(self.bucket_name, self.test_file_name)
+
+
+class TestSubstream(unittest.TestCase):
+    def test(self):
+        data = BytesIO(b"hello world")
+        substream1 = Substream(data, 0, 5)
+        substream2 = Substream(data, 6, 10)
+        substream3 = Substream(data, 11, 5)
+
+        self.assertEqual(substream1.read(), b"hello")
+        self.assertEqual(substream2.read(), b"world")
+        self.assertEqual(substream3.read(), b"")
+
+        self.assertEqual(substream1.size, 5)
+        self.assertEqual(substream2.size, 5)
+        self.assertEqual(substream3.size, 0)
 
 
 if __name__ == "__main__":

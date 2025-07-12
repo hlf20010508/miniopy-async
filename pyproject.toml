@@ -25,7 +25,6 @@ package-mode = true
 [tool.poetry.dependencies]
 python = "^3.10"
 aiohttp = "^3.11.14"
-aiofile = "^3.9.0"
 certifi = "^2025.1.31"
 aiohttp-retry = "^2.9.1"
 argon2-cffi = "^23.1.0"
