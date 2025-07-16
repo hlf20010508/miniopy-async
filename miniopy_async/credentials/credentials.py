@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-# Asynchronous MinIO Client SDK for Python
+# MinIO Python Library for Amazon S3 Compatible Cloud Storage,
 # (C) 2020 MinIO, Inc.
-# (C) 2022 Huseyn Mashadiyev <mashadiyev.huseyn@gmail.com>
-# (C) 2022 L-ING <hlf01@icloud.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
