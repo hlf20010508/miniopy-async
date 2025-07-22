@@ -4340,9 +4340,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         metadata["X-Amz-Meta-Snowball-Auto-Extract"] = "true"
 
         name = staging_filename
-        mode = "w:gz" if compression else "w"
         fileobj = None if name else BytesIO()
-        with tarfile.open(name=name, mode=mode, fileobj=fileobj) as tar:
+        with tarfile.open(
+            name=name, mode="w:gz" if compression else "w", fileobj=fileobj
+        ) as tar:
             for obj in object_list:
                 if obj.filename:
                     tar.add(obj.filename, obj.object_name)
