@@ -55,6 +55,7 @@ from .signer import sign_v4_s3
 class _COMMAND(Enum):
     """Admin Command enumerations."""
 
+    ACCOUNT_INFO = "accountinfo"
     ADD_USER = "add-user"
     USER_INFO = "user-info"
     LIST_USERS = "list-users"
@@ -321,6 +322,15 @@ class MinioAdmin:
         response = await self._url_open(
             "GET",
             _COMMAND.INFO,
+        )
+        return await response.text()
+
+    async def account_info(self, prefix_usage: bool = False) -> str:
+        """Get usage information for the authenticating account"""
+        response = await self._url_open(
+            "GET",
+            _COMMAND.ACCOUNT_INFO,
+            query_params={"prefix-usage": "true"} if prefix_usage else None,
         )
         return await response.text()
 
