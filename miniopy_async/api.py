@@ -2371,6 +2371,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         tags: Tags | None = None,
         retention: Retention | None = None,
         legal_hold: bool = False,
+        write_offset: int | None = None,
     ) -> ObjectWriteResult:
         """
         Uploads data from a stream to an object in a bucket.
@@ -2389,6 +2390,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         :param Tags | None tags: :class:`Tags` for the object.
         :param Retention | None retention: :class:`Retention` configuration object.
         :param bool legal_hold: Flag to set legal hold for the object.
+        :param int | None write_offset: Offset byte for appending data to existing object.
         :return: :class:`ObjectWriteResult` object.
         :rtype: ObjectWriteResult
         :raise ValueError: If tags is not of type :class:`Tags`.
@@ -2493,6 +2495,12 @@ class Minio:  # pylint: disable=too-many-public-methods
             raise ValueError("retention must be Retention type")
         if not callable(getattr(data, "read")):
             raise ValueError("input data must have callable read()")
+        if write_offset is not None:
+            if write_offset < 0:
+                raise ValueError("write offset should not be negative")
+            if length < 0:
+                raise ValueError("length must be provided for write offset")
+            part_size = length if length > MIN_PART_SIZE else MIN_PART_SIZE
         part_size, part_count = get_part_info(length, part_size)
         if progress:
             # Set progress bar length and object name before upload
@@ -2500,6 +2508,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         headers = genheaders(metadata, sse, tags, retention, legal_hold)
         headers["Content-Type"] = content_type or "application/octet-stream"
+        if write_offset:
+            headers["x-amz-write-offset-bytes"] = str(write_offset)
 
         object_size = length
         uploaded_size = 0
@@ -2605,6 +2615,108 @@ class Minio:  # pylint: disable=too-many-public-methods
                     upload_id,
                 )
             raise exc
+
+    async def append_object(
+        self,
+        bucket_name: str,
+        object_name: str,
+        data: BinaryIO,
+        length: int,
+        chunk_size: int | None = None,
+        progress: ProgressType | None = None,
+        extra_headers: DictType | None = None,
+    ) -> ObjectWriteResult:
+        """
+        Appends from a stream to existing object in a bucket.
+
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param BinaryIO data: An object having callable read() returning bytes object.
+        :param int length: Data size; -1 for unknown size.
+        :param int chunk_size: Chunk size to optimize uploads.
+        :param ProgressType | None progress: A progress object.
+        :param DictType | None extra_headers: Any additional headers to be added with GET request.
+        :return: :class:`ObjectWriteResult` object.
+        :rtype: ObjectWriteResult
+        :raise ValueError: If length is 0.
+        :raise ValueError: If chunk_size is less than 5 MiB or greater than 5 GiB.
+        :raise IOError: If stream doesn't have enough data to read.
+
+        .. code-block:: python
+
+        """
+        if length == 0:
+            raise ValueError("length should not be zero")
+        if chunk_size is not None:
+            if chunk_size < MIN_PART_SIZE:
+                raise ValueError("chunk size must be minimum of 5 MiB")
+            if chunk_size > MAX_PART_SIZE:
+                raise ValueError("chunk size must be less than 5 GiB")
+        else:
+            chunk_size = length if length > MIN_PART_SIZE else MIN_PART_SIZE
+
+        chunk_count = -1
+        if length > 0:
+            chunk_count = int(length / chunk_size)
+            if (chunk_count * chunk_size) < length:
+                chunk_count += 1
+            chunk_count = chunk_count or 1
+
+        object_size = length
+        uploaded_size = 0
+        chunk_number = 0
+        stop = False
+
+        stat = await self.stat_object(bucket_name, object_name)
+        write_offset = cast(int, stat.size)
+        upload_result = None
+
+        while not stop:
+            chunk_number += 1
+            if chunk_count > 0:
+                if chunk_number == chunk_count:
+                    chunk_size = object_size - uploaded_size
+                    stop = True
+                chunk_data = Substream(data, uploaded_size, chunk_size)
+                if chunk_data.size != chunk_size:
+                    raise IOError(
+                        f"stream having not enough data;"
+                        f"expected: {chunk_size}, "
+                        f"got: {chunk_data.size} bytes"
+                    )
+            else:
+                chunk_data = Substream(data, uploaded_size, chunk_size)
+                if chunk_data.size == 0:
+                    break
+                if chunk_data.size < chunk_size:
+                    chunk_count = chunk_number
+                    stop = True
+                    chunk_size = chunk_data.size
+
+            if progress:
+                await progress.update(chunk_size)
+
+            uploaded_size += chunk_size
+
+            headers = extra_headers or {}
+            headers["x-amz-write-offset-bytes"] = str(write_offset)
+            upload_result = await self._put_object(
+                bucket_name,
+                object_name,
+                chunk_data,
+                headers=headers,
+            )
+            write_offset += chunk_size
+
+        upload_result = cast(ObjectWriteResult, upload_result)
+        return ObjectWriteResult(
+            cast(str, upload_result.bucket_name),
+            cast(str, upload_result.object_name),
+            upload_result.version_id,
+            upload_result.etag,
+            upload_result.http_headers,
+            location=upload_result.location,
+        )
 
     def list_objects(
         self,

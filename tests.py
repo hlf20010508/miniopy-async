@@ -145,6 +145,34 @@ class Test(unittest.IsolatedAsyncioTestCase):
             raw_content,
         )
 
+    async def test_append_object(self):
+        raw_content = fake.binary(1024 * 1024)
+        test_content = BytesIO(raw_content)
+        await self.client.put_object(
+            self.bucket_name,
+            self.test_file_name,
+            test_content,
+            length=test_content.getbuffer().nbytes,
+        )
+
+        raw_append_content = fake.binary(1024 * 1024)
+        test_content = BytesIO(raw_append_content)
+        result = await self.client.append_object(
+            self.bucket_name,
+            self.test_file_name,
+            test_content,
+            length=test_content.getbuffer().nbytes,
+        )
+
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(
+            await (
+                await self.client.get_object(self.bucket_name, self.test_file_name)
+            ).read(),
+            raw_content + raw_append_content,
+        )
+
     async def test_fput_object(self):
         raw_content = fake.binary(5 * 1024 * 1024)
         file_name = f"{self.test_file_name}-1"
