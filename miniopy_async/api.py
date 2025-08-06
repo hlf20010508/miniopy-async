@@ -2330,7 +2330,6 @@ class Minio:  # pylint: disable=too-many-public-methods
             ...     await uploader(b"chunck1")
             ...     await uploader(b"chunck2")
         """
-
         upload_id = None
         try:
             if not headers:
@@ -2338,14 +2337,16 @@ class Minio:  # pylint: disable=too-many-public-methods
             upload_id = await self._create_multipart_upload(bucket_name, object_name, headers)
             parts = []
 
-            part_number_ = 0
+            part_number_ = 1
+            part_number_lock = asyncio.Lock()
             async def uploader(
                 data: bytes | BytesIO | Substream, part_number: int | None = None
             ) -> None:
                 nonlocal part_number_
                 if part_number is None:
-                    part_number_ += 1
-                    part_number = part_number_
+                    async with part_number_lock:
+                        part_number = part_number_
+                        part_number_ += 1
                 etag = await self._upload_part(bucket_name, object_name, data, headers, upload_id, part_number)
                 parts.append(Part(part_number, etag))
 
