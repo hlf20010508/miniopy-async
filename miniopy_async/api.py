@@ -2309,26 +2309,31 @@ class Minio:  # pylint: disable=too-many-public-methods
     @asynccontextmanager
     async def managed_upload(self, bucket_name: str, object_name : str, headers: dict[str, Any] | None = None) -> AsyncIterator[Callable[[bytes, int | None], Awaitable[None]]]:
         """
-        管理异步文件上传的上下文管理器。
-        去除对upload_id 和上传异常的关心，让上传代码只关心自己应该关心的
+        A context manager for asynchronous file uploads.
+        Handles upload_id and exceptions internally, allowing upload code to focus on its core responsibility.
 
         Args:
-            object_name (str): 目标对象的名称。
-            headers (dict[str, Any] | None): 可选的请求头信息。
+            bucket_name (str): Name of the bucket to upload the object to.
+            object_name (str): Name of the target object.
+            headers (dict[str, Any] | None): Optional request headers.
 
         Yields:
-            AsyncIterator[Callable[[bytes, int], Awaitable[None]]]: 生成一个异步上传函数，用于分块上传数据。
+            AsyncIterator[Callable[[bytes, int | None], Awaitable[None]]]: An async upload function for chunked data upload.
 
-        Examples:
-            >>> async with self.managed_upload("example.txt") as uploader:
+        Examples 1:
+            >>> client = Minio("s3.amazonaws.com", "ACCESS-KEY", "SECRET-KEY")
+            ... async with client.managed_upload("example.txt") as uploader:
+            ...     await uploader(b"chunck0")  # ignore part_number, start with 1
+            ...     await uploader(b"chunck1")
+            ...     await uploader(b"chunck2")
+
+        Examples 2:
+            >>> client = Minio("s3.amazonaws.com", "ACCESS-KEY", "SECRET-KEY")
+            ... async with client.managed_upload("example.txt") as uploader:
             ...     await uploader(b"chunck0", 1)
             ...     await uploader(b"chunck1", 2)
             ...     await uploader(b"chunck2", 3)
 
-            >>> async with self.managed_upload("example.txt") as uploader:
-            ...     await uploader(b"chunck0")  # ignore part_number, start with 1
-            ...     await uploader(b"chunck1")
-            ...     await uploader(b"chunck2")
         """
         upload_id = None
         try:
