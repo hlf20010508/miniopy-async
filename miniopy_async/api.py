@@ -28,10 +28,20 @@ import os
 import ssl
 import tarfile
 from collections.abc import Iterable
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from io import BytesIO
 from random import random
-from typing import Any, AsyncGenerator, BinaryIO, TextIO, cast
+from typing import (
+    Any,
+    AsyncGenerator,
+    AsyncIterator,
+    Awaitable,
+    BinaryIO,
+    Callable,
+    TextIO,
+    cast,
+)
 from urllib.parse import urlunsplit
 from xml.etree import ElementTree as ET
 
@@ -2296,11 +2306,61 @@ class Minio:  # pylint: disable=too-many-public-methods
         element = ET.fromstring(await response.text())
         return cast(str, findtext(element, "UploadId", True))
 
+    @asynccontextmanager
+    async def managed_upload(self, bucket_name: str, object_name : str, headers: dict[str, Any] | None = None) -> AsyncIterator[Callable[[bytes, int], Awaitable[None]]]:
+        """
+        管理异步文件上传的上下文管理器。
+        去除对upload_id 和上传异常的关心，让上传代码只关心自己应该关心的
+
+        Args:
+            object_name (str): 目标对象的名称。
+            headers (dict[str, Any] | None): 可选的请求头信息。
+
+        Yields:
+            AsyncIterator[Callable[[bytes, int], Awaitable[None]]]: 生成一个异步上传函数，用于分块上传数据。
+
+        Examples:
+            >>> async with self.managed_upload("example.txt") as uploader:
+            ...     await uploader(b"chunck0", 1)
+            ...     await uploader(b"chunck1", 1)
+            ...     await uploader(b"chunck2", 2)
+
+            >>> async with self.managed_upload("example.txt") as uploader:
+            ...     await uploader(b"chunck0")  # ignore part_number, start with 1
+            ...     await uploader(b"chunck1")
+            ...     await uploader(b"chunck2")
+        """
+        upload_id = None
+        try:
+            if not headers:
+                headers = {}
+            upload_id = await self._create_multipart_upload(bucket_name, object_name, headers)
+            parts = []
+
+            async def uploader(
+                data: bytes | BytesIO | Substream, part_number: int
+            ) -> None:
+                etag = await self._upload_part(bucket_name, object_name, data, headers, upload_id, part_number)
+                parts.append(Part(part_number, etag))
+
+            yield uploader
+
+            await self._complete_multipart_upload(bucket_name, object_name, upload_id, parts)
+        except Exception:
+            if upload_id:
+                await self._abort_multipart_upload(
+                    bucket_name,
+                    object_name,
+                    upload_id
+                )
+            raise
+
+
     async def _put_object(
         self,
         bucket_name: str,
         object_name: str,
-        data: Substream,
+        data: bytes | BytesIO | Substream,
         headers: DictType | None,
         query_params: DictType | None = None,
     ) -> ObjectWriteResult:
@@ -2326,7 +2386,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        data: Substream,
+        data: bytes | BytesIO | Substream,
         headers: DictType | None,
         upload_id: str,
         part_number: int,
