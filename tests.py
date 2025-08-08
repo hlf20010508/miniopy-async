@@ -9,7 +9,7 @@ from typing import cast
 
 from faker import Faker
 
-from miniopy_async import Minio
+from miniopy_async import Minio, S3Error
 from miniopy_async.commonconfig import (
     ENABLED,
     ComposeSource,
@@ -263,6 +263,61 @@ class Test(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(result.bucket_name, self.bucket_name)
         self.assertEqual(result.object_name, compose_name)
+
+    async def test_multipart_uploader(self):
+        test_part1 = fake.binary(5 * 1024 * 1024)
+        test_part2 = fake.binary(1 * 1024 * 1024)
+
+        async with self.client.multipart_uploader(
+            self.bucket_name, self.test_file_name
+        ) as uploader:
+            await uploader.upload_part(test_part1, part_number=1)
+            await uploader.upload_part(test_part2, part_number=2)
+        result = uploader.result
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(
+            await (
+                await self.client.get_object(self.bucket_name, self.test_file_name)
+            ).read(),
+            test_part1 + test_part2,
+        )
+
+        test_part1 = fake.binary(5 * 1024 * 1024)
+        test_part2 = fake.binary(1 * 1024 * 1024)
+
+        uploader = self.client.multipart_uploader(self.bucket_name, self.test_file_name)
+        await uploader.upload_part(test_part1, part_number=1)
+        await uploader.upload_part(test_part2, part_number=2)
+        result = await uploader.complete()
+        self.assertEqual(result.bucket_name, self.bucket_name)
+        self.assertEqual(result.object_name, self.test_file_name)
+        self.assertEqual(
+            await (
+                await self.client.get_object(self.bucket_name, self.test_file_name)
+            ).read(),
+            test_part1 + test_part2,
+        )
+
+        await self.client.remove_object(self.bucket_name, self.test_file_name)
+        uploader = self.client.multipart_uploader(self.bucket_name, self.test_file_name)
+        await uploader.upload_part(test_part1, part_number=1)
+        await uploader.abort()
+        with self.assertRaises(ValueError):
+            uploader.result
+        with self.assertRaises(S3Error):
+            await self.client.stat_object(self.bucket_name, self.test_file_name)
+
+        test_part1 = fake.binary(1 * 1024 * 1024)
+        test_part2 = fake.binary(5 * 1024 * 1024)
+
+        uploader = self.client.multipart_uploader(self.bucket_name, self.test_file_name)
+        await uploader.upload_part(test_part1, part_number=1)
+        await uploader.upload_part(test_part2, part_number=2)
+        with self.assertRaises(S3Error):
+            await uploader.complete()
+        with self.assertRaises(S3Error):
+            await self.client.stat_object(self.bucket_name, self.test_file_name)
 
     async def test_copy_object(self):
         await self.put_test_file()

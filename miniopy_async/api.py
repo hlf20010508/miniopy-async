@@ -54,6 +54,7 @@ from .datatypes import (
     ListMultipartUploadsResult,
     ListObjects,
     ListPartsResult,
+    MultipartUploader,
     Object,
     Part,
     PostPolicy,
@@ -2296,11 +2297,140 @@ class Minio:  # pylint: disable=too-many-public-methods
         element = ET.fromstring(await response.text())
         return cast(str, findtext(element, "UploadId", True))
 
+    def multipart_uploader(
+        self,
+        bucket_name: str,
+        object_name: str,
+        content_type: str = "application/octet-stream",
+        metadata: DictType | None = None,
+        sse: Sse | None = None,
+        tags: Tags | None = None,
+        retention: Retention | None = None,
+        legal_hold: bool = False,
+        extra_headers: DictType | None = None,
+    ) -> MultipartUploader:
+        """
+        Create a multipart uploader for large data.
+
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str content_type: Content type of the object.
+        :param DictType | None metadata: Any additional metadata to be uploaded along
+            with your PUT request.
+        :param Sse | None sse: Server-side encryption.
+        :param Tags | None tags: :class:`Tags` for the object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for the object.
+        :param DictType | None extra_headers: Any additional headers to be added with GET request.
+        :return: :class:`MultipartUploader` object.
+        :rtype: MultipartUploader
+
+        .. code-block:: python
+
+            import asyncio
+
+            from miniopy_async import Minio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True,  # http for False, https for True
+            )
+
+
+            async def main():
+                # Use context manager
+                print("example one")
+                async with client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                ) as uploader:
+                    await uploader.upload_part(b"hello" * 1024 * 1024, 1)
+                    await uploader.upload_part(b"world", 2)
+                result = uploader.result
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
+                )
+
+                # Use directly
+                print("example two")
+                uploader = client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                )
+                await uploader.upload_part(b"hello" * 1024 * 1024, 1)
+                await uploader.upload_part(b"world", 2)
+                result = await uploader.complete()
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
+                )
+
+                # Abort
+                print("example three")
+                uploader = client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                )
+                await uploader.upload_part(b"hello", 1)
+                await uploader.abort()
+
+                # Parallel upload
+                print("example four")
+                tasks = []
+                async with client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                ) as uploader:
+                    for i in range(1, 11):
+                        data = (f"part{i}" * 1024 * 1024).encode("utf-8")
+                        tasks.append(uploader.upload_part(data, i))
+                    await asyncio.gather(*tasks)
+                result = uploader.result
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
+                )
+
+
+            asyncio.run(main())
+        """
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
+        check_sse(sse)
+        if tags is not None and not isinstance(tags, Tags):
+            raise ValueError("tags must be Tags type")
+        if retention is not None and not isinstance(retention, Retention):
+            raise ValueError("retention must be Retention type")
+
+        headers = genheaders(metadata, sse, tags, retention, legal_hold)
+        headers["Content-Type"] = content_type or "application/octet-stream"
+        if extra_headers:
+            headers.update(extra_headers)
+
+        return MultipartUploader(
+            self,
+            bucket_name,
+            object_name,
+            headers,
+        )
+
     async def _put_object(
         self,
         bucket_name: str,
         object_name: str,
-        data: Substream,
+        data: bytes | BytesIO | Substream,
         headers: DictType | None,
         query_params: DictType | None = None,
     ) -> ObjectWriteResult:
@@ -2326,7 +2456,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        data: Substream,
+        data: bytes | BytesIO | Substream,
         headers: DictType | None,
         upload_id: str,
         part_number: int,

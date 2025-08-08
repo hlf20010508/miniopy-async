@@ -21,6 +21,7 @@ Response of ListBuckets, ListObjects, ListObjectsV2 and ListObjectVersions API.
 from __future__ import absolute_import, annotations
 
 import base64
+import io
 import itertools
 import json
 from collections import OrderedDict
@@ -1286,3 +1287,100 @@ class DeleteErrors:
         async for error in self:
             errors.append(error)
         return errors
+
+
+class MultipartUploader:
+    def __init__(
+        self,
+        client: Minio,
+        bucket_name: str,
+        object_name: str,
+        headers: DictType,
+    ):
+        self._client = client
+        self._bucket_name = bucket_name
+        self._object_name = object_name
+        self._headers = headers
+        self._upload_id = ""
+        self._parts = []
+        self._result: CompleteMultipartUploadResult | None = None
+
+    @property
+    def result(self) -> CompleteMultipartUploadResult:
+        """
+        Get multipart upload result.
+
+        :return: Multipart upload result.
+        :rtype: CompleteMultipartUploadResult
+        :raises ValueError: If multipart upload is not completed.
+        """
+        if not self._result:
+            raise ValueError("Multipart upload not completed")
+        return self._result
+
+    async def _init(self):
+        self._upload_id = await self._client._create_multipart_upload(
+            self._bucket_name, self._object_name, self._headers
+        )
+
+    async def complete(self) -> CompleteMultipartUploadResult:
+        """
+        Complete multipart upload.
+
+        :return: Multipart upload result.
+        :rtype: CompleteMultipartUploadResult
+        """
+        self._result = await self._client._complete_multipart_upload(
+            self._bucket_name, self._object_name, self._upload_id, self._parts
+        )
+        return self.result
+
+    async def abort(self):
+        """Abort multipart upload."""
+        await self._client._abort_multipart_upload(
+            self._bucket_name, self._object_name, self._upload_id
+        )
+
+    async def __aenter__(self):
+        await self._init()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.complete()
+
+    async def upload_part(self, data: bytes | io.BytesIO, part_number: int) -> Part:
+        """
+        Upload a part of the object.
+
+        The data size must be larger than 5 MiB and less than 5 GiB except the last part.
+
+        :param bytes | io.BytesIO data: Data to upload as part.
+        :param int part_number: Number of the part.
+        :return: Part information.
+        :rtype: Part
+        :raises ValueError: If part_number is not a positive integer.
+        """
+        if not self._upload_id:
+            await self._init()
+        try:
+            if not isinstance(part_number, int) or part_number < 1:
+                raise ValueError("part_number must be a positive integer")
+
+            etag = await self._client._upload_part(
+                self._bucket_name,
+                self._object_name,
+                data,
+                self._headers,
+                self._upload_id,
+                part_number,
+            )
+
+            part = Part(part_number, etag)
+            self._parts.append(part)
+
+            return part
+
+        except Exception as e:
+            await self.abort()
+
+            raise e
