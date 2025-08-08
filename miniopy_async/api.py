@@ -2774,6 +2774,67 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         .. code-block:: python
 
+            import asyncio
+            import io
+            from urllib.request import urlopen
+
+            from miniopy_async import Minio
+
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True,  # http for False, https for True
+            )
+
+
+            async def main():
+                # Upload data.
+                result = await client.put_object(
+                    "my-bucket",
+                    "my-object",
+                    io.BytesIO(b"hello, "),
+                    7,
+                )
+                print(f"created {result.object_name} object; etag: {result.etag}")
+
+                # Append data.
+                result = await client.append_object(
+                    "my-bucket",
+                    "my-object",
+                    io.BytesIO(b"world"),
+                    5,
+                )
+                print(f"appended {result.object_name} object; etag: {result.etag}")
+
+                # Append data in chunks.
+                data = urlopen(
+                    "https://www.kernel.org/pub/linux/kernel/v6.x/linux-6.13.12.tar.xz",
+                )
+                result = await client.append_object(
+                    "my-bucket",
+                    "my-object",
+                    data,
+                    148611164,
+                    5 * 1024 * 1024,
+                )
+                print(f"appended {result.object_name} object; etag: {result.etag}")
+
+                # Append unknown sized data.
+                data = urlopen(
+                    "https://www.kernel.org/pub/linux/kernel/v6.x/linux-6.14.3.tar.xz",
+                )
+                result = await client.append_object(
+                    "my-bucket",
+                    "my-object",
+                    data,
+                    149426584,
+                    5 * 1024 * 1024,
+                )
+                print(f"appended {result.object_name} object; etag: {result.etag}")
+
+
+            asyncio.run(main())
         """
         if length == 0:
             raise ValueError("length should not be zero")
