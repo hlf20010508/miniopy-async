@@ -28,20 +28,10 @@ import os
 import ssl
 import tarfile
 from collections.abc import Iterable
-from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from io import BytesIO
 from random import random
-from typing import (
-    Any,
-    AsyncGenerator,
-    AsyncIterator,
-    Awaitable,
-    BinaryIO,
-    Callable,
-    TextIO,
-    cast,
-)
+from typing import Any, AsyncGenerator, BinaryIO, TextIO, cast
 from urllib.parse import urlunsplit
 from xml.etree import ElementTree as ET
 
@@ -64,6 +54,7 @@ from .datatypes import (
     ListMultipartUploadsResult,
     ListObjects,
     ListPartsResult,
+    MultipartUploader,
     Object,
     Part,
     PostPolicy,
@@ -2306,67 +2297,134 @@ class Minio:  # pylint: disable=too-many-public-methods
         element = ET.fromstring(await response.text())
         return cast(str, findtext(element, "UploadId", True))
 
-    @asynccontextmanager
-    async def managed_upload(self, bucket_name: str, object_name : str, headers: dict[str, Any] | None = None) -> AsyncIterator[Callable[[bytes, int | None], Awaitable[None]]]:
+    def multipart_uploader(
+        self,
+        bucket_name: str,
+        object_name: str,
+        content_type: str = "application/octet-stream",
+        metadata: DictType | None = None,
+        sse: Sse | None = None,
+        tags: Tags | None = None,
+        retention: Retention | None = None,
+        legal_hold: bool = False,
+        extra_headers: DictType | None = None,
+    ) -> MultipartUploader:
         """
-        A context manager for asynchronous file uploads.
-        Handles upload_id and exceptions internally, allowing upload code to focus on its core responsibility.
+        Create a multipart uploader for large data.
 
-        Args:
-            bucket_name (str): Name of the bucket to upload the object to.
-            object_name (str): Name of the target object.
-            headers (dict[str, Any] | None): Optional request headers.
+        :param str bucket_name: Name of the bucket.
+        :param str object_name: Object name in the bucket.
+        :param str content_type: Content type of the object.
+        :param DictType | None metadata: Any additional metadata to be uploaded along
+            with your PUT request.
+        :param Sse | None sse: Server-side encryption.
+        :param Tags | None tags: :class:`Tags` for the object.
+        :param Retention | None retention: :class:`Retention` configuration object.
+        :param bool legal_hold: Flag to set legal hold for the object.
+        :param DictType | None extra_headers: Any additional headers to be added with GET request.
+        :return: :class:`MultipartUploader` object.
+        :rtype: MultipartUploader
 
-        Yields:
-            AsyncIterator[Callable[[bytes, int | None], Awaitable[None]]]: An async upload function for chunked data upload.
+        .. code-block:: python
 
-        Examples 1:
-            >>> client = Minio("s3.amazonaws.com", "ACCESS-KEY", "SECRET-KEY")
-            ... async with client.managed_upload("example.txt") as uploader:
-            ...     await uploader(b"chunck0")  # ignore part_number, start with 1
-            ...     await uploader(b"chunck1")
-            ...     await uploader(b"chunck2")
+            import asyncio
 
-        Examples 2:
-            >>> client = Minio("s3.amazonaws.com", "ACCESS-KEY", "SECRET-KEY")
-            ... async with client.managed_upload("example.txt") as uploader:
-            ...     await uploader(b"chunck0", 1)
-            ...     await uploader(b"chunck1", 2)
-            ...     await uploader(b"chunck2", 3)
+            from miniopy_async import Minio
 
-        """
-        upload_id = None
-        try:
-            if not headers:
-                headers = {}
-            upload_id = await self._create_multipart_upload(bucket_name, object_name, headers)
-            parts = []
+            client = Minio(
+                "play.min.io",
+                access_key="Q3AM3UQ867SPQQA43P2F",
+                secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+                secure=True,  # http for False, https for True
+            )
 
-            part_number_ = 1
-            part_number_lock = asyncio.Lock()
-            async def uploader(
-                data: bytes | BytesIO | Substream, part_number: int | None = None
-            ) -> None:
-                nonlocal part_number_
-                if part_number is None:
-                    async with part_number_lock:
-                        part_number = part_number_
-                        part_number_ += 1
-                etag = await self._upload_part(bucket_name, object_name, data, headers, upload_id, part_number)
-                parts.append(Part(part_number, etag))
 
-            yield uploader
-
-            await self._complete_multipart_upload(bucket_name, object_name, upload_id, parts)
-        except Exception:
-            if upload_id:
-                await self._abort_multipart_upload(
-                    bucket_name,
-                    object_name,
-                    upload_id
+            async def main():
+                # Use context manager
+                print("example one")
+                async with client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                ) as uploader:
+                    await uploader.upload_part(b"hello ", 1)
+                    await uploader.upload_part(b"world", 2)
+                result = uploader.result
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
                 )
-            raise
 
+                # Use directly
+                print("example two")
+                uploader = client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                )
+                await uploader.upload_part(b"hello ", 1)
+                await uploader.upload_part(b"world", 2)
+                result = await uploader.complete()
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
+                )
+
+                # Abort
+                print("example three")
+                uploader = client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                )
+                await uploader.upload_part(b"hello ", 1)
+                await uploader.abort()
+
+                # Parallel upload
+                print("example four")
+                tasks = []
+                async with client.multipart_uploader(
+                    "my-bucket",
+                    "my-object",
+                ) as uploader:
+                    for i in range(1, 11):
+                        data = f"part {i}".encode("utf-8")
+                        tasks.append(uploader.upload_part(data, i))
+                    await asyncio.gather(*tasks)
+                result = uploader.result
+                print(
+                    "created {0} object; etag: {1}, version-id: {2}".format(
+                        result.object_name,
+                        result.etag,
+                        result.version_id,
+                    ),
+                )
+
+
+            asyncio.run(main())
+        """
+        check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
+        check_object_name(object_name)
+        check_sse(sse)
+        if tags is not None and not isinstance(tags, Tags):
+            raise ValueError("tags must be Tags type")
+        if retention is not None and not isinstance(retention, Retention):
+            raise ValueError("retention must be Retention type")
+
+        headers = genheaders(metadata, sse, tags, retention, legal_hold)
+        headers["Content-Type"] = content_type or "application/octet-stream"
+        if extra_headers:
+            headers.update(extra_headers)
+
+        return MultipartUploader(
+            self,
+            bucket_name,
+            object_name,
+            headers,
+        )
 
     async def _put_object(
         self,
