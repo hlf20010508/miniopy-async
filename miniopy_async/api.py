@@ -2346,7 +2346,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-bucket",
                     "my-object",
                 ) as uploader:
-                    await uploader.upload_part(b"hello ", 1)
+                    await uploader.upload_part(b"hello" * 1024 * 1024, 1)
                     await uploader.upload_part(b"world", 2)
                 result = uploader.result
                 print(
@@ -2363,7 +2363,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-bucket",
                     "my-object",
                 )
-                await uploader.upload_part(b"hello ", 1)
+                await uploader.upload_part(b"hello" * 1024 * 1024, 1)
                 await uploader.upload_part(b"world", 2)
                 result = await uploader.complete()
                 print(
@@ -2380,7 +2380,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-bucket",
                     "my-object",
                 )
-                await uploader.upload_part(b"hello ", 1)
+                await uploader.upload_part(b"hello", 1)
                 await uploader.abort()
 
                 # Parallel upload
@@ -2391,7 +2391,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     "my-object",
                 ) as uploader:
                     for i in range(1, 11):
-                        data = f"part {i}".encode("utf-8")
+                        data = (f"part{i}" * 1024 * 1024).encode("utf-8")
                         tasks.append(uploader.upload_part(data, i))
                     await asyncio.gather(*tasks)
                 result = uploader.result
