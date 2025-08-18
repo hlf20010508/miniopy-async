@@ -36,6 +36,7 @@ from urllib.parse import urlunsplit
 from xml.etree import ElementTree as ET
 
 import certifi
+import yarl
 from aiohttp import ClientResponse, ClientSession, ClientTimeout, TCPConnector
 from aiohttp.typedefs import LooseHeaders
 from aiohttp_retry import ExponentialRetry, RetryClient
@@ -362,9 +363,10 @@ class Minio:  # pylint: disable=too-many-public-methods
         self._ensure_session()
         session = cast(ClientSession | RetryClient, self._session)
 
+        yarl_url = yarl.URL(urlunsplit(url), encoded=True)
         response = await session.request(
             method,
-            urlunsplit(url),
+            yarl_url,
             data=body,
             headers=http_headers,
         )
