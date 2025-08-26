@@ -26,9 +26,10 @@ import math
 import os
 import platform
 import re
+import threading
 import urllib.parse
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Protocol, Tuple, Union
+from typing import BinaryIO, Dict, List, Protocol, Tuple, Union, cast
 
 from aiohttp.typedefs import LooseHeaders
 
@@ -865,36 +866,67 @@ class Substream(io.IOBase):
 
         self._base = base
         self._start = offset
-        self._size = self._get_size(part_size)
         self._pos = 0
         self._closed = False
 
+        self._lock = threading.RLock()
+        self._fd: int | None = None
+        self._has_pread: bool = False
+        try:
+            if hasattr(base, "fileno"):
+                self._fd = base.fileno()
+                self._has_pread = self._fd is not None and hasattr(os, "pread")
+        except Exception:
+            self._fd = None
+            self._has_pread = False
+
+        self._size = self._get_size(part_size)
+
+    def _read_at(self, abs_offset: int, n: int) -> bytes:
+        """Read n bytes from the underlying stream at absolute position abs_offset without changing other readers' pointers."""
+        if n <= 0:
+            return b""
+        if self._has_pread:
+            # POSIX: thread-safe, does not affect file pointer
+            return os.pread(cast(int, self._fd), n, abs_offset)
+        # Fallback: save/restore pointer + lock, ensure atomicity within this object
+        with self._lock:
+            curr = self._base.tell()
+            try:
+                self._base.seek(abs_offset)
+                return self._base.read(n)
+            finally:
+                try:
+                    self._base.seek(curr)
+                except Exception:
+                    pass
+
     def _get_size(self, part_size: int) -> int:
         """Get size of the substream using bisection."""
-        head = self._start
-        tail = self._start + part_size - 1
+        if part_size == 0:
+            return 0
 
-        self._base.seek(tail)
-        data = self._base.read(1)
-        if data:
+        start = self._start
+        end = start + part_size
+
+        if self._read_at(end - 1, 1):
             return part_size
 
-        self._base.seek(head)
-        data = self._base.read(1)
-        if not data:
+        if not self._read_at(start, 1):
             return 0
 
         # bisection
-        while tail >= head:
-            center = (head + tail) // 2
-            self._base.seek(center)
-            data = self._base.read(2)
-            if not data:
-                tail = center - 1
-            elif len(data) == 2:
-                head = center + 1
+        lo = start
+        hi = end - 1
+        while lo <= hi:
+            mid = (lo + hi) // 2
+            if self._read_at(mid, 1):
+                if self._read_at(mid + 1, 1):
+                    lo = mid + 1
+                else:
+                    return mid - start + 1
             else:
-                return center - self._start + 1
+                hi = mid - 1
 
         raise UnreachableError
 
@@ -906,27 +938,20 @@ class Substream(io.IOBase):
     def read(self, size: int = -1) -> bytes:
         """Read data from the substream."""
         self._check_closed()
-        self._base.seek(self._start + self._pos)
-
         remaining = self._size - self._pos
         if remaining <= 0:
             return b""
         if size < 0 or size > remaining:
             size = remaining
-        data = self._base.read(size)
+        abs_off = self._start + self._pos
+        data = self._read_at(abs_off, size)
+
         self._pos += len(data)
         return data
 
     def is_empty(self) -> bool:
         """Check if the substream is empty."""
-        pos = self._pos
-
-        self.seek(0)
-        if not self.read(1):
-            return True
-
-        self._pos = pos
-        return False
+        return not bool(self._read_at(self._start, 1))
 
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
         """Seek to a position in the substream."""
