@@ -170,10 +170,3 @@ class MinioAdminException(Exception):
 
     def __reduce__(self):
         return type(self), (self._code, self._body)
-
-
-class UnreachableError(MinioException):
-    """Raised when unreachable code reached."""
-
-    def __init__(self):
-        super().__init__("unreachable code reached, please report this issue.")

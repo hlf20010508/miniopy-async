@@ -29,7 +29,7 @@ import ssl
 import tarfile
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from io import BytesIO
+from io import BytesIO, IOBase
 from random import random
 from typing import Any, AsyncGenerator, BinaryIO, TextIO, cast
 from urllib.parse import urlunsplit
@@ -74,7 +74,6 @@ from .helpers import (
     DictType,
     ObjectWriteResult,
     ProgressType,
-    Substream,
     check_bucket_name,
     check_object_name,
     check_sse,
@@ -86,6 +85,7 @@ from .helpers import (
     makedirs,
     md5sum_hash,
     queryencode,
+    read_part_data,
     sha256_hash,
 )
 from .legalhold import LegalHold
@@ -267,7 +267,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         host: str,
         headers: LooseHeaders | DictType | None,
-        body: bytes | BytesIO | Substream | None,
+        body: bytes | BinaryIO | None,
         creds: Credentials | None,
     ) -> tuple[dict[str, str], datetime]:
         """Build headers with given parameters."""
@@ -281,10 +281,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         if body:
             if isinstance(body, BytesIO):
                 headers["Content-Length"] = str(body.getbuffer().nbytes)
-            elif isinstance(body, Substream):
-                headers["Content-Length"] = str(body.size)
-            else:
+            elif isinstance(body, IOBase):
+                stat = os.fstat(body.fileno())
+                headers["Content-Length"] = str(stat.st_size)
+            elif isinstance(body, bytes):
                 headers["Content-Length"] = str(len(body))
+            else:
+                raise ValueError("body must be bytes or BinaryIO type")
         if creds:
             if self._base_url.is_https:
                 sha256 = "UNSIGNED-PAYLOAD"
@@ -309,7 +312,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         region: str,
         bucket_name: str | None = None,
         object_name: str | None = None,
-        body: bytes | BytesIO | Substream | None = None,
+        body: bytes | BinaryIO | None = None,
         headers: LooseHeaders | DictType | None = None,
         query_params: DictType | None = None,
         no_body_trace: bool = False,
@@ -501,7 +504,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         method: str,
         bucket_name: str | None = None,
         object_name: str | None = None,
-        body: bytes | BytesIO | Substream | None = None,
+        body: bytes | BinaryIO | None = None,
         headers: DictType | None = None,
         query_params: DictType | None = None,
         no_body_trace: bool = False,
@@ -2432,7 +2435,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        data: bytes | BytesIO | Substream,
+        data: bytes | BinaryIO,
         headers: DictType | None,
         query_params: DictType | None = None,
     ) -> ObjectWriteResult:
@@ -2458,7 +2461,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         self,
         bucket_name: str,
         object_name: str,
-        data: bytes | BytesIO | Substream,
+        data: bytes | BytesIO,
         headers: DictType | None,
         upload_id: str,
         part_number: int,
@@ -2510,7 +2513,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param str bucket_name: Name of the bucket.
         :param str object_name: Object name in the bucket.
-        :param BinaryIO | FileIOWrapperBase data: An object having callable read() returning bytes object.
+        :param BinaryIO data: An object having callable read() returning bytes object.
         :param int length: Data size; -1 for unknown size and set valid part_size.
         :param str content_type: Content type of the object.
         :param DictType | None metadata: Any additional metadata to be uploaded along
@@ -2633,15 +2636,24 @@ class Minio:  # pylint: disable=too-many-public-methods
             if length < 0:
                 raise ValueError("length must be provided for write offset")
             part_size = length if length > MIN_PART_SIZE else MIN_PART_SIZE
-        part_size, part_count = get_part_info(length, part_size)
-        if progress:
-            # Set progress bar length and object name before upload
-            await progress.set_meta(object_name=object_name, total_length=length)
 
         headers = genheaders(metadata, sse, tags, retention, legal_hold)
         headers["Content-Type"] = content_type or "application/octet-stream"
         if write_offset:
             headers["x-amz-write-offset-bytes"] = str(write_offset)
+
+        if part_size == length:
+            return await self._put_object(
+                bucket_name,
+                object_name,
+                data,
+                headers,
+            )
+
+        part_size, part_count = get_part_info(length, part_size)
+        if progress:
+            # Set progress bar length and object name before upload
+            await progress.set_meta(object_name=object_name, total_length=length)
 
         object_size = length
         uploaded_size = 0
@@ -2659,26 +2671,22 @@ class Minio:  # pylint: disable=too-many-public-methods
                     if part_number == part_count:
                         part_size = object_size - uploaded_size
                         stop = True
-                    part_data = Substream(data, uploaded_size, part_size)
-                    if part_data.size != part_size:
+                    part_data = await read_part_data(data, part_size, progress=progress)
+                    if len(part_data) != part_size:
                         raise IOError(
                             f"stream having not enough data;"
                             f"expected: {part_size}, "
-                            f"got: {part_data.size} bytes"
+                            f"got: {len(part_data)} bytes"
                         )
                 else:
-                    part_data = Substream(data, uploaded_size, part_size)
-                    if part_data.size == 0:
+                    part_data = await read_part_data(data, part_size, progress=progress)
+                    if len(part_data) == 0:
                         break
-                    if part_data.size < part_size:
+                    if len(part_data) < part_size:
                         part_count = part_number
                         stop = True
-                        part_size = part_data.size
 
-                if progress:
-                    await progress.update(part_size)
-
-                uploaded_size += part_size
+                uploaded_size += len(part_data)
 
                 if part_count == 1:
                     return await self._put_object(
@@ -2870,26 +2878,26 @@ class Minio:  # pylint: disable=too-many-public-methods
                 if chunk_number == chunk_count:
                     chunk_size = object_size - uploaded_size
                     stop = True
-                chunk_data = Substream(data, uploaded_size, chunk_size)
-                if chunk_data.size != chunk_size:
+                chunk_data = await read_part_data(
+                    data, cast(int, chunk_size), progress=progress
+                )
+                if len(chunk_data) != chunk_size:
                     raise IOError(
                         f"stream having not enough data;"
                         f"expected: {chunk_size}, "
-                        f"got: {chunk_data.size} bytes"
+                        f"got: {len(chunk_data)} bytes"
                     )
             else:
-                chunk_data = Substream(data, uploaded_size, chunk_size)
-                if chunk_data.size == 0:
+                chunk_data = await read_part_data(
+                    data, cast(int, chunk_size), progress=progress
+                )
+                if len(chunk_data) == 0:
                     break
-                if chunk_data.size < chunk_size:
+                if len(chunk_data) < chunk_size:
                     chunk_count = chunk_number
                     stop = True
-                    chunk_size = chunk_data.size
 
-            if progress:
-                await progress.update(chunk_size)
-
-            uploaded_size += chunk_size
+            uploaded_size += len(chunk_data)
 
             headers = extra_headers or {}
             headers["x-amz-write-offset-bytes"] = str(write_offset)

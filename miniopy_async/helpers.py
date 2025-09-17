@@ -18,6 +18,7 @@
 
 from __future__ import absolute_import, annotations, division, unicode_literals
 
+import asyncio
 import base64
 import errno
 import hashlib
@@ -26,14 +27,11 @@ import math
 import os
 import platform
 import re
-import threading
 import urllib.parse
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Protocol, Tuple, Union, cast
+from typing import BinaryIO, Dict, List, Protocol, Tuple, Union
 
 from aiohttp.typedefs import LooseHeaders
-
-from miniopy_async.error import UnreachableError
 
 from . import __title__, __version__
 from .sse import Sse, SseCustomerKey
@@ -210,6 +208,31 @@ class ProgressType(Protocol):
         """Set current progress length."""
 
 
+async def read_part_data(
+    stream: BinaryIO,
+    size: int,
+    progress: ProgressType | None = None,
+) -> bytes:
+    """Read part data of given size from stream."""
+    if not callable(getattr(stream, "read")):
+        raise ValueError("stream must have callable read()")
+
+    part_data = b""
+    while size:
+        data = stream.read(size)
+        if asyncio.iscoroutine(data):
+            data = await data
+        if not data:
+            break  # EOF reached
+        if not isinstance(data, bytes):
+            raise ValueError("read() must return 'bytes' object")
+        part_data += data
+        size -= len(data)
+        if progress:
+            await progress.update(len(data))
+    return part_data
+
+
 def makedirs(path: str):
     """Wrapper of os.makedirs() ignores errno.EEXIST."""
     try:
@@ -308,7 +331,7 @@ def check_sse(sse: Sse | None):
         raise ValueError("Sse type is required")
 
 
-def md5sum_hash(data: str | bytes | BinaryIO | Substream | None) -> str | None:
+def md5sum_hash(data: str | bytes | BinaryIO | None) -> str | None:
     """Compute MD5 of data and return hash as Base64 encoded value."""
     if data is None:
         return None
@@ -321,7 +344,7 @@ def md5sum_hash(data: str | bytes | BinaryIO | Substream | None) -> str | None:
     )
     if isinstance(data, (str, bytes)):
         hasher.update(data.encode() if isinstance(data, str) else data)
-    elif isinstance(data, (io.BytesIO, Substream)) and data.readable():
+    elif isinstance(data, (io.BytesIO, io.IOBase)) and data.readable():
         pos = data.tell()
         data.seek(0)
 
@@ -342,13 +365,13 @@ def md5sum_hash(data: str | bytes | BinaryIO | Substream | None) -> str | None:
     return md5sum.decode()
 
 
-def sha256_hash(data: str | bytes | BinaryIO | Substream | None) -> str:
+def sha256_hash(data: str | bytes | BinaryIO | None) -> str:
     """Compute SHA-256 of data and return hash as hex encoded value."""
     data = data or b""
     hasher = hashlib.sha256()
     if isinstance(data, (str, bytes)):
         hasher.update(data.encode() if isinstance(data, str) else data)
-    elif isinstance(data, (io.BytesIO, Substream)) and data.readable():
+    elif isinstance(data, (io.BytesIO, io.IOBase)) and data.readable():
         pos = data.tell()
         data.seek(0)
 
@@ -857,150 +880,3 @@ class ObjectWriteResult:
     def location(self) -> str | None:
         """Get location."""
         return self._location
-
-
-class Substream(io.IOBase):
-    def __init__(self, base: BinaryIO, offset: int, part_size: int):
-        if not (hasattr(base, "read") and hasattr(base, "seek")):
-            raise TypeError("Base object must support read() and seek()")
-
-        self._base = base
-        self._start = offset
-        self._pos = 0
-        self._closed = False
-
-        self._lock = threading.RLock()
-        self._fd: int | None = None
-        self._has_pread: bool = False
-        try:
-            if hasattr(base, "fileno"):
-                self._fd = base.fileno()
-                self._has_pread = self._fd is not None and hasattr(os, "pread")
-        except Exception:
-            self._fd = None
-            self._has_pread = False
-
-        self._size = self._get_size(part_size)
-
-    def _read_at(self, abs_offset: int, n: int) -> bytes:
-        """Read n bytes from the underlying stream at absolute position abs_offset without changing other readers' pointers."""
-        if n <= 0:
-            return b""
-        if self._has_pread:
-            # POSIX: thread-safe, does not affect file pointer
-            return os.pread(cast(int, self._fd), n, abs_offset)
-        # Fallback: save/restore pointer + lock, ensure atomicity within this object
-        with self._lock:
-            curr = self._base.tell()
-            try:
-                self._base.seek(abs_offset)
-                return self._base.read(n)
-            finally:
-                try:
-                    self._base.seek(curr)
-                except Exception:
-                    pass
-
-    def _get_size(self, part_size: int) -> int:
-        """Get size of the substream using bisection."""
-        if part_size == 0:
-            return 0
-
-        start = self._start
-        end = start + part_size
-
-        if self._read_at(end - 1, 1):
-            return part_size
-
-        if not self._read_at(start, 1):
-            return 0
-
-        # bisection
-        lo = start
-        hi = end - 1
-        while lo <= hi:
-            mid = (lo + hi) // 2
-            if self._read_at(mid, 1):
-                if self._read_at(mid + 1, 1):
-                    lo = mid + 1
-                else:
-                    return mid - start + 1
-            else:
-                hi = mid - 1
-
-        raise UnreachableError
-
-    @property
-    def size(self) -> int:
-        """Get size of the substream."""
-        return self._size
-
-    def read(self, size: int = -1) -> bytes:
-        """Read data from the substream."""
-        self._check_closed()
-        remaining = self._size - self._pos
-        if remaining <= 0:
-            return b""
-        if size < 0 or size > remaining:
-            size = remaining
-        abs_off = self._start + self._pos
-        data = self._read_at(abs_off, size)
-
-        self._pos += len(data)
-        return data
-
-    def is_empty(self) -> bool:
-        """Check if the substream is empty."""
-        return not bool(self._read_at(self._start, 1))
-
-    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
-        """Seek to a position in the substream."""
-        if whence == io.SEEK_SET:
-            new_pos = offset
-        elif whence == io.SEEK_CUR:
-            new_pos = self._pos + offset
-        elif whence == io.SEEK_END:
-            new_pos = self._size + offset
-        else:
-            raise ValueError(f"Invalid whence: {whence!r}")
-
-        if not 0 <= new_pos <= self._size:
-            raise ValueError("seek position out of range")
-
-        self._pos = new_pos
-        return self._pos
-
-    def tell(self) -> int:
-        """Return the current position in the substream."""
-        self._check_closed()
-        return self._pos
-
-    def readable(self) -> bool:
-        """Check if the substream is readable."""
-        return True
-
-    def seekable(self) -> bool:
-        """Check if the substream is seekable."""
-        return True
-
-    def close(self) -> None:
-        self._closed = True
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def _check_closed(self) -> None:
-        if self._closed:
-            raise ValueError("I/O operation on closed file.")
-
-    def __enter__(self):
-        self._check_closed()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-
-    def remaining(self) -> int:
-        """Bytes left to read."""
-        return max(0, self._size - self._pos)
