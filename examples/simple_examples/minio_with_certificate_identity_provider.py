@@ -19,9 +19,10 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.credentials import CertificateIdentityProvider
-import asyncio
 
 # STS endpoint usually point to MinIO server.
 sts_endpoint = "https://STS-HOST:STS-PORT/"
@@ -38,13 +39,12 @@ provider = CertificateIdentityProvider(
     key_file=key_file,
 )
 
-client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
-
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio("MINIO-HOST:MINIO-PORT", credentials=provider) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
 
 asyncio.run(main())

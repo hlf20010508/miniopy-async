@@ -19,17 +19,17 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from miniopy_async import Minio
-from miniopy_async.credentials import EnvMinioProvider
 import asyncio
 
-client = Minio("MINIO-HOST:MINIO-PORT", credentials=EnvMinioProvider())
+from miniopy_async import Minio
+from miniopy_async.credentials import EnvMinioProvider
 
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio("MINIO-HOST:MINIO-PORT", credentials=EnvMinioProvider()) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
 
 asyncio.run(main())

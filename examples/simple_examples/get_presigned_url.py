@@ -19,52 +19,53 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from datetime import timedelta
-from miniopy_async import Minio
 import asyncio
+from datetime import timedelta
+
+from miniopy_async import Minio
 
 
 async def main():
-    client = Minio(
+    async with Minio(
         "play.min.io",
         access_key="Q3AM3UQ867SPQQA43P2F",
         secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
         secure=True,  # http for False, https for True
-    )
-    # Get presigned URL string to delete 'my-object' in
-    # 'my-bucket' with one day expiry.
-    print("example one")
-    url = await client.get_presigned_url(
-        "DELETE",
-        "my-bucket",
-        "my-object",
-        expires=timedelta(days=1),
-    )
-    print("url:", url)
+    ) as client:
+        # Get presigned URL string to delete 'my-object' in
+        # 'my-bucket' with one day expiry.
+        print("example one")
+        url = await client.get_presigned_url(
+            "DELETE",
+            "my-bucket",
+            "my-object",
+            expires=timedelta(days=1),
+        )
+        print("url:", url)
 
-    # Get presigned URL string to upload 'my-object' in
-    # 'my-bucket' with response-content-type as application/json
-    # and one day expiry.
-    print("example two")
-    url = await client.get_presigned_url(
-        "PUT",
-        "my-bucket",
-        "my-object",
-        expires=timedelta(days=1),
-        response_headers={"response-content-type": "application/json"},
-    )
-    print("url:", url)
+        # Get presigned URL string to upload 'my-object' in
+        # 'my-bucket' with response-content-type as application/json
+        # and one day expiry.
+        print("example two")
+        url = await client.get_presigned_url(
+            "PUT",
+            "my-bucket",
+            "my-object",
+            expires=timedelta(days=1),
+            response_headers={"response-content-type": "application/json"},
+        )
+        print("url:", url)
 
-    # Get presigned URL string to download 'my-object' in
-    # 'my-bucket' with two hours expiry.
-    print("example three")
-    url = await client.get_presigned_url(
-        "GET",
-        "my-bucket",
-        "my-object",
-        expires=timedelta(hours=2),
-    )
-    print("url:", url)
+        # Get presigned URL string to download 'my-object' in
+        # 'my-bucket' with two hours expiry.
+        print("example three")
+        url = await client.get_presigned_url(
+            "GET",
+            "my-bucket",
+            "my-object",
+            expires=timedelta(hours=2),
+        )
+        print("url:", url)
 
 
 asyncio.run(main())

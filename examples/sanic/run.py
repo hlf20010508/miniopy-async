@@ -82,6 +82,11 @@ async def download(request: Request, bucket: str, fileName: str):
     return redirect(url)
 
 
+@app.after_server_stop
+async def close_minio_client(*_):
+    await client.close_session()
+
+
 if __name__ == "__main__":
     app.run(  # pyright: ignore[reportUnknownMemberType]
         host="0.0.0.0", port=8080, debug=True

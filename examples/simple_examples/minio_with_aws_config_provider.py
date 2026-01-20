@@ -19,17 +19,17 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from miniopy_async import Minio
-from miniopy_async.credentials import AWSConfigProvider
 import asyncio
 
-client = Minio("s3.amazonaws.com", credentials=AWSConfigProvider())
+from miniopy_async import Minio
+from miniopy_async.credentials import AWSConfigProvider
 
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio("s3.amazonaws.com", credentials=AWSConfigProvider()) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
 
 asyncio.run(main())

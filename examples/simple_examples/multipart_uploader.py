@@ -19,77 +19,76 @@ import asyncio
 from miniopy_async import Minio
 from miniopy_async.datatypes import Part
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
-
 
 async def main():
-    # Use context manager
-    print("example one")
-    async with client.multipart_uploader(
-        "my-bucket",
-        "my-object",
-    ) as uploader:
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        # Use context manager
+        print("example one")
+        async with client.multipart_uploader(
+            "my-bucket",
+            "my-object",
+        ) as uploader:
+            await uploader.upload_part(b"hello" * 1024 * 1024, 1)
+            await uploader.upload_part(b"world", 2)
+        result = uploader.result
+        print(
+            "created {0} object; etag: {1}, version-id: {2}".format(
+                result.object_name,
+                result.etag,
+                result.version_id,
+            ),
+        )
+
+        # Use directly
+        print("example two")
+        uploader = client.multipart_uploader(
+            "my-bucket",
+            "my-object",
+        )
         await uploader.upload_part(b"hello" * 1024 * 1024, 1)
         await uploader.upload_part(b"world", 2)
-    result = uploader.result
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name,
-            result.etag,
-            result.version_id,
-        ),
-    )
+        result = await uploader.complete()
+        print(
+            "created {0} object; etag: {1}, version-id: {2}".format(
+                result.object_name,
+                result.etag,
+                result.version_id,
+            ),
+        )
 
-    # Use directly
-    print("example two")
-    uploader = client.multipart_uploader(
-        "my-bucket",
-        "my-object",
-    )
-    await uploader.upload_part(b"hello" * 1024 * 1024, 1)
-    await uploader.upload_part(b"world", 2)
-    result = await uploader.complete()
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name,
-            result.etag,
-            result.version_id,
-        ),
-    )
+        # Abort
+        print("example three")
+        uploader = client.multipart_uploader(
+            "my-bucket",
+            "my-object",
+        )
+        await uploader.upload_part(b"hello", 1)
+        await uploader.abort()
 
-    # Abort
-    print("example three")
-    uploader = client.multipart_uploader(
-        "my-bucket",
-        "my-object",
-    )
-    await uploader.upload_part(b"hello", 1)
-    await uploader.abort()
-
-    # Parallel upload
-    print("example four")
-    tasks: list[asyncio.Task[Part]] = []
-    async with client.multipart_uploader(
-        "my-bucket",
-        "my-object",
-    ) as uploader:
-        for i in range(1, 11):
-            data = (f"part{i}" * 1024 * 1024).encode("utf-8")
-            tasks.append(asyncio.create_task(uploader.upload_part(data, i)))
-        await asyncio.gather(*tasks)
-    result = uploader.result
-    print(
-        "created {0} object; etag: {1}, version-id: {2}".format(
-            result.object_name,
-            result.etag,
-            result.version_id,
-        ),
-    )
+        # Parallel upload
+        print("example four")
+        tasks: list[asyncio.Task[Part]] = []
+        async with client.multipart_uploader(
+            "my-bucket",
+            "my-object",
+        ) as uploader:
+            for i in range(1, 11):
+                data = (f"part{i}" * 1024 * 1024).encode("utf-8")
+                tasks.append(asyncio.create_task(uploader.upload_part(data, i)))
+            await asyncio.gather(*tasks)
+        result = uploader.result
+        print(
+            "created {0} object; etag: {1}, version-id: {2}".format(
+                result.object_name,
+                result.etag,
+                result.version_id,
+            ),
+        )
 
 
 asyncio.run(main())

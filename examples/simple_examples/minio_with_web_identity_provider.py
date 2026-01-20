@@ -76,15 +76,12 @@ provider = WebIdentityProvider(
     role_session_name=role_session_name,
 )
 
-client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
-
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio("MINIO-HOST:MINIO-PORT", credentials=provider) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
-
-asyncio.run(main())
 
 asyncio.run(main())

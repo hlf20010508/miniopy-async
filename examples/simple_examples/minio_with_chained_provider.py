@@ -23,6 +23,8 @@
 # together and will pick the first available using priority order of the
 # 'providers' list
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.credentials import (
     AWSConfigProvider,
@@ -30,24 +32,22 @@ from miniopy_async.credentials import (
     EnvAWSProvider,
     IamAwsProvider,
 )
-import asyncio
-
-client = Minio(
-    "s3.amazonaws.com",
-    credentials=ChainedProvider(
-        [
-            IamAwsProvider(),
-            AWSConfigProvider(),
-            EnvAWSProvider(),
-        ]
-    ),
-)
 
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio(
+        "s3.amazonaws.com",
+        credentials=ChainedProvider(
+            [
+                IamAwsProvider(),
+                AWSConfigProvider(),
+                EnvAWSProvider(),
+            ]
+        ),
+    ) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
 
 asyncio.run(main())

@@ -19,20 +19,20 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from miniopy_async import Minio
 import asyncio
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
+from miniopy_async import Minio
 
 
 async def main():
-    config = await client.get_object_retention("my-bucket", "my-object")
-    print(config)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        config = await client.get_object_retention("my-bucket", "my-object")
+        print(config)
 
 
 asyncio.run(main())

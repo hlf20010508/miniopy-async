@@ -19,17 +19,11 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import ENABLED, Filter
 from miniopy_async.lifecycleconfig import Expiration, LifecycleConfig, Rule, Transition
-import asyncio
-
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
 
 config = LifecycleConfig(
     [
@@ -50,7 +44,13 @@ config = LifecycleConfig(
 
 
 async def main():
-    await client.set_bucket_lifecycle("my-bucket", config)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        await client.set_bucket_lifecycle("my-bucket", config)
 
 
 asyncio.run(main())

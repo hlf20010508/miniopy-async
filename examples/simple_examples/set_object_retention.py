@@ -19,25 +19,25 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
 from datetime import timedelta
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import GOVERNANCE
 from miniopy_async.retention import Retention
 from miniopy_async.time import utcnow
-import asyncio
-
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
 
 config = Retention(GOVERNANCE, utcnow() + timedelta(days=10))
 
 
 async def main():
-    await client.set_object_retention("my-bucket", "my-object", config)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        await client.set_object_retention("my-bucket", "my-object", config)
 
 
 asyncio.run(main())

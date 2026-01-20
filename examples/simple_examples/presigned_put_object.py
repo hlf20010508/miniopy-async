@@ -19,32 +19,32 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from datetime import timedelta
-from miniopy_async import Minio
 import asyncio
+from datetime import timedelta
+
+from miniopy_async import Minio
 
 
 async def main():
-    client = Minio(
+    async with Minio(
         "play.min.io",
         access_key="Q3AM3UQ867SPQQA43P2F",
         secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
         secure=True,  # http for False, https for True
-    )
+    ) as client:
+        # Get presigned URL string to upload data to 'my-object' in
+        # 'my-bucket' with default expiry (i.e. 7 days).
+        url = await client.presigned_put_object("my-bucket", "my-object")
+        print("url:", url)
 
-    # Get presigned URL string to upload data to 'my-object' in
-    # 'my-bucket' with default expiry (i.e. 7 days).
-    url = await client.presigned_put_object("my-bucket", "my-object")
-    print("url:", url)
-
-    # Get presigned URL string to upload data to 'my-object' in
-    # 'my-bucket' with two hours expiry.
-    url = await client.presigned_put_object(
-        "my-bucket",
-        "my-object",
-        expires=timedelta(hours=2),
-    )
-    print("url:", url)
+        # Get presigned URL string to upload data to 'my-object' in
+        # 'my-bucket' with two hours expiry.
+        url = await client.presigned_put_object(
+            "my-bucket",
+            "my-object",
+            expires=timedelta(hours=2),
+        )
+        print("url:", url)
 
 
 asyncio.run(main())

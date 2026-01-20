@@ -19,17 +19,11 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import ComposeSource
 from miniopy_async.sse import SseS3
-import asyncio
-
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
 
 # Each part must larger than 5MB
 sources = [
@@ -40,28 +34,36 @@ sources = [
 
 
 async def main():
-    # Create my-bucket/my-object by combining source object
-    # list.
-    print("example one")
-    result = await client.compose_object("my-bucket", "my-object", sources)
-    print(result.object_name, result.version_id)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        # Create my-bucket/my-object by combining source object
+        # list.
+        print("example one")
+        result = await client.compose_object("my-bucket", "my-object", sources)
+        print(result.object_name, result.version_id)
 
-    # Create my-bucket/my-object with user metadata by combining
-    # source object list.
-    print("example two")
-    result = await client.compose_object(
-        "my-bucket",
-        "my-object",
-        sources,
-        metadata={"Content-Type": "application/octet-stream"},
-    )
-    print(result.object_name, result.version_id)
+        # Create my-bucket/my-object with user metadata by combining
+        # source object list.
+        print("example two")
+        result = await client.compose_object(
+            "my-bucket",
+            "my-object",
+            sources,
+            metadata={"Content-Type": "application/octet-stream"},
+        )
+        print(result.object_name, result.version_id)
 
-    # Create my-bucket/my-object with user metadata and
-    # server-side encryption by combining source object list.
-    print("example three")
-    result = await client.compose_object("my-bucket", "my-object", sources, sse=SseS3())
-    print(result.object_name, result.version_id)
+        # Create my-bucket/my-object with user metadata and
+        # server-side encryption by combining source object list.
+        print("example three")
+        result = await client.compose_object(
+            "my-bucket", "my-object", sources, sse=SseS3()
+        )
+        print(result.object_name, result.version_id)
 
 
 asyncio.run(main())

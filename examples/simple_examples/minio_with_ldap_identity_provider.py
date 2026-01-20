@@ -19,9 +19,10 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.credentials import LdapIdentityProvider
-import asyncio
 
 # STS endpoint usually point to MinIO server.
 sts_endpoint = "http://STS-HOST:STS-PORT/"
@@ -34,13 +35,12 @@ ldap_password = "LDAP-PASSWORD"
 
 provider = LdapIdentityProvider(sts_endpoint, ldap_username, ldap_password)
 
-client = Minio("MINIO-HOST:MINIO-PORT", credentials=provider)
-
 
 async def main():
-    # Get information of an object.
-    stat = await client.stat_object("my-bucket", "my-object")
-    print(stat)
+    async with Minio("MINIO-HOST:MINIO-PORT", credentials=provider) as client:
+        # Get information of an object.
+        stat = await client.stat_object("my-bucket", "my-object")
+        print(stat)
 
 
 asyncio.run(main())

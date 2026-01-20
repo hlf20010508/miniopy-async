@@ -19,44 +19,44 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
 from typing import cast
+
 from miniopy_async import Minio
 from miniopy_async.deleteobjects import DeleteObject
-import asyncio
-
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
 
 
 async def main():
-    # Remove list of objects.
-    print("example one")
-    errors = await client.remove_objects(
-        "my-bucket",
-        [
-            DeleteObject("my-object1"),
-            DeleteObject("my-object2"),
-            DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
-        ],
-    )
-    for error in errors:
-        print("error occured when deleting object", error)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        # Remove list of objects.
+        print("example one")
+        errors = await client.remove_objects(
+            "my-bucket",
+            [
+                DeleteObject("my-object1"),
+                DeleteObject("my-object2"),
+                DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+            ],
+        )
+        for error in errors:
+            print("error occured when deleting object", error)
 
-    # As async generator
-    print("example two")
-    async for error in client.remove_objects(
-        "my-bucket",
-        [
-            DeleteObject("my-object1"),
-            DeleteObject("my-object2"),
-            DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
-        ],
-    ):
-        print("error occured when deleting object", error)
+        # As async generator
+        print("example two")
+        async for error in client.remove_objects(
+            "my-bucket",
+            [
+                DeleteObject("my-object1"),
+                DeleteObject("my-object2"),
+                DeleteObject("my-object3", "13f88b18-8dcd-4c83-88f2-8631fdb6250c"),
+            ],
+        ):
+            print("error occured when deleting object", error)
 
     # Remove a prefix recursively.
     print("example three")

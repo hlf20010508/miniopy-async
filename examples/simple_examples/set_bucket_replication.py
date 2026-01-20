@@ -19,6 +19,8 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
+
 from miniopy_async import Minio
 from miniopy_async.commonconfig import DISABLED, ENABLED, AndOperator, Filter, Tags
 from miniopy_async.replicationconfig import (
@@ -26,14 +28,6 @@ from miniopy_async.replicationconfig import (
     Destination,
     ReplicationConfig,
     Rule,
-)
-import asyncio
-
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
 )
 
 bucket_tags = Tags.new_bucket_tags()
@@ -65,7 +59,13 @@ config = ReplicationConfig(
 
 
 async def main():
-    await client.set_bucket_replication("my-bucket", config)
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        await client.set_bucket_replication("my-bucket", config)
 
 
 asyncio.run(main())

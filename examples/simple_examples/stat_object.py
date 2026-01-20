@@ -19,56 +19,56 @@
 # Author: L-ING
 # Date: 2022-07-11
 
-from miniopy_async import Minio
-from miniopy_async.sse import SseCustomerKey
 import asyncio
 
-client = Minio(
-    "play.min.io",
-    access_key="Q3AM3UQ867SPQQA43P2F",
-    secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
-    secure=True,  # http for False, https for True
-)
+from miniopy_async import Minio
+from miniopy_async.sse import SseCustomerKey
 
 
 async def main():
-    # Get object information.
-    print("example one")
-    result = await client.stat_object("my-bucket", "my-object")
-    print(
-        "status: last-modified: {0}, size: {1}".format(
-            result.last_modified,
-            result.size,
-        ),
-    )
+    async with Minio(
+        "play.min.io",
+        access_key="Q3AM3UQ867SPQQA43P2F",
+        secret_key="zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG",
+        secure=True,  # http for False, https for True
+    ) as client:
+        # Get object information.
+        print("example one")
+        result = await client.stat_object("my-bucket", "my-object")
+        print(
+            "status: last-modified: {0}, size: {1}".format(
+                result.last_modified,
+                result.size,
+            ),
+        )
 
-    # Get object information of version-ID.
-    print("example two")
-    result = await client.stat_object(
-        "my-bucket",
-        "my-object",
-        version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
-    )
-    print(
-        "status: last-modified: {0}, size: {1}".format(
-            result.last_modified,
-            result.size,
-        ),
-    )
+        # Get object information of version-ID.
+        print("example two")
+        result = await client.stat_object(
+            "my-bucket",
+            "my-object",
+            version_id="dfbd25b3-abec-4184-a4e8-5a35a5c1174d",
+        )
+        print(
+            "status: last-modified: {0}, size: {1}".format(
+                result.last_modified,
+                result.size,
+            ),
+        )
 
-    # Get SSE-C encrypted object information.
-    print("example three")
-    result = await client.stat_object(
-        "my-bucket",
-        "my-object",
-        ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
-    )
-    print(
-        "status: last-modified: {0}, size: {1}".format(
-            result.last_modified,
-            result.size,
-        ),
-    )
+        # Get SSE-C encrypted object information.
+        print("example three")
+        result = await client.stat_object(
+            "my-bucket",
+            "my-object",
+            ssec=SseCustomerKey(b"32byteslongsecretkeymustprovided"),
+        )
+        print(
+            "status: last-modified: {0}, size: {1}".format(
+                result.last_modified,
+                result.size,
+            ),
+        )
 
 
 asyncio.run(main())
