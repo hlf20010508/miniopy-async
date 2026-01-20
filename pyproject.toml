@@ -42,7 +42,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
-typeCheckingMode = "standard"
+typeCheckingMode = "strict"
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportDuplicateImport = "warning"

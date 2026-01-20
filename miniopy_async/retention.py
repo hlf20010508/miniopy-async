@@ -35,7 +35,9 @@ class Retention:
     def __init__(self, mode: str, retain_until_date: datetime):
         if mode not in [GOVERNANCE, COMPLIANCE]:
             raise ValueError(f"mode must be {GOVERNANCE} or {COMPLIANCE}")
-        if not isinstance(retain_until_date, datetime):
+        if not isinstance(
+            retain_until_date, datetime
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError(
                 "retain until date must be datetime type",
             )

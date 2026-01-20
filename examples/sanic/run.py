@@ -18,8 +18,9 @@ from io import BytesIO
 from urllib import parse
 
 from sanic import Sanic
-from sanic.response import redirect
-from sanic_jinja2 import SanicJinja2
+from sanic.request import Request
+from sanic.response import redirect, text
+from sanic_jinja2 import SanicJinja2  # pyright: ignore[reportMissingTypeStubs]
 
 from miniopy_async import Minio
 
@@ -38,30 +39,39 @@ client = Minio(
 
 
 @app.route("/", methods=["POST", "GET"])
-async def index(request):
+async def index(request: Request):
     if request.method == "POST":
-        f = request.files.get("file")
+        f = request.files.get("file") if request.files else None
         if (
             f
         ):  # if f is not None then the post request is from upload, else is from download
-            bucket = request.form.get("bucket")
-            await client.put_object(
-                bucket_name=bucket,
-                object_name=f.name,
-                data=BytesIO(f.body),
-                length=len(f.body),
-            )
+            bucket = request.form.get("bucket") if request.form else None
+            if bucket is not None:
+                await client.put_object(
+                    bucket_name=bucket,
+                    object_name=f.name,
+                    data=BytesIO(f.body),
+                    length=len(f.body),
+                )
 
-            return redirect(app.url_for("index"))
+                return redirect(
+                    app.url_for("index")  # pyright: ignore[reportUnknownMemberType]
+                )
+            else:
+                return text("Bucket name is required for upload.")
         else:  # redirect to download
-            bucket = request.form.get("bucket")
-            file_name = request.form.get("fileName")
-            return redirect(app.url_for("download", bucket=bucket, fileName=file_name))
+            bucket = request.form.get("bucket") if request.form else None
+            file_name = request.form.get("fileName") if request.form else None
+            return redirect(
+                app.url_for(  # pyright: ignore[reportUnknownMemberType]
+                    "download", bucket=bucket, fileName=file_name
+                )
+            )
     return template.render("index.html", request)
 
 
 @app.route("/download/<bucket>/<fileName>", methods=["GET"])
-async def download(request, bucket, fileName):
+async def download(request: Request, bucket: str, fileName: str):
     print("downloading ...")
     fileName = parse.unquote(
         fileName
@@ -73,4 +83,6 @@ async def download(request, bucket, fileName):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+    app.run(  # pyright: ignore[reportUnknownMemberType]
+        host="0.0.0.0", port=8080, debug=True
+    )

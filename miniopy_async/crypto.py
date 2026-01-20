@@ -65,7 +65,9 @@ def _get_cipher(
 ) -> GcmMode | ChaCha20Poly1305Cipher:
     """Get cipher for AEAD ID."""
     if aead_id == 0:
-        return AES.new(key, AES.MODE_GCM, nonce)
+        return AES.new(  # pyright: ignore[reportUnknownMemberType]
+            key, AES.MODE_GCM, nonce
+        )
     if aead_id == 1:
         return ChaCha20_Poly1305.new(key=key, nonce=nonce)
     raise ValueError(f"Unknown AEAD ID {aead_id}")
@@ -164,7 +166,12 @@ class DecryptReader:
     def __enter__(self):
         return self
 
-    def __exit__(self, exc_type, exc_value, exc_traceback):
+    def __exit__(
+        self,
+        exc_type,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_value,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_traceback,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    ):
         return self.close()
 
     def readable(self):  # pylint: disable=no-self-use
@@ -227,7 +234,7 @@ class DecryptReader:
         self._chunk = self._chunk[length:]
         return self._decrypt(payload, stop)
 
-    async def stream(self, num_bytes=32 * 1024):
+    async def stream(self, num_bytes: int = 32 * 1024):
         """
         Stream extracted payload from response data. Upon completion, caller
         should call self.close() to release network resources.

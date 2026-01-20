@@ -109,7 +109,7 @@ class ExistingObjectReplication(Status):
 class DeleteMarkerReplication(Status):
     """Delete marker replication."""
 
-    def __init__(self, status=DISABLED):
+    def __init__(self, status: str = DISABLED):
         super().__init__(status)
 
 
@@ -574,7 +574,7 @@ class ReplicationConfig:
         """Create new object with values from XML element."""
         role = cast(str, findtext(element, "Role", True))
         elements = findall(element, "Rule")
-        rules = []
+        rules: list[Rule] = []
         for tag in elements:
             rules.append(Rule.fromxml(tag))
         return cls(role, rules)

@@ -64,8 +64,8 @@ from .datatypes import (
 )
 from .deleteobjects import DeleteError, DeleteObject, DeleteRequest, DeleteResult
 from .error import InvalidResponseError, S3Error, ServerError
+from .helpers import _DEFAULT_USER_AGENT  # pyright: ignore[reportPrivateUsage]
 from .helpers import (
-    _DEFAULT_USER_AGENT,
     MAX_MULTIPART_COUNT,
     MAX_MULTIPART_OBJECT_SIZE,
     MAX_PART_SIZE,
@@ -214,7 +214,9 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         :param ClientSession | RetryClient session: Custom HTTP client session.
         """
-        if not isinstance(session, (ClientSession, RetryClient)):
+        if not isinstance(
+            session, (ClientSession, RetryClient)
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("session must be ClientSession or RetryClient type")
         self._session = session
 
@@ -229,7 +231,12 @@ class Minio:  # pylint: disable=too-many-public-methods
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_val,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_tb,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    ):
         await self.close_session()
 
     def _handle_redirect_response(
@@ -355,7 +362,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                 self._trace_stream.write("\n")
             self._trace_stream.write("\n")
 
-        http_headers = CIMultiDict()
+        http_headers: CIMultiDict[str] = CIMultiDict()
         for key, value in (headers or {}).items():
             if isinstance(value, (list, tuple)):
                 for val in value:
@@ -462,11 +469,9 @@ class Minio:  # pylint: disable=too-many-public-methods
                 "The specified method is not allowed against this resource",
             ),
             409: lambda: (
-                (
-                    ("NoSuchBucket", "Bucket does not exist")
-                    if bucket_name
-                    else ("ResourceConflict", "Request resource conflicts")
-                ),
+                ("NoSuchBucket", "Bucket does not exist")
+                if bucket_name
+                else ("ResourceConflict", "Request resource conflicts")
             ),
             501: lambda: (
                 "MethodNotAllowed",
@@ -696,7 +701,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
-        if not isinstance(request, SelectRequest):
+        if not isinstance(
+            request, SelectRequest
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("request must be SelectRequest type")
         body = marshal(request)
         response = await self._execute(
@@ -1089,7 +1096,9 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, NotificationConfig):
+        if not isinstance(
+            config, NotificationConfig
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be NotificationConfig type")
         body = marshal(config)
         await self._execute(
@@ -1155,7 +1164,9 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, SSEConfig):
+        if not isinstance(
+            config, SSEConfig
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be SSEConfig type")
         body = marshal(config)
         await self._execute(
@@ -1336,7 +1347,9 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, VersioningConfig):
+        if not isinstance(
+            config, VersioningConfig
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be VersioningConfig type")
         body = marshal(config)
         await self._execute(
@@ -1797,7 +1810,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             "POST",
             bucket_name,
             object_name,
-            headers=cast(DictType, headers),
+            headers=headers,
             query_params=cast(DictType, extra_query_params),
             body=body.encode(),
         )
@@ -1897,12 +1910,18 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
-        if not isinstance(source, CopySource):
+        if not isinstance(
+            source, CopySource
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("source must be CopySource type")
         check_sse(sse)
-        if tags is not None and not isinstance(tags, Tags):
+        if tags is not None and not isinstance(
+            tags, Tags
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
-        if retention is not None and not isinstance(retention, Retention):
+        if retention is not None and not isinstance(
+            retention, Retention
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("retention must be Retention type")
         if metadata_directive is not None and metadata_directive not in [COPY, REPLACE]:
             raise ValueError(f"metadata directive must be {COPY} or {REPLACE}")
@@ -2135,17 +2154,28 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
-        if not isinstance(sources, (list, tuple)) or not sources:
+        if (
+            not isinstance(
+                sources, (list, tuple)
+            )  # pyright: ignore[reportUnnecessaryIsInstance]
+            or not sources
+        ):
             raise ValueError("sources must be non-empty list or tuple type")
         i = 0
         for src in sources:
-            if not isinstance(src, ComposeSource):
+            if not isinstance(
+                src, ComposeSource
+            ):  # pyright: ignore[reportUnnecessaryIsInstance]
                 raise ValueError(f"sources[{i}] must be ComposeSource type")
             i += 1
         check_sse(sse)
-        if tags is not None and not isinstance(tags, Tags):
+        if tags is not None and not isinstance(
+            tags, Tags
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
-        if retention is not None and not isinstance(retention, Retention):
+        if retention is not None and not isinstance(
+            retention, Retention
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("retention must be Retention type")
 
         part_count = await self._calc_part_count(sources)
@@ -2172,7 +2202,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         ssec_headers = sse.headers() if isinstance(sse, SseCustomerKey) else {}
         try:
             part_number = 0
-            total_parts = []
+            total_parts: list[Part] = []
             for src in sources:
                 size = cast(int, src.object_size)
                 if src.length is not None:
@@ -2414,9 +2444,13 @@ class Minio:  # pylint: disable=too-many-public-methods
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
         check_sse(sse)
-        if tags is not None and not isinstance(tags, Tags):
+        if tags is not None and not isinstance(
+            tags, Tags
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
-        if retention is not None and not isinstance(retention, Retention):
+        if retention is not None and not isinstance(
+            retention, Retention
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("retention must be Retention type")
 
         headers = genheaders(metadata, sse, tags, retention, legal_hold)
@@ -2487,7 +2521,18 @@ class Minio:  # pylint: disable=too-many-public-methods
         else:
             return cast(str, (await get_result()).etag)
 
-    async def _upload_part_task(self, args):
+    async def _upload_part_task(
+        self,
+        args: tuple[
+            str,
+            str,
+            bytes | BytesIO,
+            DictType | None,
+            str,
+            int,
+            asyncio.Semaphore | None,
+        ],
+    ) -> tuple[int, str]:
         """Upload_part task for CoroutinePool."""
         return args[5], await self._upload_part(*args)
 
@@ -2624,9 +2669,9 @@ class Minio:  # pylint: disable=too-many-public-methods
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
         check_sse(sse)
-        if tags is not None and not isinstance(tags, Tags):
+        if tags is not None and not isinstance(tags, Tags): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
-        if retention is not None and not isinstance(retention, Retention):
+        if retention is not None and not isinstance(retention, Retention): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("retention must be Retention type")
         if not callable(getattr(data, "read")):
             raise ValueError("input data must have callable read()")
@@ -2660,8 +2705,8 @@ class Minio:  # pylint: disable=too-many-public-methods
         part_number = 0
         stop = False
         upload_id = None
-        parts = []
-        parallel_tasks = []
+        parts: list[Part] = []
+        parallel_tasks: list[asyncio.Task[tuple[int, str]]] = []
         semaphore: asyncio.Semaphore | None = None
 
         try:
@@ -2879,7 +2924,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     chunk_size = object_size - uploaded_size
                     stop = True
                 chunk_data = await read_part_data(
-                    data, cast(int, chunk_size), progress=progress
+                    data, chunk_size, progress=progress
                 )
                 if len(chunk_data) != chunk_size:
                     raise IOError(
@@ -2889,7 +2934,7 @@ class Minio:  # pylint: disable=too-many-public-methods
                     )
             else:
                 chunk_data = await read_part_data(
-                    data, cast(int, chunk_size), progress=progress
+                    data, chunk_size, progress=progress
                 )
                 if len(chunk_data) == 0:
                     break
@@ -2911,8 +2956,8 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         upload_result = cast(ObjectWriteResult, upload_result)
         return ObjectWriteResult(
-            cast(str, upload_result.bucket_name),
-            cast(str, upload_result.object_name),
+            upload_result.bucket_name,
+            upload_result.object_name,
             upload_result.version_id,
             upload_result.etag,
             upload_result.http_headers,
@@ -3578,7 +3623,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
             asyncio.run(main())
         """
-        if not isinstance(policy, PostPolicy):
+        if not isinstance(policy, PostPolicy): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("policy must be PostPolicy type")
         if not self._provider:
             raise ValueError(
@@ -3716,7 +3761,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, ReplicationConfig):
+        if not isinstance(config, ReplicationConfig): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be ReplicationConfig type")
         body = marshal(config)
         await self._execute(
@@ -3841,7 +3886,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, LifecycleConfig):
+        if not isinstance(config, LifecycleConfig): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be LifecycleConfig type")
         body = marshal(config)
         await self._execute(
@@ -3948,7 +3993,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(tags, Tags):
+        if not isinstance(tags, Tags): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
         body = marshal(Tagging(tags))
         await self._execute(
@@ -4092,7 +4137,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
-        if not isinstance(tags, Tags):
+        if not isinstance(tags, Tags): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("tags must be Tags type")
         body = marshal(Tagging(tags))
         query_params = {"versionId": version_id} if version_id else {}
@@ -4342,7 +4387,7 @@ class Minio:  # pylint: disable=too-many-public-methods
             asyncio.run(main())
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
-        if not isinstance(config, ObjectLockConfig):
+        if not isinstance(config, ObjectLockConfig): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be ObjectLockConfig type")
         body = marshal(config)
         await self._execute(
@@ -4450,7 +4495,7 @@ class Minio:  # pylint: disable=too-many-public-methods
         """
         check_bucket_name(bucket_name, s3_check=self._base_url.is_aws_host)
         check_object_name(object_name)
-        if not isinstance(config, Retention):
+        if not isinstance(config, Retention): # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("config must be Retention type")
         body = marshal(config)
         query_params = {"versionId": version_id} if version_id else {}
@@ -4622,7 +4667,7 @@ class Minio:  # pylint: disable=too-many-public-methods
 
         is_truncated = True
         while is_truncated:
-            query = {}
+            query: DictType = {}
             if include_version:
                 query["versions"] = ""
             elif not use_api_v1:

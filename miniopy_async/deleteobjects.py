@@ -184,11 +184,11 @@ class DeleteResult:
     def fromxml(cls: Type[C], element: ET.Element) -> C:
         """Create new object with values from XML element."""
         elements = findall(element, "Deleted")
-        object_list = []
+        object_list: list[DeletedObject] = []
         for tag in elements:
             object_list.append(DeletedObject.fromxml(tag))
         elements = findall(element, "Error")
-        error_list = []
+        error_list: list[DeleteError] = []
         for tag in elements:
             error_list.append(DeleteError.fromxml(tag))
         return cls(object_list, error_list)

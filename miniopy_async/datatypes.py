@@ -32,9 +32,8 @@ from typing import (
     Any,
     AsyncGenerator,
     AsyncIterator,
+    Generator,
     Iterable,
-    List,
-    Tuple,
     Type,
     TypeVar,
     cast,
@@ -81,7 +80,10 @@ class Bucket:
     def __str__(self) -> str:
         return self.name
 
-    def __eq__(self, other) -> bool:
+    def __eq__(
+        self,
+        other,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    ) -> bool:
         if isinstance(other, Bucket):
             return self.name == other.name
         if isinstance(other, str):
@@ -102,7 +104,7 @@ class ListAllMyBucketsResult:
         self._buckets = buckets
 
     @property
-    def buckets(self) -> List[Bucket]:
+    def buckets(self) -> list[Bucket]:
         """Get buckets."""
         return self._buckets
 
@@ -110,7 +112,7 @@ class ListAllMyBucketsResult:
     def fromxml(cls: Type[A], element: ET.Element) -> A:
         """Create new object with values from XML element."""
         element = cast(ET.Element, find(element, "Buckets", True))
-        buckets = []
+        buckets: list[Bucket] = []
         elements = findall(element, "Bucket")
         for bucket in elements:
             name = cast(str, findtext(bucket, "Name", True))
@@ -234,7 +236,7 @@ class Object:
 
     @property
     def tags(self) -> Tags | None:
-        """Get the tags"""
+        """Get the tags."""
         return self._tags
 
     @classmethod
@@ -276,9 +278,9 @@ class Object:
         tags: Tags | None = None
         if tags_text:
             tags = Tags.new_object_tags()
-            tags.update(
+            tags.update(  # pyright: ignore[reportUnknownMemberType]
                 cast(
-                    List[Tuple[Any, Any]],
+                    Iterable[tuple[str, str]],
                     [tokens.split("=") for tokens in tags_text.split("&")],
                 ),
             )
@@ -713,11 +715,13 @@ class PostPolicy:
 
     def __init__(self, bucket_name: str, expiration: datetime):
         check_bucket_name(bucket_name)
-        if not isinstance(expiration, datetime):
+        if not isinstance(
+            expiration, datetime
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("expiration must be datetime type")
         self._bucket_name = bucket_name
         self._expiration = expiration
-        self._conditions: OrderedDict = OrderedDict()
+        self._conditions: OrderedDict[str, OrderedDict[str, str]] = OrderedDict()
         self._conditions[_EQ] = OrderedDict()
         self._conditions[_STARTS_WITH] = OrderedDict()
         self._lower_limit: int | None = None
@@ -793,7 +797,9 @@ class PostPolicy:
         x-amz-algorithm, x-amz-credential, x-amz-security-token, x-amz-date,
         policy and x-amz-signature.
         """
-        if not isinstance(creds, Credentials):
+        if not isinstance(
+            creds, Credentials
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("credentials must be Credentials type")
         if not region:
             raise ValueError("region cannot be empty")
@@ -803,7 +809,7 @@ class PostPolicy:
         ):
             raise ValueError("key condition must be set")
 
-        policy = OrderedDict()
+        policy: OrderedDict[str, str | list[str | list[str]] | None] = OrderedDict()
         policy["expiration"] = to_iso8601utc(self._expiration)
         policy["conditions"] = [[_EQ, "$bucket", self._bucket_name]]
         for cond_key, conditions in self._conditions.items():
@@ -873,17 +879,17 @@ class AsyncEventIterable:
     def __aiter__(self):
         return self
 
-    async def _get_records(self) -> dict | list | None:
+    async def _get_records(self) -> dict[str, Any] | list[Any] | None:
         """Get event records from response stream."""
         line = await self._response.content.readline()
         if not line:
             return None
-        event: dict = json.loads(line)
+        event: dict[str, Any] = json.loads(line)
         if event["Records"]:
             return event
         return None
 
-    async def __anext__(self) -> dict | list:
+    async def __anext__(self) -> dict[str, Any] | list[Any]:
         records = await self._get_records()
         if not records:
             raise StopAsyncIteration
@@ -892,7 +898,12 @@ class AsyncEventIterable:
     async def __aenter__(self):
         return self
 
-    async def __aexit__(self, exc_type, value, traceback):
+    async def __aexit__(
+        self,
+        exc_type,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+        value,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+        traceback,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+    ):
         self._response.close()
 
 
@@ -1128,9 +1139,9 @@ class PeerInfo:
         """Set bucket bandwidth updated at."""
         self._bucket_bandwidth_updated_at = value
 
-    def to_dict(self):
+    def to_dict(self) -> dict[str, Any]:
         """Converts peer information to dictionary."""
-        data = {
+        data: dict[str, Any] = {
             "endpoint": self._endpoint,
             "deploymentID": self._deployment_id,
             "defaultbandwidth": {
@@ -1178,7 +1189,7 @@ class ListObjects(AsyncIterator[Object]):
         self.iterator: AsyncGenerator[Object] | None = None
 
     def gen_iterator(self) -> AsyncGenerator[Object]:
-        return self.client._list_objects(
+        return self.client._list_objects(  # pyright: ignore[reportPrivateUsage]
             self.bucket_name,
             delimiter=None if self.recursive else "/",
             include_user_meta=self.include_user_meta,
@@ -1200,24 +1211,23 @@ class ListObjects(AsyncIterator[Object]):
             self.iterator = self.gen_iterator()
 
         try:
-            return await cast(AsyncGenerator, self.iterator).__anext__()
+            return await self.iterator.__anext__()
         except StopAsyncIteration:
             raise StopAsyncIteration
 
-    def __await__(self):
+    def __await__(self) -> Generator[Any, None, list[Object]]:
         return self._collect_objects().__await__()
 
-    async def _collect_objects(self) -> List[Object]:
+    async def _collect_objects(self) -> list[Object]:
         if self.iterator is None:
-            self.gen_iterator()
-
-        objects = []
+            self.iterator = self.gen_iterator()
+        objects: list[Object] = []
         async for object in self:
             objects.append(object)
         return objects
 
 
-class DeleteErrors:
+class DeleteErrors(AsyncIterator[DeleteError]):
     def __init__(
         self,
         client: Minio,
@@ -1233,7 +1243,10 @@ class DeleteErrors:
         self.iterator: AsyncGenerator[DeleteError] | None = None
 
     async def gen_iterator(self) -> AsyncGenerator[DeleteError]:
-        check_bucket_name(self.bucket_name, s3_check=self.client._base_url.is_aws_host)
+        check_bucket_name(
+            self.bucket_name,
+            s3_check=self.client._base_url.is_aws_host,  # pyright: ignore[reportPrivateUsage]
+        )
 
         while True:
             # get 1000 entries or whatever available.
@@ -1248,7 +1261,7 @@ class DeleteErrors:
             if not objects:
                 return
 
-            result = await self.client._delete_objects(
+            result = await self.client._delete_objects(  # pyright: ignore[reportPrivateUsage]
                 self.bucket_name,
                 objects,
                 quiet=True,
@@ -1262,29 +1275,26 @@ class DeleteErrors:
                 if error.code != "NoSuchVersion":
                     yield error
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[DeleteError]:
         self.iterator = self.gen_iterator()
         return self
 
     async def __anext__(self) -> DeleteError:
         if self.iterator is None:
-            self.gen_iterator()
+            self.iterator = self.gen_iterator()
 
         try:
-            return await cast(
-                AsyncGenerator[DeleteError, DeleteError], self.iterator
-            ).__anext__()
+            return await self.iterator.__anext__()
         except StopAsyncIteration:
             raise StopAsyncIteration
 
-    def __await__(self):
+    def __await__(self) -> Generator[Any, None, list[DeleteError]]:
         return self._collect_errors().__await__()
 
-    async def _collect_errors(self) -> List[DeleteError]:
+    async def _collect_errors(self) -> list[DeleteError]:
         if self.iterator is None:
-            self.gen_iterator()
-
-        errors = []
+            self.iterator = self.gen_iterator()
+        errors: list[DeleteError] = []
         async for error in self:
             errors.append(error)
         return errors
@@ -1303,7 +1313,7 @@ class MultipartUploader:
         self._object_name = object_name
         self._headers = headers
         self._upload_id = ""
-        self._parts = []
+        self._parts: list[Part] = []
         self._result: CompleteMultipartUploadResult | None = None
 
     @property
@@ -1320,7 +1330,7 @@ class MultipartUploader:
         return self._result
 
     async def _init(self):
-        self._upload_id = await self._client._create_multipart_upload(
+        self._upload_id = await self._client._create_multipart_upload(  # pyright: ignore[reportPrivateUsage]
             self._bucket_name, self._object_name, self._headers
         )
 
@@ -1331,14 +1341,14 @@ class MultipartUploader:
         :return: Multipart upload result.
         :rtype: CompleteMultipartUploadResult
         """
-        self._result = await self._client._complete_multipart_upload(
+        self._result = await self._client._complete_multipart_upload(  # pyright: ignore[reportPrivateUsage]
             self._bucket_name, self._object_name, self._upload_id, self._parts
         )
         return self.result
 
     async def abort(self):
         """Abort multipart upload."""
-        await self._client._abort_multipart_upload(
+        await self._client._abort_multipart_upload(  # pyright: ignore[reportPrivateUsage]
             self._bucket_name, self._object_name, self._upload_id
         )
 
@@ -1346,7 +1356,12 @@ class MultipartUploader:
         await self._init()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_val,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+        exc_tb,  # pyright: ignore[reportMissingParameterType, reportUnknownParameterType]
+    ):
         await self.complete()
 
     async def upload_part(self, data: bytes | io.BytesIO, part_number: int) -> Part:
@@ -1364,16 +1379,23 @@ class MultipartUploader:
         if not self._upload_id:
             await self._init()
         try:
-            if not isinstance(part_number, int) or part_number < 1:
+            if (
+                not isinstance(
+                    part_number, int
+                )  # pyright: ignore[reportUnnecessaryIsInstance]
+                or part_number < 1
+            ):
                 raise ValueError("part_number must be a positive integer")
 
-            etag = await self._client._upload_part(
-                self._bucket_name,
-                self._object_name,
-                data,
-                self._headers,
-                self._upload_id,
-                part_number,
+            etag = (
+                await self._client._upload_part(  # pyright: ignore[reportPrivateUsage]
+                    self._bucket_name,
+                    self._object_name,
+                    data,
+                    self._headers,
+                    self._upload_id,
+                    part_number,
+                )
             )
 
             part = Part(part_number, etag)

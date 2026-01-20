@@ -29,13 +29,16 @@ import platform
 import re
 import urllib.parse
 from datetime import datetime
-from typing import BinaryIO, Dict, List, Protocol, Tuple, Union
+from typing import TYPE_CHECKING, BinaryIO, Dict, List, Protocol, Tuple, Union, cast
 
 from aiohttp.typedefs import LooseHeaders
 
 from . import __title__, __version__
 from .sse import Sse, SseCustomerKey
 from .time import to_iso8601utc
+
+if TYPE_CHECKING:
+    from .retention import Retention
 
 _DEFAULT_USER_AGENT = (
     f"MinIO ({platform.system()}; {platform.machine()}) " f"{__title__}/{__version__}"
@@ -118,7 +121,7 @@ def headers_to_strings(
     titled_key: bool = False,
 ) -> str:
     """Convert HTTP headers to multi-line string."""
-    values = []
+    values: list[str] = []
     headers = dict(headers)
     for key, value in headers.items():
         key = key.title() if titled_key else key
@@ -311,7 +314,9 @@ def is_valid_policy_type(policy: str | bytes) -> bool:
     :rtype: bool
     :Raise: :exc:`TypeError` otherwise.
     """
-    if not isinstance(policy, (str, bytes)):
+    if not isinstance(
+        policy, (str, bytes)
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise TypeError("policy must be str or bytes type")
 
     check_non_empty_string(policy)
@@ -321,13 +326,15 @@ def is_valid_policy_type(policy: str | bytes) -> bool:
 
 def check_ssec(sse: SseCustomerKey | None):
     """Check sse is SseCustomerKey type or not."""
-    if sse and not isinstance(sse, SseCustomerKey):
+    if sse and not isinstance(
+        sse, SseCustomerKey
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("SseCustomerKey type is required")
 
 
 def check_sse(sse: Sse | None):
     """Check sse is Sse type or not."""
-    if sse and not isinstance(sse, Sse):
+    if sse and not isinstance(sse, Sse):  # pyright: ignore[reportUnnecessaryIsInstance]
         raise ValueError("Sse type is required")
 
 
@@ -413,12 +420,12 @@ def url_replace(
 def _metadata_to_headers(metadata: DictType) -> dict[str, list[str]]:
     """Convert user metadata to headers."""
 
-    def normalize_key(key):
+    def normalize_key(key: str):
         if not key.lower().startswith("x-amz-meta-"):
             key = "X-Amz-Meta-" + key
         return key
 
-    def to_string(value):
+    def to_string(value: str | int | float | bool) -> str:
         value = str(value)
         try:
             value.encode("us-ascii")
@@ -473,7 +480,7 @@ def genheaders(
     headers: DictType | None,
     sse: Sse | None,
     tags: dict[str, str] | None,
-    retention,
+    retention: Retention | None,
     legal_hold: bool,
 ) -> DictType:
     """Generate headers for given parameters."""
@@ -501,7 +508,7 @@ def _get_aws_info(
     host: str,
     https: bool,
     region: str | None,
-) -> tuple[dict | None, str | None]:
+) -> tuple[dict[str, str | bool] | None, str | None]:
     """Extract AWS domain information."""
 
     if not _HOSTNAME_REGEX.match(host):
@@ -611,7 +618,7 @@ def _parse_url(endpoint: str) -> urllib.parse.SplitResult:
 class BaseURL:
     """Base URL of S3 endpoint."""
 
-    _aws_info: dict | None
+    _aws_info: dict[str, str | bool] | None
     _virtual_style_flag: bool
     _url: urllib.parse.SplitResult
     _region: str | None
@@ -634,10 +641,10 @@ class BaseURL:
         self._region = region or region_in_host
         self._accelerate_host_flag = False
         if self._aws_info:
-            self._region = self._aws_info["region"]
-            self._accelerate_host_flag = self._aws_info["s3_prefix"].endswith(
-                "s3-accelerate."
-            )
+            self._region = cast(str, self._aws_info["region"])
+            self._accelerate_host_flag = cast(
+                str, self._aws_info["s3_prefix"]
+            ).endswith("s3-accelerate.")
 
     @property
     def region(self) -> str | None:
@@ -662,7 +669,7 @@ class BaseURL:
     @property
     def aws_s3_prefix(self) -> str | None:
         """Get AWS S3 domain prefix."""
-        return self._aws_info["s3_prefix"] if self._aws_info else None
+        return cast(str, self._aws_info["s3_prefix"]) if self._aws_info else None
 
     @aws_s3_prefix.setter
     def aws_s3_prefix(self, s3_prefix: str):
@@ -685,7 +692,7 @@ class BaseURL:
     @property
     def dualstack_host_flag(self) -> bool:
         """Check if URL points to AWS dualstack host."""
-        return self._aws_info["dualstack"] if self._aws_info else False
+        return cast(bool, self._aws_info["dualstack"]) if self._aws_info else False
 
     @dualstack_host_flag.setter
     def dualstack_host_flag(self, flag: bool):
@@ -706,15 +713,15 @@ class BaseURL:
     @classmethod
     def _build_aws_url(
         cls,
-        aws_info: dict,
+        aws_info: dict[str, str | bool],
         url: urllib.parse.SplitResult,
         bucket_name: str | None,
         enforce_path_style: bool,
         region: str,
     ) -> urllib.parse.SplitResult:
         """Build URL for given information."""
-        s3_prefix = aws_info["s3_prefix"]
-        domain_suffix = aws_info["domain_suffix"]
+        s3_prefix = cast(str, aws_info["s3_prefix"])
+        domain_suffix = cast(str, aws_info["domain_suffix"])
 
         host = f"{s3_prefix}{domain_suffix}"
         if host in [
@@ -751,8 +758,8 @@ class BaseURL:
         if not self._aws_info:
             return url
 
-        s3_prefix = self._aws_info["s3_prefix"]
-        domain_suffix = self._aws_info["domain_suffix"]
+        s3_prefix = cast(str, self._aws_info["s3_prefix"])
+        domain_suffix = cast(str, self._aws_info["domain_suffix"])
 
         host = f"{s3_prefix}{domain_suffix}"
         if host in [
@@ -784,7 +791,7 @@ class BaseURL:
 
         url = url_replace(self._url, path="/")
 
-        query = []
+        query: list[str] = []
         for key, values in sorted((query_params or {}).items()):
             values = values if isinstance(values, (list, tuple)) else [values]
             query += [

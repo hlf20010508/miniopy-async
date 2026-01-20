@@ -38,16 +38,10 @@ from .credentials import Provider
 from .crypto import decrypt, encrypt
 from .datatypes import PeerInfo, PeerSite, SiteReplicationStatusOptions
 from .error import MinioAdminException
-from .helpers import (
-    _DEFAULT_USER_AGENT,
-    _REGION_REGEX,
-    DictType,
-    _parse_url,
-    headers_to_strings,
-    queryencode,
-    sha256_hash,
-    url_replace,
-)
+from .helpers import _DEFAULT_USER_AGENT  # pyright: ignore[reportPrivateUsage]
+from .helpers import _REGION_REGEX  # pyright: ignore[reportPrivateUsage]
+from .helpers import _parse_url  # pyright: ignore[reportPrivateUsage]
+from .helpers import DictType, headers_to_strings, queryencode, sha256_hash, url_replace
 from .signer import sign_v4_s3
 
 
@@ -126,7 +120,9 @@ class MinioAdmin:
         session: ClientSession | RetryClient | None = None,
     ):
         url = _parse_url(("https://" if secure else "http://") + endpoint)
-        if not isinstance(credentials, Provider):
+        if not isinstance(
+            credentials, Provider
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("valid credentials must be provided")
         if region and not _REGION_REGEX.match(region):
             raise ValueError(f"invalid region {region}")
@@ -179,7 +175,7 @@ class MinioAdmin:
         creds = await self._provider.retrieve()
 
         url = url_replace(self._url, path="/minio/admin/v3/" + command.value)
-        query = []
+        query: list[str] = []
         for key, values in sorted((query_params or {}).items()):
             values = values if isinstance(values, (list, tuple)) else [values]
             query += [
@@ -227,7 +223,7 @@ class MinioAdmin:
                 self._trace_stream.write("\n")
             self._trace_stream.write("\n")
 
-        http_headers = CIMultiDict()
+        http_headers: CIMultiDict[str] = CIMultiDict()
         headers = dict(headers)
         for key, value in headers.items():
             if isinstance(value, (list, tuple)):
@@ -675,7 +671,7 @@ class MinioAdmin:
         all_sites: bool = False,
     ) -> str:
         """Remove given sites or all sites from site replication."""
-        data = {}
+        data: dict[str, str] = {}
         if all_sites:
             data.update({"all": "True"})
         elif sites:

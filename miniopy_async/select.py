@@ -254,8 +254,8 @@ class SelectRequest:
         scan_start_range: str | None = None,
         scan_end_range: str | None = None,
     ):
-        self._expession = expression
-        if not isinstance(
+        self._expression = expression
+        if not isinstance(  # type: ignore[reportUnnecessaryIsInstance]
             input_serialization,
             (
                 CSVInputSerialization,
@@ -268,7 +268,7 @@ class SelectRequest:
                 "JSONInputSerialization or ParquetInputSerialization type",
             )
         self._input_serialization = input_serialization
-        if not isinstance(
+        if not isinstance(  # type: ignore[reportUnnecessaryIsInstance]
             output_serialization,
             (CSVOutputSerialization, JSONOutputSerialization),
         ):
@@ -284,7 +284,7 @@ class SelectRequest:
     def toxml(self, element: ET.Element | None) -> ET.Element:
         """Convert to XML."""
         element = Element("SelectObjectContentRequest")
-        SubElement(element, "Expression", self._expession)
+        SubElement(element, "Expression", self._expression)
         SubElement(element, "ExpressionType", "SQL")
         self._input_serialization.toxml(
             SubElement(element, "InputSerialization"),
@@ -328,7 +328,7 @@ def _crc32(data: ReadableBuffer) -> int:
 def _decode_header(data: ReadableBuffer) -> dict[str, str]:
     """Decode header data."""
     reader = BytesIO(data)
-    headers = {}
+    headers: dict[str, str] = {}
     while True:
         length = reader.read(1)
         if not length:
@@ -380,7 +380,12 @@ class SelectObjectReader:
     def __aenter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc_value, exc_traceback):
+    async def __aexit__(
+        self,
+        exc_type,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+        exc_value,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+        exc_traceback,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+    ):
         return await self.close()
 
     def readable(self) -> bool:  # pylint: disable=no-self-use

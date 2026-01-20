@@ -475,7 +475,7 @@ class LifecycleConfig:
     def fromxml(cls: Type[G], element: ET.Element) -> G:
         """Create new object with values from XML element."""
         elements = findall(element, "Rule")
-        rules = []
+        rules: list[Rule] = []
         for tag in elements:
             rules.append(Rule.fromxml(tag))
         return cls(rules)

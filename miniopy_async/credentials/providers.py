@@ -80,7 +80,7 @@ class Provider:  # pylint: disable=too-few-public-methods
     async def retrieve(self) -> Credentials:
         """Retrieve credentials and its expiry if available."""
 
-    def _ensure_session(self):
+    def _ensure_session(self):  # pyright: ignore[reportUnknownParameterType]
         raise NotImplementedError
 
     async def _urlopen(
@@ -94,7 +94,7 @@ class Provider:  # pylint: disable=too-few-public-methods
         self._ensure_session()
         if self._session is None:
             raise ValueError("Session is not initialized")
-        session = cast(ClientSession | RetryClient, self._session)
+        session = self._session
         res = await session.request(method, url, data=body, headers=headers)
         if res.status not in [200, 204, 206]:
             raise ValueError(f"{url} failed with HTTP status code {res.status}")
@@ -723,7 +723,9 @@ class CertificateIdentityProvider(Provider):
         if urlsplit(sts_endpoint).scheme != "https":
             raise ValueError("STS endpoint scheme must be HTTPS")
 
-        if bool(session) != (cert_file and key_file):
+        if bool(session) != (
+            cert_file and key_file
+        ):  # pyright: ignore[reportUnnecessaryComparison]
             pass
         else:
             raise ValueError(

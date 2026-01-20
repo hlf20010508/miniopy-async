@@ -55,7 +55,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
         asyncio.run(create_bucket())
 
     async def asyncSetUp(self):
-        self.client._ensure_session()
+        self.client._ensure_session()  # pyright: ignore[reportPrivateUsage]
 
     async def asyncTearDown(self):
         await self.client.close_session()
@@ -64,7 +64,7 @@ class Test(unittest.IsolatedAsyncioTestCase):
     @classmethod
     def tearDownClass(cls):
         async def remove_bucket():
-            cls.client._ensure_session()
+            cls.client._ensure_session()  # pyright: ignore[reportPrivateUsage]
             await cls.remove_bucket()
             await cls.client.close_session()
 

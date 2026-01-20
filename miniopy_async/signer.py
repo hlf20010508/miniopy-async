@@ -55,10 +55,9 @@ def _get_canonical_headers(
     headers: LooseHeaders,
 ) -> tuple[str, str]:
     """Get canonical headers."""
-    ordered_headers = {}
+    ordered_headers: dict[str, str] = {}
     headers = dict(headers)
     for key, values in headers.items():
-        key = cast(str, key)
         key = key.lower()
         if key not in (
             "authorization",

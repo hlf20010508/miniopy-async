@@ -19,14 +19,18 @@
 # Author: L-ING
 # Date: 2022-07-11
 
+import asyncio
 import json
+
 from aiohttp import ClientSession
+
 from miniopy_async import Minio
 from miniopy_async.credentials import WebIdentityProvider
-import asyncio
 
 
-async def get_jwt(client_id, client_secret, idp_client_id, idp_endpoint):
+async def get_jwt(
+    client_id: str, client_secret: str, idp_client_id: str, idp_endpoint: str
+):
     async with ClientSession() as session:
         res = await session.request(
             "POST",
@@ -80,5 +84,7 @@ async def main():
     stat = await client.stat_object("my-bucket", "my-object")
     print(stat)
 
+
+asyncio.run(main())
 
 asyncio.run(main())

@@ -26,6 +26,7 @@ import sys
 import time
 from queue import Empty, Queue
 from threading import Thread
+from typing import IO
 
 _BAR_SIZE = 20
 _KILOBYTE = 1024
@@ -56,7 +57,7 @@ class Progress(Thread):
     :return: :class:`Progress` object
     """
 
-    def __init__(self, interval=1, stdout=sys.stdout):
+    def __init__(self, interval: int = 1, stdout: IO[str] = sys.stdout):
         Thread.__init__(self)
         self.daemon = True
         self.total_length = 0
@@ -66,12 +67,12 @@ class Progress(Thread):
         self.last_printed_len = 0
         self.current_size = 0
 
-        self.display_queue = Queue()
+        self.display_queue: Queue[tuple[int, int]] = Queue()
         self.initial_time = time.time()
         self.stdout = stdout
         self.start()
 
-    async def set_meta(self, total_length, object_name):
+    async def set_meta(self, total_length: int, object_name: str | None):
         """
         Metadata settings for the object. This method called before uploading
         object
@@ -114,13 +115,13 @@ class Progress(Thread):
                 self.done_progress()
                 return
 
-    async def update(self, size):
+    async def update(self, size: int):
         """
         Update object size to be showed. This method called while uploading
         :param size: Object size to be showed. The object size should be in
                      bytes.
         """
-        if not isinstance(size, int):
+        if not isinstance(size, int):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError(
                 "{} type can not be displayed. "
                 "Please change it to Int.".format(type(size))
@@ -135,7 +136,9 @@ class Progress(Thread):
         self.last_printed_len = 0
         self.current_size = 0
 
-    def print_status(self, current_size, total_length, displayed_time, prefix):
+    def print_status(
+        self, current_size: int, total_length: int, displayed_time: float, prefix: str
+    ) -> None:
         formatted_str = prefix + format_string(
             current_size, total_length, displayed_time
         )
@@ -148,7 +151,7 @@ class Progress(Thread):
         self.last_printed_len = len(formatted_str)
 
 
-def seconds_to_time(seconds):
+def seconds_to_time(seconds: float) -> str:
     """
     Consistent time format to be displayed on the elapsed time in screen.
     :param seconds: seconds
@@ -161,7 +164,7 @@ def seconds_to_time(seconds):
         return _MINUTES_OF_ELAPSED % (m, seconds)
 
 
-def format_string(current_size, total_length, elapsed_time):
+def format_string(current_size: int, total_length: int, elapsed_time: float) -> str:
     """
     Consistent format to be displayed on the screen.
     :param current_size: Number of finished object size

@@ -125,7 +125,7 @@ class CommonConfig:
     ) -> tuple[list[str], str | None, PrefixFilterRule | None, SuffixFilterRule | None]:
         """Parse XML."""
         elements = findall(element, "Event")
-        events = []
+        events: list[str] = []
         for tag in elements:
             if tag.text is None:
                 raise ValueError("missing value in XML tag 'Event'")
@@ -345,15 +345,15 @@ class NotificationConfig:
     def fromxml(cls: Type[E], element: ET.Element) -> E:
         """Create new object with values from XML element."""
         elements = findall(element, "CloudFunctionConfiguration")
-        cloud_func_config_list = []
+        cloud_func_config_list: list[CloudFuncConfig] = []
         for tag in elements:
             cloud_func_config_list.append(CloudFuncConfig.fromxml(tag))
         elements = findall(element, "QueueConfiguration")
-        queue_config_list = []
+        queue_config_list: list[QueueConfig] = []
         for tag in elements:
             queue_config_list.append(QueueConfig.fromxml(tag))
         elements = findall(element, "TopicConfiguration")
-        topic_config_list = []
+        topic_config_list: list[TopicConfig] = []
         for tag in elements:
             topic_config_list.append(TopicConfig.fromxml(tag))
         return cls(

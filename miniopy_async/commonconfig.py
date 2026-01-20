@@ -44,7 +44,7 @@ _MAX_TAG_COUNT = 50
 A = TypeVar("A", bound="Tags")
 
 
-class Tags(dict):
+class Tags(dict[str, str]):
     """dict extended to bucket/object tags."""
 
     def __init__(self, for_object: bool = False):
@@ -58,7 +58,11 @@ class Tags(dict):
             raise ValueError(f"only {limit} {tag_type} tags are allowed")
         if not key or len(key) > _MAX_KEY_LENGTH or "&" in key:
             raise ValueError(f"invalid tag key '{key}'")
-        if value is None or len(value) > _MAX_VALUE_LENGTH or "&" in value:
+        if (
+            value is None  # pyright: ignore[reportUnnecessaryComparison]
+            or len(value) > _MAX_VALUE_LENGTH
+            or "&" in value
+        ):
             raise ValueError(f"invalid tag value '{value}'")
         super().__setitem__(key, value)
 
@@ -103,7 +107,7 @@ class Tag:
     def __init__(self, key: str, value: str):
         if not key:
             raise ValueError("key must be provided")
-        if value is None:
+        if value is None:  # pyright: ignore[reportUnnecessaryComparison]
             raise ValueError("value must be provided")
         self._key = key
         self._value = value
@@ -309,7 +313,9 @@ class ObjectConditionalReadArgs:
         modified_since: datetime | None = None,
         unmodified_since: datetime | None = None,
     ):
-        if ssec is not None and not isinstance(ssec, SseCustomerKey):
+        if ssec is not None and not isinstance(
+            ssec, SseCustomerKey
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("ssec must be SseCustomerKey type")
         if offset is not None and offset < 0:
             raise ValueError("offset should be zero or greater")
@@ -319,9 +325,13 @@ class ObjectConditionalReadArgs:
             raise ValueError("match_etag must not be empty")
         if not_match_etag is not None and not_match_etag == "":
             raise ValueError("not_match_etag must not be empty")
-        if modified_since is not None and not isinstance(modified_since, datetime):
+        if modified_since is not None and not isinstance(
+            modified_since, datetime
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("modified_since must be datetime.datetime type")
-        if unmodified_since is not None and not isinstance(unmodified_since, datetime):
+        if unmodified_since is not None and not isinstance(
+            unmodified_since, datetime
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("unmodified_since must be datetime.datetime type")
 
         self._bucket_name = bucket_name
@@ -478,7 +488,7 @@ class ComposeSource(ObjectConditionalReadArgs):
     def _validate_size(self, object_size: int):
         """Validate object size with offset and length."""
 
-        def make_error(name, value):
+        def make_error(name: str, value: int):
             ver = ("?versionId=" + self._version_id) if self._version_id else ""
             return ValueError(
                 f"Source {self._bucket_name}/{self._object_name}{ver}: "
@@ -558,7 +568,9 @@ class SnowballObject:
             raise ValueError("only one of filename or data must be provided")
         if data is not None and length is None:
             raise ValueError("length must be provided for data")
-        if mod_time is not None and not isinstance(mod_time, datetime):
+        if mod_time is not None and not isinstance(
+            mod_time, datetime
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
             raise ValueError("mod_time must be datetime type")
         self._mod_time = mod_time
 

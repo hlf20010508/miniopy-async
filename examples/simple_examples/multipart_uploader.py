@@ -17,6 +17,7 @@
 import asyncio
 
 from miniopy_async import Minio
+from miniopy_async.datatypes import Part
 
 client = Minio(
     "play.min.io",
@@ -72,14 +73,14 @@ async def main():
 
     # Parallel upload
     print("example four")
-    tasks = []
+    tasks: list[asyncio.Task[Part]] = []
     async with client.multipart_uploader(
         "my-bucket",
         "my-object",
     ) as uploader:
         for i in range(1, 11):
             data = (f"part{i}" * 1024 * 1024).encode("utf-8")
-            tasks.append(uploader.upload_part(data, i))
+            tasks.append(asyncio.create_task(uploader.upload_part(data, i)))
         await asyncio.gather(*tasks)
     result = uploader.result
     print(
