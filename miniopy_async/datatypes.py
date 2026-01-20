@@ -31,6 +31,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    AsyncIterator,
     Iterable,
     List,
     Tuple,
@@ -1148,7 +1149,7 @@ class PeerInfo:
         return data
 
 
-class ListObjects:
+class ListObjects(AsyncIterator[Object]):
     def __init__(
         self,
         client: Minio,
@@ -1190,13 +1191,13 @@ class ListObjects:
             extra_headers=self.extra_headers,
         )
 
-    def __aiter__(self):
+    def __aiter__(self) -> AsyncIterator[Object]:
         self.iterator = self.gen_iterator()
         return self
 
     async def __anext__(self) -> Object:
         if self.iterator is None:
-            self.gen_iterator()
+            self.iterator = self.gen_iterator()
 
         try:
             return await cast(AsyncGenerator, self.iterator).__anext__()
