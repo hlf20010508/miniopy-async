@@ -809,7 +809,7 @@ class PostPolicy:
         ):
             raise ValueError("key condition must be set")
 
-        policy: OrderedDict[str, str | list[str | list[str]] | None] = OrderedDict()
+        policy: OrderedDict[str, str | list[str | list[str] | list[str | int] ] | None] = OrderedDict()
         policy["expiration"] = to_iso8601utc(self._expiration)
         policy["conditions"] = [[_EQ, "$bucket", self._bucket_name]]
         for cond_key, conditions in self._conditions.items():
@@ -819,8 +819,8 @@ class PostPolicy:
             policy["conditions"].append(
                 [
                     "content-length-range",
-                    str(self._lower_limit),
-                    str(self._upper_limit),
+                    self._lower_limit,
+                    self._upper_limit,
                 ],
             )
         credential = get_credential_string(creds.access_key, utcnow(), region)
