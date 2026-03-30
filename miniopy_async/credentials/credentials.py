@@ -70,7 +70,7 @@ class Credentials:
     def is_expired(self) -> bool:
         """Check whether this credentials expired or not."""
         return (
-            self._expiration < (utcnow() + timedelta(seconds=10))
+            self._expiration < (datetime.now() + timedelta(seconds=10))
             if self._expiration
             else False
         )
