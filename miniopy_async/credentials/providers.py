@@ -449,7 +449,7 @@ class IamAwsProvider(Provider):
             return self._credentials
 
         url = self._custom_endpoint
-        if self._token_file:
+        if self._identity_file:
             if not url:
                 url = "https://sts.amazonaws.com"
                 if self._aws_region:
