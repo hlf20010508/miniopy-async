@@ -28,7 +28,7 @@ aiohttp = "^3.11.14"
 certifi = ">=2025.1.31"
 aiohttp-retry = "^2.9.1"
 argon2-cffi = ">=23.1.0"
-pycryptodome = "^3.22.0"
+pycryptodome = ">=3.22.0,<5"
 
 [tool.poetry.group.dev.dependencies]
 sanic = "^24.12.0"
